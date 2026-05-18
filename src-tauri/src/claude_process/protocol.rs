@@ -198,6 +198,13 @@ pub fn control_request_stop_task(request_id: String) -> StdinMessage {
     }
 }
 
+pub fn control_request_set_permission_mode(request_id: String, mode: &str) -> StdinMessage {
+    StdinMessage::ControlRequest {
+        request_id,
+        request: serde_json::json!({ "subtype": "set_permission_mode", "mode": mode }),
+    }
+}
+
 pub fn control_response_error(request_id: String, error: String) -> StdinMessage {
     StdinMessage::ControlResponse {
         response: ControlResponseEnvelope::Error {

@@ -30,6 +30,7 @@ pub enum DomainEvent {
         session_id: Option<String>,
         slash_commands: Vec<Value>,
         model: Option<String>,
+        permission_mode: Option<String>,
     },
     RateLimit {
         raw: Value,
@@ -78,10 +79,15 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
                 .get("model")
                 .and_then(|v| v.as_str())
                 .map(String::from);
+            let permission_mode = rest
+                .get("permissionMode")
+                .and_then(|v| v.as_str())
+                .map(String::from);
             DomainEvent::SessionInit {
                 session_id,
                 slash_commands,
                 model,
+                permission_mode,
             }
         }
         StreamMessage::System {

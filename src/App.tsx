@@ -66,6 +66,7 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     slashCommands,
     model,
     interrupt,
+    usage,
   } = useClaudeSession()
   const {
     expandedId,
@@ -108,6 +109,11 @@ function MainLayout({ projectPath }: { projectPath: string }) {
           />
           긴 답변 자동 펼침
         </label>
+        {usage.turnCount > 0 && (
+          <span className="app__usage" title={`${usage.turnCount} turns · ${usage.inputTokens}↑ ${usage.outputTokens}↓ tokens`}>
+            ${usage.totalCostUsd.toFixed(4)} · {(usage.totalDurationMs / 1000).toFixed(1)}s
+          </span>
+        )}
       </div>
       {hookActivity && (
         <div className="app__hook-banner">⚙ {hookActivity}</div>

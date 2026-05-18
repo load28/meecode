@@ -8,6 +8,14 @@ import {
   type StreamMessageEvent,
 } from './reduceStreamMessage'
 
+interface UsageStats {
+  totalCostUsd: number
+  totalDurationMs: number
+  turnCount: number
+  inputTokens: number
+  outputTokens: number
+}
+
 interface SessionState {
   pairs: QaPair[]
   currentId: string | null
@@ -17,6 +25,7 @@ interface SessionState {
   rateLimit: string | null
   slashCommands: SlashCommand[]
   model: string | null
+  usage: UsageStats
 }
 
 export interface UseClaudeSessionResult {
@@ -27,6 +36,7 @@ export interface UseClaudeSessionResult {
   rateLimit: string | null
   slashCommands: SlashCommand[]
   model: string | null
+  usage: UsageStats
   sendUserMessage: (text: string) => Promise<void>
   respondTool: (
     requestId: string,
@@ -37,6 +47,32 @@ export interface UseClaudeSessionResult {
   cycleMode: () => void
   dismissRateLimit: () => void
   interrupt: () => Promise<void>
+}
+
+function modeFromClaude(s: string | undefined | null): Mode | null {
+  if (!s) return null
+  switch (s) {
+    case 'default':
+      return 'default'
+    case 'plan':
+      return 'plan'
+    case 'auto':
+    case 'acceptEdits':
+      return 'auto-accept'
+    default:
+      return null
+  }
+}
+
+function modeToClaude(m: Mode): string {
+  switch (m) {
+    case 'default':
+      return 'default'
+    case 'plan':
+      return 'plan'
+    case 'auto-accept':
+      return 'acceptEdits'
+  }
 }
 
 const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
@@ -51,6 +87,13 @@ export function useClaudeSession(): UseClaudeSessionResult {
     rateLimit: null,
     slashCommands: [],
     model: null,
+    usage: {
+      totalCostUsd: 0,
+      totalDurationMs: 0,
+      turnCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+    },
   })
 
   useEffect(() => {
@@ -136,16 +179,44 @@ export function useClaudeSession(): UseClaudeSessionResult {
         session_id?: string
         slash_commands?: Array<{ name?: string; description?: string }>
         model?: string
+        permission_mode?: string
       }>('session:init', (e) => {
         const cmds: SlashCommand[] = (e.payload.slash_commands ?? [])
           .filter((c): c is { name: string; description?: string } =>
             typeof c.name === 'string' && c.name.length > 0,
           )
           .map((c) => ({ name: c.name, description: c.description }))
+        const claudeMode = modeFromClaude(e.payload.permission_mode)
         setState((s) => ({
           ...s,
           slashCommands: cmds.length ? cmds : s.slashCommands,
           model: e.payload.model ?? s.model,
+          mode: claudeMode ?? s.mode,
+        }))
+      }),
+    )
+
+    unlistens.push(
+      listen<{
+        subtype?: string
+        rest?: {
+          total_cost_usd?: number
+          duration_ms?: number
+          usage?: { input_tokens?: number; output_tokens?: number }
+        }
+      }>('session:turn_end', (e) => {
+        const r = e.payload.rest ?? {}
+        setState((s) => ({
+          ...s,
+          usage: {
+            totalCostUsd:
+              s.usage.totalCostUsd + (typeof r.total_cost_usd === 'number' ? r.total_cost_usd : 0),
+            totalDurationMs:
+              s.usage.totalDurationMs + (typeof r.duration_ms === 'number' ? r.duration_ms : 0),
+            turnCount: s.usage.turnCount + 1,
+            inputTokens: s.usage.inputTokens + (r.usage?.input_tokens ?? 0),
+            outputTokens: s.usage.outputTokens + (r.usage?.output_tokens ?? 0),
+          },
         }))
       }),
     )
@@ -201,6 +272,9 @@ export function useClaudeSession(): UseClaudeSessionResult {
   const cycleMode = useCallback(() => {
     setState((s) => {
       const next = MODE_CYCLE[(MODE_CYCLE.indexOf(s.mode) + 1) % MODE_CYCLE.length]
+      invoke('set_permission_mode', { mode: modeToClaude(next) }).catch((e) =>
+        console.warn('[meecode] set_permission_mode failed', e),
+      )
       return { ...s, mode: next }
     })
   }, [])
@@ -221,6 +295,7 @@ export function useClaudeSession(): UseClaudeSessionResult {
     rateLimit: state.rateLimit,
     slashCommands: state.slashCommands,
     model: state.model,
+    usage: state.usage,
     sendUserMessage,
     respondTool,
     cycleMode,

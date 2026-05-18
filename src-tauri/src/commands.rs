@@ -1,6 +1,6 @@
 use crate::claude_process::protocol::{
-    control_request_stop_task, control_response, control_response_error, user_text_message,
-    PermissionBehavior, StdinMessage,
+    control_request_set_permission_mode, control_request_stop_task, control_response,
+    control_response_error, user_text_message, PermissionBehavior, StdinMessage,
 };
 use crate::claude_process::spawn::{spawn_claude, ProcessHandle};
 use crate::claude_process::stdout_parser::DomainEvent;
@@ -95,6 +95,7 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
             session_id,
             slash_commands,
             model,
+            permission_mode,
         } => {
             if let Some(ref id) = session_id {
                 if let Some(state) = app.try_state::<AppState>() {
@@ -109,6 +110,7 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                     "session_id": session_id,
                     "slash_commands": slash_commands,
                     "model": model,
+                    "permission_mode": permission_mode,
                 }),
             );
         }
@@ -216,6 +218,16 @@ pub async fn send_tool_response(
 pub async fn interrupt_session(app: AppHandle) -> Result<(), String> {
     let request_id = format!("interrupt-{}", chrono_now_millis());
     send_to_stdin(&app, control_request_stop_task(request_id)).await
+}
+
+#[tauri::command]
+pub async fn set_permission_mode(app: AppHandle, mode: String) -> Result<(), String> {
+    let request_id = format!("mode-{}", chrono_now_millis());
+    send_to_stdin(
+        &app,
+        control_request_set_permission_mode(request_id, &mode),
+    )
+    .await
 }
 
 fn chrono_now_millis() -> u128 {
