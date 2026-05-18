@@ -19,3 +19,12 @@ export interface QaPair {
   segments: AssistantSegment[]
   timestamp: string
 }
+
+export interface ToolRequest {
+  request_id: string
+  tool_name: string
+  input: unknown
+  tool_use_id: string | null
+}
+
+export type Mode = 'default' | 'plan' | 'auto-accept'

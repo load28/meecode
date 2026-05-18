@@ -5,7 +5,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ChatStream } from './components/ChatStream'
 import { ChatComposer } from './components/ChatComposer'
 import { ExpandPane } from './components/ExpandPane'
-import { usePtyStream } from './hooks/usePtyStream'
+import { useClaudeSession } from './hooks/useClaudeSession'
 import { useExpandPanel } from './hooks/useExpandPanel'
 import './App.css'
 
@@ -50,7 +50,7 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
 }
 
 function MainLayout({ projectPath }: { projectPath: string }) {
-  const { pairs } = usePtyStream()
+  const { pairs } = useClaudeSession()
   const {
     expandedId,
     setExpandedId,
