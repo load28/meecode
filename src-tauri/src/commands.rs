@@ -98,6 +98,10 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
             slash_commands,
             model,
             permission_mode,
+            cwd,
+            mcp_servers,
+            agents,
+            tools,
         } => {
             if let Some(ref id) = session_id {
                 if let Some(state) = app.try_state::<AppState>() {
@@ -113,6 +117,10 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                     "slash_commands": slash_commands,
                     "model": model,
                     "permission_mode": permission_mode,
+                    "cwd": cwd,
+                    "mcp_servers": mcp_servers,
+                    "agents": agents,
+                    "tools": tools,
                 }),
             );
         }

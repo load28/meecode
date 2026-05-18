@@ -5,6 +5,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ChatStream } from './components/ChatStream'
 import { ChatComposer } from './components/ChatComposer'
 import { ExpandPane } from './components/ExpandPane'
+import { SessionInfoBar } from './components/SessionInfoBar'
 import { useClaudeSession } from './hooks/useClaudeSession'
 import { useExpandPanel } from './hooks/useExpandPanel'
 import './App.css'
@@ -69,6 +70,11 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     usage,
     setModel,
     clearConversation,
+    sessionId,
+    cwd,
+    mcpServers,
+    agents,
+    tools,
   } = useClaudeSession()
 
   const recentUserTexts = useMemo(() => {
@@ -123,6 +129,13 @@ function MainLayout({ projectPath }: { projectPath: string }) {
             ${usage.totalCostUsd.toFixed(4)} · {(usage.totalDurationMs / 1000).toFixed(1)}s
           </span>
         )}
+        <SessionInfoBar
+          sessionId={sessionId}
+          cwd={cwd}
+          mcpServers={mcpServers}
+          agents={agents}
+          tools={tools}
+        />
         <select
           className="app__model-picker"
           value={model ?? ''}

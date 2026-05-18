@@ -32,6 +32,10 @@ pub enum DomainEvent {
         slash_commands: Vec<Value>,
         model: Option<String>,
         permission_mode: Option<String>,
+        cwd: Option<String>,
+        mcp_servers: Vec<Value>,
+        agents: Vec<Value>,
+        tools: Vec<Value>,
     },
     RateLimit {
         raw: Value,
@@ -88,11 +92,34 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
                 .get("permissionMode")
                 .and_then(|v| v.as_str())
                 .map(String::from);
+            let cwd = rest
+                .get("cwd")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            let mcp_servers = rest
+                .get("mcp_servers")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let agents = rest
+                .get("agents")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let tools = rest
+                .get("tools")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
             DomainEvent::SessionInit {
                 session_id,
                 slash_commands,
                 model,
                 permission_mode,
+                cwd,
+                mcp_servers,
+                agents,
+                tools,
             }
         }
         StreamMessage::System {

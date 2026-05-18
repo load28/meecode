@@ -1,0 +1,138 @@
+.session-info {
+  position: relative;
+  margin-left: 8px;
+}
+
+.session-info__toggle {
+  background: transparent;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: #8b949e;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-info__toggle:hover {
+  border-color: #1f6feb;
+}
+
+.session-info__chip {
+  font-family: 'Menlo', 'Monaco', monospace;
+  color: #c9d1d9;
+}
+
+.session-info__caret {
+  color: #6e7681;
+  margin-left: 2px;
+}
+
+.session-info__panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 360px;
+  max-width: 90vw;
+  font-size: 12px;
+  z-index: 20;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.session-info__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px dashed #21262d;
+}
+
+.session-info__row:last-child {
+  border-bottom: none;
+}
+
+.session-info__label {
+  color: #6e7681;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.session-info__row code {
+  color: #c9d1d9;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.session-info__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-info__list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c9d1d9;
+}
+
+.session-info__mcp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-info__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #6e7681;
+}
+
+.session-info__mcp--connected .session-info__dot {
+  background: #2ea043;
+}
+.session-info__mcp--failed .session-info__dot,
+.session-info__mcp--disconnected .session-info__dot {
+  background: #f85149;
+}
+
+.session-info__status {
+  font-size: 10px;
+  color: #6e7681;
+  margin-left: auto;
+}
+
+.session-info__desc {
+  color: #8b949e;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.session-info__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.session-info__tool {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #79c0ff;
+  font-size: 11px;
+}

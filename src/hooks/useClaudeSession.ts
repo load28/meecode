@@ -16,6 +16,16 @@ interface UsageStats {
   outputTokens: number
 }
 
+export interface McpServerInfo {
+  name: string
+  status?: string
+}
+
+export interface AgentInfo {
+  name: string
+  description?: string
+}
+
 interface SessionState {
   pairs: QaPair[]
   currentId: string | null
@@ -26,6 +36,11 @@ interface SessionState {
   slashCommands: SlashCommand[]
   model: string | null
   usage: UsageStats
+  sessionId: string | null
+  cwd: string | null
+  mcpServers: McpServerInfo[]
+  agents: AgentInfo[]
+  tools: string[]
 }
 
 export interface UseClaudeSessionResult {
@@ -37,6 +52,11 @@ export interface UseClaudeSessionResult {
   slashCommands: SlashCommand[]
   model: string | null
   usage: UsageStats
+  sessionId: string | null
+  cwd: string | null
+  mcpServers: McpServerInfo[]
+  agents: AgentInfo[]
+  tools: string[]
   sendUserMessage: (
     text: string,
     images?: Array<{ media_type: string; data: string }>,
@@ -100,6 +120,11 @@ export function useClaudeSession(): UseClaudeSessionResult {
       inputTokens: 0,
       outputTokens: 0,
     },
+    sessionId: null,
+    cwd: null,
+    mcpServers: [],
+    agents: [],
+    tools: [],
   })
 
   useEffect(() => {
@@ -204,6 +229,10 @@ export function useClaudeSession(): UseClaudeSessionResult {
         slash_commands?: Array<{ name?: string; description?: string }>
         model?: string
         permission_mode?: string
+        cwd?: string
+        mcp_servers?: Array<{ name?: string; status?: string }>
+        agents?: Array<{ name?: string; description?: string } | string>
+        tools?: Array<string | { name?: string }>
       }>('session:init', (e) => {
         const cmds: SlashCommand[] = (e.payload.slash_commands ?? [])
           .filter((c): c is { name: string; description?: string } =>
@@ -211,11 +240,31 @@ export function useClaudeSession(): UseClaudeSessionResult {
           )
           .map((c) => ({ name: c.name, description: c.description }))
         const claudeMode = modeFromClaude(e.payload.permission_mode)
+        const servers: McpServerInfo[] = (e.payload.mcp_servers ?? [])
+          .filter((m): m is { name: string; status?: string } =>
+            typeof m.name === 'string' && m.name.length > 0,
+          )
+          .map((m) => ({ name: m.name, status: m.status }))
+        const agents: AgentInfo[] = (e.payload.agents ?? [])
+          .map((a) =>
+            typeof a === 'string'
+              ? { name: a }
+              : { name: a.name ?? '', description: a.description },
+          )
+          .filter((a) => a.name)
+        const tools: string[] = (e.payload.tools ?? [])
+          .map((t) => (typeof t === 'string' ? t : t.name ?? ''))
+          .filter((t) => t)
         setState((s) => ({
           ...s,
           slashCommands: cmds.length ? cmds : s.slashCommands,
           model: e.payload.model ?? s.model,
           mode: claudeMode ?? s.mode,
+          sessionId: e.payload.session_id ?? s.sessionId,
+          cwd: e.payload.cwd ?? s.cwd,
+          mcpServers: servers.length ? servers : s.mcpServers,
+          agents: agents.length ? agents : s.agents,
+          tools: tools.length ? tools : s.tools,
         }))
       }),
     )
@@ -345,6 +394,11 @@ export function useClaudeSession(): UseClaudeSessionResult {
     slashCommands: state.slashCommands,
     model: state.model,
     usage: state.usage,
+    sessionId: state.sessionId,
+    cwd: state.cwd,
+    mcpServers: state.mcpServers,
+    agents: state.agents,
+    tools: state.tools,
     sendUserMessage,
     respondTool,
     cycleMode,
