@@ -49,7 +49,7 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
 }
 
 function MainLayout({ projectPath }: { projectPath: string }) {
-  const { markdownContent, isMarkdownVisible } = usePtyStream()
+  const { pairs, selectedId, isVisible, selectPair } = usePtyStream()
 
   return (
     <div className="app">
@@ -63,14 +63,19 @@ function MainLayout({ projectPath }: { projectPath: string }) {
           </Panel>
           <PanelResizeHandle
             className="resize-handle"
-            style={{ display: isMarkdownVisible ? undefined : 'none' }}
+            style={{ display: isVisible ? undefined : 'none' }}
           />
           <Panel
             defaultSize={50}
             minSize={20}
-            style={{ display: isMarkdownVisible ? undefined : 'none' }}
+            style={{ display: isVisible ? undefined : 'none' }}
           >
-            <MarkdownPane content={markdownContent} isVisible={isMarkdownVisible} />
+            <MarkdownPane
+              pairs={pairs}
+              selectedId={selectedId}
+              onSelect={selectPair}
+              isVisible={isVisible}
+            />
           </Panel>
         </PanelGroup>
       </div>

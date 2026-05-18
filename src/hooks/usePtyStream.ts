@@ -1,29 +1,50 @@
 import { useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import type { QaPair } from '../types'
 
-interface PtyStreamState {
-  markdownContent: string
-  isMarkdownVisible: boolean
+interface SessionState {
+  pairs: QaPair[]
+  selectedId: string | null
+  isVisible: boolean
 }
 
-export function usePtyStream(): PtyStreamState {
-  const [state, setState] = useState<PtyStreamState>({
-    markdownContent: '',
-    isMarkdownVisible: false,
+interface Result extends SessionState {
+  selectPair: (id: string) => void
+}
+
+export function usePtyStream(): Result {
+  const [state, setState] = useState<SessionState>({
+    pairs: [],
+    selectedId: null,
+    isVisible: false,
   })
 
   useEffect(() => {
-    const unlistenMd = listen<string>('md:update', (event) => {
-      setState({
-        markdownContent: event.payload,
-        isMarkdownVisible: true,
+    const unlisten = listen<QaPair[]>('session:update', (event) => {
+      const pairs = event.payload
+      setState((prev) => {
+        const hasSelected = prev.selectedId && pairs.some((p) => p.id === prev.selectedId)
+        const selectedId = hasSelected
+          ? prev.selectedId
+          : pairs.length > 0
+            ? pairs[pairs.length - 1].id
+            : null
+        return {
+          pairs,
+          selectedId,
+          isVisible: pairs.length > 0,
+        }
       })
     })
 
     return () => {
-      unlistenMd.then((fn) => fn())
+      unlisten.then((fn) => fn())
     }
   }, [])
 
-  return state
+  const selectPair = (id: string) => {
+    setState((prev) => ({ ...prev, selectedId: id }))
+  }
+
+  return { ...state, selectPair }
 }

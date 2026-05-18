@@ -28,12 +28,11 @@ pub fn start_session(
 ) -> Result<(), String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let claude_cmd = config.claude_path.as_deref().unwrap_or("claude");
-    let threshold = config.markdown_threshold;
 
     let manager = PtyManager::spawn(app.clone(), claude_cmd, &path)?;
     *state.pty.lock().map_err(|e| e.to_string())? = Some(manager);
 
-    let watcher = SessionWatcher::start(app, &path, threshold)?;
+    let watcher = SessionWatcher::start(app, &path)?;
     *state.watcher.lock().map_err(|e| e.to_string())? = Some(watcher);
 
     Ok(())

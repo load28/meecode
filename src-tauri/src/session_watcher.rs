@@ -1,4 +1,5 @@
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
@@ -6,12 +7,20 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use tauri::{AppHandle, Emitter};
 
+#[derive(Serialize, Clone, PartialEq, Debug)]
+pub struct QaPair {
+    pub id: String,
+    pub user_text: String,
+    pub assistant_text: String,
+    pub timestamp: String,
+}
+
 pub struct SessionWatcher {
     _watcher: RecommendedWatcher,
 }
 
 impl SessionWatcher {
-    pub fn start(app: AppHandle, project_path: &str, threshold: usize) -> Result<Self, String> {
+    pub fn start(app: AppHandle, project_path: &str) -> Result<Self, String> {
         let projects_dir = Self::projects_dir_for(project_path)?;
         std::fs::create_dir_all(&projects_dir).map_err(|e| e.to_string())?;
 
@@ -22,7 +31,7 @@ impl SessionWatcher {
             .watch(&projects_dir, RecursiveMode::NonRecursive)
             .map_err(|e| e.to_string())?;
 
-        let last_emitted: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+        let last_emitted: Arc<Mutex<Vec<QaPair>>> = Arc::new(Mutex::new(Vec::new()));
         let dir_for_thread = projects_dir.clone();
 
         std::thread::spawn(move || {
@@ -30,13 +39,11 @@ impl SessionWatcher {
                 match rx.recv() {
                     Ok(Ok(event)) => match event.kind {
                         EventKind::Create(_) | EventKind::Modify(_) => {
-                            if let Some(text) = Self::latest_assistant_text(&dir_for_thread) {
-                                if text.len() >= threshold {
-                                    let mut last = last_emitted.lock().unwrap();
-                                    if *last != text {
-                                        *last = text.clone();
-                                        app.emit("md:update", text).ok();
-                                    }
+                            if let Some(pairs) = Self::latest_session_pairs(&dir_for_thread) {
+                                let mut last = last_emitted.lock().unwrap();
+                                if *last != pairs {
+                                    *last = pairs.clone();
+                                    app.emit("session:update", pairs).ok();
                                 }
                             }
                         }
@@ -57,7 +64,7 @@ impl SessionWatcher {
         Ok(home.join(".claude").join("projects").join(dash_path))
     }
 
-    pub fn latest_assistant_text(dir: &Path) -> Option<String> {
+    pub fn latest_session_pairs(dir: &Path) -> Option<Vec<QaPair>> {
         let entries = std::fs::read_dir(dir).ok()?;
         let mut newest: Option<(PathBuf, SystemTime)> = None;
         for entry in entries.flatten() {
@@ -72,13 +79,38 @@ impl SessionWatcher {
             }
         }
         let (path, _) = newest?;
-        extract_last_assistant_text(&path)
+        Some(extract_qa_pairs(&path))
     }
 }
 
-pub fn extract_last_assistant_text(path: &Path) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    let mut last: Option<String> = None;
+fn extract_text_from_content(content: &Value) -> String {
+    if let Some(s) = content.as_str() {
+        return s.to_string();
+    }
+    if let Some(arr) = content.as_array() {
+        let mut out = String::new();
+        for item in arr {
+            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
+                if let Some(s) = item.get("text").and_then(|t| t.as_str()) {
+                    if !out.is_empty() {
+                        out.push('\n');
+                    }
+                    out.push_str(s);
+                }
+            }
+        }
+        return out;
+    }
+    String::new()
+}
+
+pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let mut pairs: Vec<QaPair> = Vec::new();
+    let mut current: Option<QaPair> = None;
+
     for line in content.lines() {
         let line = line.trim();
         if line.is_empty() {
@@ -88,30 +120,59 @@ pub fn extract_last_assistant_text(path: &Path) -> Option<String> {
             Ok(v) => v,
             Err(_) => continue,
         };
-        if v.get("type").and_then(|t| t.as_str()) != Some("assistant") {
-            continue;
-        }
-        let content_arr = v
-            .get("message")
-            .and_then(|m| m.get("content"))
-            .and_then(|c| c.as_array());
-        let Some(arr) = content_arr else { continue };
-        let mut text = String::new();
-        for item in arr {
-            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
-                if let Some(s) = item.get("text").and_then(|t| t.as_str()) {
-                    if !text.is_empty() {
-                        text.push('\n');
-                    }
-                    text.push_str(s);
+        let msg_type = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        match msg_type {
+            "user" => {
+                if let Some(prev) = current.take() {
+                    pairs.push(prev);
                 }
+                let user_text = v
+                    .get("message")
+                    .and_then(|m| m.get("content"))
+                    .map(extract_text_from_content)
+                    .unwrap_or_default();
+                if user_text.is_empty() {
+                    continue;
+                }
+                let id = v
+                    .get("uuid")
+                    .and_then(|u| u.as_str())
+                    .map(String::from)
+                    .unwrap_or_else(|| format!("idx-{}", pairs.len()));
+                let timestamp = v
+                    .get("timestamp")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                current = Some(QaPair {
+                    id,
+                    user_text,
+                    assistant_text: String::new(),
+                    timestamp,
+                });
             }
-        }
-        if !text.is_empty() {
-            last = Some(text);
+            "assistant" => {
+                let Some(pair) = current.as_mut() else { continue };
+                let text = v
+                    .get("message")
+                    .and_then(|m| m.get("content"))
+                    .map(extract_text_from_content)
+                    .unwrap_or_default();
+                if text.is_empty() {
+                    continue;
+                }
+                if !pair.assistant_text.is_empty() {
+                    pair.assistant_text.push('\n');
+                }
+                pair.assistant_text.push_str(&text);
+            }
+            _ => {}
         }
     }
-    last
+    if let Some(prev) = current.take() {
+        pairs.push(prev);
+    }
+    pairs
 }
 
 #[cfg(test)]
@@ -128,66 +189,74 @@ mod tests {
     }
 
     #[test]
-    fn extract_returns_last_assistant_text() {
+    fn extracts_single_qa_pair() {
         let mut file = NamedTempFile::new().unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"user","message":{"content":"hello"}}"#
-        )
-        .unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"first answer"}]}}"#
-        )
-        .unwrap();
-        writeln!(file, "{}", r#"{"type":"system","subtype":"x"}"#).unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"second answer"}]}}"#
-        )
-        .unwrap();
-        let result = extract_last_assistant_text(file.path()).unwrap();
-        assert_eq!(result, "second answer");
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"2026-05-18T00:00:00Z","message":{{"role":"user","content":"hi"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","uuid":"a1","timestamp":"2026-05-18T00:00:01Z","message":{{"content":[{{"type":"text","text":"hello"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].id, "u1");
+        assert_eq!(pairs[0].user_text, "hi");
+        assert_eq!(pairs[0].assistant_text, "hello");
+        assert_eq!(pairs[0].timestamp, "2026-05-18T00:00:00Z");
     }
 
     #[test]
-    fn extract_returns_none_when_no_assistant() {
+    fn merges_consecutive_assistant_messages() {
         let mut file = NamedTempFile::new().unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"user","message":{"content":"hello"}}"#
-        )
-        .unwrap();
-        assert!(extract_last_assistant_text(file.path()).is_none());
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"first"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"second"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].assistant_text, "first\nsecond");
     }
 
     #[test]
-    fn extract_joins_multiple_text_blocks() {
+    fn skips_empty_assistant_content() {
         let mut file = NamedTempFile::new().unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"part1"},{"type":"text","text":"part2"}]}}"#
-        )
-        .unwrap();
-        let result = extract_last_assistant_text(file.path()).unwrap();
-        assert_eq!(result, "part1\npart2");
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"answer"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].assistant_text, "answer");
     }
 
     #[test]
-    fn extract_ignores_non_text_content() {
+    fn multiple_turns_in_order() {
         let mut file = NamedTempFile::new().unwrap();
-        writeln!(
-            file,
-            "{}",
-            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"x"},{"type":"text","text":"answer"}]}}"#
-        )
-        .unwrap();
-        let result = extract_last_assistant_text(file.path()).unwrap();
-        assert_eq!(result, "answer");
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t1","message":{{"content":"q1"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"a1"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u2","timestamp":"t2","message":{{"content":"q2"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"a2"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(pairs[0].user_text, "q1");
+        assert_eq!(pairs[0].assistant_text, "a1");
+        assert_eq!(pairs[1].user_text, "q2");
+        assert_eq!(pairs[1].assistant_text, "a2");
+    }
+
+    #[test]
+    fn ignores_system_and_meta_types() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"system","subtype":"x"}}"#).unwrap();
+        writeln!(file, r#"{{"type":"ai-title","aiTitle":"x"}}"#).unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"a"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].user_text, "q");
+    }
+
+    #[test]
+    fn user_message_with_text_array_content() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":[{{"type":"text","text":"hello"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"a"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].user_text, "hello");
     }
 }
