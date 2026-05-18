@@ -14,6 +14,7 @@ pub fn run() {
             commands::write_input,
             commands::get_config,
             commands::set_config,
+            commands::resize_pty,
         ])
         .run(tauri::generate_context!())
         .expect("error running meecode");

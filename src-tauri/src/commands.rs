@@ -52,3 +52,12 @@ pub fn set_config(config: Config, state: State<AppState>) -> Result<(), String> 
     *state.config.lock().map_err(|e| e.to_string())? = config;
     Ok(())
 }
+
+#[tauri::command]
+pub fn resize_pty(rows: u16, cols: u16, state: State<AppState>) -> Result<(), String> {
+    let pty = state.pty.lock().map_err(|e| e.to_string())?;
+    match pty.as_ref() {
+        Some(manager) => manager.resize(rows, cols),
+        None => Ok(()),
+    }
+}

@@ -27,19 +27,40 @@ export function TerminalPane() {
     term.loadAddon(fitAddon)
     term.open(containerRef.current)
     fitAddon.fit()
+    invoke('resize_pty', { rows: term.rows, cols: term.cols }).catch(console.error)
+
+    let isComposing = false
 
     term.onData((data) => {
-      invoke('write_input', { text: data }).catch(console.error)
+      if (!isComposing) {
+        invoke('write_input', { text: data }).catch(console.error)
+      }
     })
+
+    const container = containerRef.current
+    const onCompositionStart = () => { isComposing = true }
+    const onCompositionEnd = (e: CompositionEvent) => {
+      isComposing = false
+      if (e.data) {
+        invoke('write_input', { text: e.data }).catch(console.error)
+      }
+    }
+    container.addEventListener('compositionstart', onCompositionStart)
+    container.addEventListener('compositionend', onCompositionEnd)
 
     const unlistenPty = listen<string>('pty:data', (event) => {
       term.write(event.payload)
     })
 
-    const resizeObserver = new ResizeObserver(() => fitAddon.fit())
-    resizeObserver.observe(containerRef.current)
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.fit()
+      invoke('resize_pty', { rows: term.rows, cols: term.cols }).catch(console.error)
+    })
+    resizeObserver.observe(container)
 
     return () => {
+      container.removeEventListener('compositionstart', onCompositionStart)
+      container.removeEventListener('compositionend', onCompositionEnd)
       resizeObserver.disconnect()
       unlistenPty.then((fn) => fn())
       term.dispose()
