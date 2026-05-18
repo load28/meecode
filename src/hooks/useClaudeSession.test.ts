@@ -109,22 +109,42 @@ describe('useClaudeSession', () => {
     expect(result.current.mode).toBe('default')
   })
 
-  it('session:message로 같은 id 페어 갱신', async () => {
+  it('session:message(assistant) → 마지막 페어에 segments 누적', async () => {
     const { result } = renderHook(() => useClaudeSession())
     await waitFor(() =>
       expect(listeners['session:message']?.length).toBeGreaterThan(0),
     )
     act(() => fire('session:history', [pair('a')]))
-    const updated: QaPair = {
-      id: 'a',
-      user_text: 'q',
-      segments: [{ kind: 'text', text: 'answer' }],
-      timestamp: 't',
-    }
-    act(() => fire('session:message', updated))
+    act(() =>
+      fire('session:message', {
+        kind: 'assistant',
+        uuid: null,
+        body: {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'answer' }],
+        },
+      }),
+    )
     expect(result.current.pairs).toHaveLength(1)
     expect(result.current.pairs[0].segments).toEqual([
       { kind: 'text', text: 'answer' },
     ])
+  })
+
+  it('session:message(user) → 새 페어 시작', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await waitFor(() =>
+      expect(listeners['session:message']?.length).toBeGreaterThan(0),
+    )
+    act(() =>
+      fire('session:message', {
+        kind: 'user',
+        uuid: 'u-fresh',
+        body: { role: 'user', content: 'hello' },
+      }),
+    )
+    expect(result.current.pairs).toHaveLength(1)
+    expect(result.current.pairs[0].user_text).toBe('hello')
+    expect(result.current.pairs[0].id).toBe('u-fresh')
   })
 })

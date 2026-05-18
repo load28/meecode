@@ -69,6 +69,21 @@ fn empty_input_emits_no_events() {
 }
 
 #[test]
+fn assistant_message_carries_kind_and_uuid() {
+    let raw = r#"{"type":"assistant","uuid":"u-7","session_id":"s-1","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::Message { kind, uuid, body }] => {
+            assert_eq!(*kind, "assistant");
+            assert_eq!(uuid.as_deref(), Some("u-7"));
+            assert!(body.get("content").is_some(), "body must keep content: {body:?}");
+        }
+        other => panic!("expected one Message; got {other:?}"),
+    }
+}
+
+#[test]
 fn result_message_emits_turn_end() {
     let raw = r#"{"type":"result","subtype":"success","duration_ms":1000}"#;
     let mut events = Vec::new();

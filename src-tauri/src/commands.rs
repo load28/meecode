@@ -39,8 +39,15 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                 serde_json::json!({ "session_id": session_id }),
             );
         }
-        DomainEvent::Message { raw } => {
-            let _ = app.emit("session:message", raw);
+        DomainEvent::Message { kind, uuid, body } => {
+            let _ = app.emit(
+                "session:message",
+                serde_json::json!({
+                    "kind": kind,
+                    "uuid": uuid,
+                    "body": body,
+                }),
+            );
         }
         DomainEvent::ToolRequest {
             request_id,

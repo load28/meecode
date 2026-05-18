@@ -8,7 +8,9 @@ pub enum DomainEvent {
         session_id: String,
     },
     Message {
-        raw: Value,
+        kind: &'static str,
+        uuid: Option<String>,
+        body: Value,
     },
     ToolRequest {
         request_id: String,
@@ -32,9 +34,16 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
             session_id: Some(id),
             ..
         } => DomainEvent::SessionStart { session_id: id },
-        StreamMessage::Assistant { message, .. } | StreamMessage::User { message, .. } => {
-            DomainEvent::Message { raw: message }
-        }
+        StreamMessage::Assistant { message, uuid, .. } => DomainEvent::Message {
+            kind: "assistant",
+            uuid,
+            body: message,
+        },
+        StreamMessage::User { message, uuid, .. } => DomainEvent::Message {
+            kind: "user",
+            uuid,
+            body: message,
+        },
         StreamMessage::ControlRequest { request_id, request } => match request {
             ControlRequestBody::CanUseTool {
                 tool_name,

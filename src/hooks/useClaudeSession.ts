@@ -2,14 +2,23 @@ import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, QaPair, ToolRequest } from '../types'
+import {
+  makeInitialMessageState,
+  reduceStreamMessage,
+  type StreamMessageEvent,
+} from './reduceStreamMessage'
 
 interface SessionState {
   pairs: QaPair[]
+  currentId: string | null
   pendingTool: ToolRequest | null
   mode: Mode
 }
 
-export interface UseClaudeSessionResult extends SessionState {
+export interface UseClaudeSessionResult {
+  pairs: QaPair[]
+  pendingTool: ToolRequest | null
+  mode: Mode
   sendUserMessage: (text: string) => Promise<void>
   respondTool: (
     requestId: string,
@@ -24,6 +33,7 @@ const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
 export function useClaudeSession(): UseClaudeSessionResult {
   const [state, setState] = useState<SessionState>({
     pairs: [],
+    currentId: null,
     pendingTool: null,
     mode: 'default',
   })
@@ -33,19 +43,21 @@ export function useClaudeSession(): UseClaudeSessionResult {
 
     unlistens.push(
       listen<QaPair[]>('session:history', (e) =>
-        setState((s) => ({ ...s, pairs: e.payload })),
+        setState((s) => {
+          const init = makeInitialMessageState(e.payload)
+          return { ...s, pairs: init.pairs, currentId: init.currentId }
+        }),
       ),
     )
 
     unlistens.push(
-      listen<QaPair>('session:message', (e) =>
+      listen<StreamMessageEvent>('session:message', (e) =>
         setState((s) => {
-          const incoming = e.payload
-          const idx = s.pairs.findIndex((p) => p.id === incoming.id)
-          if (idx === -1) return { ...s, pairs: [...s.pairs, incoming] }
-          const next = s.pairs.slice()
-          next[idx] = incoming
-          return { ...s, pairs: next }
+          const next = reduceStreamMessage(
+            { pairs: s.pairs, currentId: s.currentId },
+            e.payload,
+          )
+          return { ...s, pairs: next.pairs, currentId: next.currentId }
         }),
       ),
     )
@@ -82,5 +94,12 @@ export function useClaudeSession(): UseClaudeSessionResult {
     })
   }, [])
 
-  return { ...state, sendUserMessage, respondTool, cycleMode }
+  return {
+    pairs: state.pairs,
+    pendingTool: state.pendingTool,
+    mode: state.mode,
+    sendUserMessage,
+    respondTool,
+    cycleMode,
+  }
 }

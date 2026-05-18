@@ -18,11 +18,15 @@ pub enum StreamMessage {
         message: Value,
         #[serde(default)]
         session_id: Option<String>,
+        #[serde(default)]
+        uuid: Option<String>,
     },
     Assistant {
         message: Value,
         #[serde(default)]
         session_id: Option<String>,
+        #[serde(default)]
+        uuid: Option<String>,
     },
     Result {
         #[serde(default)]
