@@ -363,6 +363,23 @@ pub fn search_files(args: SearchFilesArgs) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+pub fn open_external(path: String) -> Result<(), String> {
+    // Resolve relative paths against the current project, if known.
+    use std::process::Command;
+    #[cfg(target_os = "macos")]
+    let prog = "open";
+    #[cfg(target_os = "linux")]
+    let prog = "xdg-open";
+    #[cfg(target_os = "windows")]
+    let prog = "explorer";
+    Command::new(prog)
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("open_external failed: {e}"))
+}
+
+#[tauri::command]
 pub fn get_config(state: State<AppState>) -> Result<Config, String> {
     Ok(state.config.lock().map_err(|e| e.to_string())?.clone())
 }

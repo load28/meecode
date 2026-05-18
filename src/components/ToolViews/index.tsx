@@ -1,5 +1,26 @@
+import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
 import './ToolViews.css'
+
+function openExternal(path: string) {
+  invoke('open_external', { path }).catch((e) =>
+    console.warn('[meecode] open_external failed', e),
+  )
+}
+
+function FilePath({ path }: { path: string }) {
+  if (!path) return null
+  return (
+    <button
+      type="button"
+      className="tool-view__path tool-view__path-link"
+      onClick={() => openExternal(path)}
+      title="외부 편집기에서 열기"
+    >
+      {path}
+    </button>
+  )
+}
 
 interface ToolViewProps {
   segment: Extract<AssistantSegment, { kind: 'tool_use' }>
@@ -43,7 +64,7 @@ function EditView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">✎</span>
         <span className="tool-view__name">Edit</span>
-        <span className="tool-view__path">{filePath}</span>
+        <FilePath path={filePath} />
       </header>
       {(oldStr || newStr) && (
         <details className="tool-view__diff">
@@ -77,7 +98,7 @@ function WriteView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">＋</span>
         <span className="tool-view__name">Write</span>
-        <span className="tool-view__path">{filePath}</span>
+        <FilePath path={filePath} />
         {lineCount > 0 && (
           <span className="tool-view__hint">{lineCount} lines</span>
         )}
@@ -101,7 +122,7 @@ function ReadView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">👁</span>
         <span className="tool-view__name">Read</span>
-        <span className="tool-view__path">{filePath}</span>
+        <FilePath path={filePath} />
         {(typeof offset === 'number' || typeof limit === 'number') && (
           <span className="tool-view__hint">
             {typeof offset === 'number' ? `+${offset}` : ''}

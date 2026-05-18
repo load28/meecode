@@ -19,6 +19,7 @@ pub fn run() {
             commands::set_model,
             commands::set_thinking_level,
             commands::search_files,
+            commands::open_external,
             commands::get_config,
             commands::set_config,
         ])

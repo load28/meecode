@@ -42,6 +42,19 @@
   min-width: 0;
 }
 
+button.tool-view__path-link {
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+button.tool-view__path-link:hover {
+  color: #58a6ff;
+  text-decoration: underline;
+}
+
 .tool-view__hint {
   color: #8b949e;
   font-size: 11px;
