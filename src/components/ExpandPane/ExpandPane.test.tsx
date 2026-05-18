@@ -14,11 +14,19 @@ describe('ExpandPane', () => {
     expect(screen.getByText(/'전체보기'/)).toBeInTheDocument()
   })
 
-  it('pair 본문 풀 렌더 (폴드 없음)', () => {
+  it('pair 본문에 질문 영역 + 답변 segments 풀 렌더', () => {
     const long = 'a'.repeat(600)
-    render(<ExpandPane pair={pair('a', '질문', [text(long)])} isOpen={true} onToggle={() => {}} />)
+    const longQuestion = '스킬 컨텐츠'.repeat(50)
+    render(<ExpandPane pair={pair('a', longQuestion, [text(long)])} isOpen={true} onToggle={() => {}} />)
     expect(screen.getByText('질문')).toBeInTheDocument()
+    expect(screen.getByText(longQuestion)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /전체보기/ })).toBeNull()
+  })
+
+  it('segments가 비어 있어도 질문은 풀로 표시', () => {
+    render(<ExpandPane pair={pair('a', '스킬을 호출했어요', [])} isOpen={true} onToggle={() => {}} />)
+    expect(screen.getByText('스킬을 호출했어요')).toBeInTheDocument()
+    expect(screen.getByText('답변 대기 중…')).toBeInTheDocument()
   })
 
   it('토글 버튼 클릭 시 onToggle 호출', () => {

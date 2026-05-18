@@ -26,25 +26,27 @@ describe('QaCard', () => {
     expect(screen.getByText('내 질문')).toBeInTheDocument()
   })
 
-  it('답변이 있으면 길이와 무관하게 전체보기 버튼 노출', () => {
-    render(<QaCard pair={pair('short', [text('짧음')])} onExpand={() => {}} />)
-    expect(screen.getByRole('button', { name: '답변 전체보기' })).toBeInTheDocument()
+  it('답변 유무와 무관하게 전체보기 버튼 항상 노출', () => {
+    const { rerender } = render(<QaCard pair={pair('short', [text('짧음')])} onExpand={() => {}} />)
+    expect(screen.getByRole('button', { name: '대화 전체보기' })).toBeInTheDocument()
 
-    render(<QaCard pair={pair('long', [text(LONG)])} onExpand={() => {}} />)
-    expect(screen.getAllByRole('button', { name: '답변 전체보기' }).length).toBeGreaterThan(0)
+    rerender(<QaCard pair={pair('long', [text(LONG)])} onExpand={() => {}} />)
+    expect(screen.getByRole('button', { name: '대화 전체보기' })).toBeInTheDocument()
+
+    rerender(<QaCard pair={pair('empty', [])} onExpand={() => {}} />)
+    expect(screen.getByRole('button', { name: '대화 전체보기' })).toBeInTheDocument()
   })
 
   it('전체보기 버튼 클릭 시 onExpand 호출', () => {
     const onExpand = vi.fn()
     render(<QaCard pair={pair('a', [text(LONG)])} onExpand={onExpand} />)
-    fireEvent.click(screen.getByRole('button', { name: '답변 전체보기' }))
+    fireEvent.click(screen.getByRole('button', { name: '대화 전체보기' }))
     expect(onExpand).toHaveBeenCalledTimes(1)
   })
 
-  it('segments가 비어 있으면 응답 대기 placeholder + 전체보기 버튼 없음', () => {
+  it('segments가 비어 있으면 응답 대기 placeholder', () => {
     render(<QaCard pair={pair('a', [])} onExpand={() => {}} />)
     expect(screen.getByText('응답 대기 중…')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '답변 전체보기' })).toBeNull()
   })
 
   it('tool_use는 별도 영역에 inline 표시', () => {

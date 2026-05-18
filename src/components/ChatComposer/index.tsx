@@ -4,10 +4,20 @@ import './ChatComposer.css'
 
 const SLASH_COMMANDS = ['/help', '/clear', '/model', '/cost', '/compact']
 
+const MODES = ['default', 'plan', 'auto-accept'] as const
+type Mode = typeof MODES[number]
+
+const MODE_LABEL: Record<Mode, string> = {
+  default: '⏎ 기본 모드',
+  plan: '📋 Plan 모드',
+  'auto-accept': '⚡ Auto-accept 모드',
+}
+
 export function ChatComposer() {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [showSlash, setShowSlash] = useState(false)
+  const [mode, setMode] = useState<Mode>('default')
   const isComposingRef = useRef(false)
 
   const send = async (text: string) => {
@@ -31,8 +41,23 @@ export function ChatComposer() {
     }
   }
 
+  const sendShiftTab = () => {
+    setMode((prev) => MODES[(MODES.indexOf(prev) + 1) % MODES.length])
+    send('\x1b[Z').catch(() => {})
+  }
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (isComposingRef.current || e.keyCode === 229 || (e.nativeEvent as KeyboardEvent).isComposing) {
+      return
+    }
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault()
+      sendShiftTab()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      send('\x1b').catch(() => {})
       return
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -89,9 +114,12 @@ export function ChatComposer() {
         />
         <div className="chat-composer__buttons">
           <button type="button" onClick={() => handleControl('\x1b')}>ESC</button>
-          <button type="button" onClick={() => handleControl('\x1b[Z')}>Shift+Tab</button>
+          <button type="button" onClick={sendShiftTab}>Shift+Tab</button>
           <button type="button" onClick={() => handleControl('\x03')}>Ctrl+C</button>
         </div>
+      </div>
+      <div className="chat-composer__status" data-mode={mode}>
+        {MODE_LABEL[mode]}
       </div>
     </div>
   )

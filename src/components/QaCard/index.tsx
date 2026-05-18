@@ -24,20 +24,18 @@ export function QaCard({ pair, onExpand }: Props) {
 
   return (
     <article className="qa-card">
-      {hasAnyContent && (
-        <button
-          type="button"
-          className="qa-card__expand-btn"
-          aria-label="답변 전체보기"
-          title="답변 전체보기"
-          onClick={onExpand}
-        >
-          ⤢
-        </button>
-      )}
+      <button
+        type="button"
+        className="qa-card__expand-btn"
+        aria-label="대화 전체보기"
+        title="대화 전체보기"
+        onClick={onExpand}
+      >
+        ⤢
+      </button>
       <header className="qa-card__question">
         <span className="qa-card__question-label">Q</span>
-        <span className="qa-card__question-text">{pair.user_text}</span>
+        <span className="qa-card__question-text">{makePreview(pair.user_text)}</span>
       </header>
 
       {!hasAnyContent ? (

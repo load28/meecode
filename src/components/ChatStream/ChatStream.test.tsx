@@ -29,7 +29,7 @@ describe('ChatStream', () => {
     const long = 'a'.repeat(600)
     const pairs = [pair('a', 'q', [text(long)])]
     render(<ChatStream pairs={pairs} onExpand={onExpand} />)
-    fireEvent.click(screen.getByRole('button', { name: '답변 전체보기' }))
+    fireEvent.click(screen.getByRole('button', { name: '대화 전체보기' }))
     expect(onExpand).toHaveBeenCalledWith('a')
   })
 

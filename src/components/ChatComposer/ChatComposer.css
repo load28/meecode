@@ -91,3 +91,18 @@
 .chat-composer__buttons button:hover {
   background: #30363d;
 }
+
+.chat-composer__status {
+  font-size: 11px;
+  color: #8b949e;
+  padding: 2px 4px;
+  user-select: none;
+}
+
+.chat-composer__status[data-mode="plan"] {
+  color: #d29922;
+}
+
+.chat-composer__status[data-mode="auto-accept"] {
+  color: #3fb950;
+}

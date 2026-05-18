@@ -58,10 +58,40 @@ describe('ChatComposer', () => {
     expect(invoke).toHaveBeenCalledWith('write_input', { text: '\x1b[Z' })
   })
 
+  it('textarea에서 Shift+Tab 키 입력도 \\x1b[Z 전송', () => {
+    render(<ChatComposer />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.keyDown(ta, { key: 'Tab', shiftKey: true })
+    expect(invoke).toHaveBeenCalledWith('write_input', { text: '\x1b[Z' })
+  })
+
+  it('textarea에서 Escape 키 입력은 \\x1b 전송', () => {
+    render(<ChatComposer />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.keyDown(ta, { key: 'Escape' })
+    expect(invoke).toHaveBeenCalledWith('write_input', { text: '\x1b' })
+  })
+
   it('Ctrl+C 버튼은 \\x03 전송', () => {
     render(<ChatComposer />)
     fireEvent.click(screen.getByRole('button', { name: 'Ctrl+C' }))
     expect(invoke).toHaveBeenCalledWith('write_input', { text: '\x03' })
+  })
+
+  it('초기 모드는 기본 모드', () => {
+    render(<ChatComposer />)
+    expect(screen.getByText('⏎ 기본 모드')).toBeInTheDocument()
+  })
+
+  it('Shift+Tab을 누를 때마다 모드가 순환한다', () => {
+    render(<ChatComposer />)
+    const btn = screen.getByRole('button', { name: 'Shift+Tab' })
+    fireEvent.click(btn)
+    expect(screen.getByText('📋 Plan 모드')).toBeInTheDocument()
+    fireEvent.click(btn)
+    expect(screen.getByText('⚡ Auto-accept 모드')).toBeInTheDocument()
+    fireEvent.click(btn)
+    expect(screen.getByText('⏎ 기본 모드')).toBeInTheDocument()
   })
 
   it('/ 입력 시 슬래시 명령 팝오버 표시', () => {
