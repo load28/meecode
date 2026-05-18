@@ -1,5 +1,6 @@
 use crate::claude_process::protocol::{
-    control_request_set_permission_mode, control_request_stop_task, control_response,
+    control_request_set_model, control_request_set_permission_mode,
+    control_request_set_thinking_level, control_request_stop_task, control_response,
     control_response_error, user_multipart_message, user_text_message, PermissionBehavior,
     StdinMessage,
 };
@@ -249,6 +250,26 @@ pub async fn set_permission_mode(app: AppHandle, mode: String) -> Result<(), Str
     send_to_stdin(
         &app,
         control_request_set_permission_mode(request_id, &mode),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn set_model(app: AppHandle, model: Option<String>) -> Result<(), String> {
+    let request_id = format!("model-{}", chrono_now_millis());
+    send_to_stdin(
+        &app,
+        control_request_set_model(request_id, model.as_deref()),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn set_thinking_level(app: AppHandle, level: String) -> Result<(), String> {
+    let request_id = format!("think-{}", chrono_now_millis());
+    send_to_stdin(
+        &app,
+        control_request_set_thinking_level(request_id, &level),
     )
     .await
 }

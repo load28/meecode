@@ -50,6 +50,9 @@ export interface UseClaudeSessionResult {
   cycleMode: () => void
   dismissRateLimit: () => void
   interrupt: () => Promise<void>
+  setModel: (model: string | null) => Promise<void>
+  setThinkingLevel: (level: string) => Promise<void>
+  clearConversation: () => void
 }
 
 function modeFromClaude(s: string | undefined | null): Mode | null {
@@ -253,16 +256,20 @@ export function useClaudeSession(): UseClaudeSessionResult {
       images?: Array<{ media_type: string; data: string }>,
     ) => {
       const localId = `local-${Date.now()}`
-      const previewSuffix =
-        images && images.length > 0 ? ` 🖼×${images.length}` : ''
+      const imageSegments =
+        images?.map((img) => ({
+          kind: 'image' as const,
+          media_type: img.media_type,
+          data_url: `data:${img.media_type};base64,${img.data}`,
+        })) ?? []
       setState((s) => ({
         ...s,
         pairs: [
           ...s.pairs,
           {
             id: localId,
-            user_text: (text || '') + previewSuffix,
-            segments: [],
+            user_text: text || '',
+            segments: imageSegments,
             timestamp: new Date().toISOString(),
           },
         ],
@@ -316,6 +323,19 @@ export function useClaudeSession(): UseClaudeSessionResult {
     await invoke('interrupt_session')
   }, [])
 
+  const setModel = useCallback(async (model: string | null) => {
+    await invoke('set_model', { model })
+    setState((s) => ({ ...s, model: model ?? s.model }))
+  }, [])
+
+  const setThinkingLevel = useCallback(async (level: string) => {
+    await invoke('set_thinking_level', { level })
+  }, [])
+
+  const clearConversation = useCallback(() => {
+    setState((s) => ({ ...s, pairs: [], currentId: null }))
+  }, [])
+
   return {
     pairs: state.pairs,
     pendingTool: state.pendingTool,
@@ -330,5 +350,8 @@ export function useClaudeSession(): UseClaudeSessionResult {
     cycleMode,
     dismissRateLimit,
     interrupt,
+    setModel,
+    setThinkingLevel,
+    clearConversation,
   }
 }

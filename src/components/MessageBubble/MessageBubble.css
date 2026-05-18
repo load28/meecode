@@ -127,6 +127,19 @@
   min-width: 0;
 }
 
+.message-bubble__image {
+  display: inline-block;
+  margin: 4px 0;
+}
+
+.message-bubble__image img {
+  max-width: 280px;
+  max-height: 220px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  display: block;
+}
+
 .message-bubble__redacted,
 .message-bubble__image-placeholder {
   font-size: 12px;

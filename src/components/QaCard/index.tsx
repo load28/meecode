@@ -20,6 +20,7 @@ function combineTextPlan(segments: QaPair['segments']): string {
 export function QaCard({ pair, onExpand }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const thinkingSegments = pair.segments.filter((s) => s.kind === 'thinking')
+  const imageSegments = pair.segments.filter((s) => s.kind === 'image')
   const toolSegments = pair.segments.filter((s) => s.kind === 'tool_use')
   const toolResults = pair.segments.filter((s) => s.kind === 'tool_result')
   const resultsByToolId = new Map<string, typeof toolResults>()
@@ -51,6 +52,13 @@ export function QaCard({ pair, onExpand }: Props) {
         <div className="qa-card__pending">응답 대기 중…</div>
       ) : (
         <div className="qa-card__answer" onMouseUp={handleMouseUp}>
+          {imageSegments.length > 0 && (
+            <div className="qa-card__images">
+              {imageSegments.map((seg, i) => (
+                <SegmentView key={`im-${i}`} segment={seg} />
+              ))}
+            </div>
+          )}
           {thinkingSegments.length > 0 && (
             <div className="qa-card__thinking">
               {thinkingSegments.map((seg, i) => (

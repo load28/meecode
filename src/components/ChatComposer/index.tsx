@@ -24,6 +24,8 @@ interface Props {
   onInterrupt?: () => void
   busy?: boolean
   projectPath?: string
+  recentUserTexts?: string[]
+  onClearConversation?: () => void
 }
 
 interface PendingImage {
@@ -48,6 +50,8 @@ export function ChatComposer({
   onInterrupt,
   busy,
   projectPath,
+  recentUserTexts,
+  onClearConversation,
 }: Props) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +59,7 @@ export function ChatComposer({
   const [mention, setMention] = useState<MentionState | null>(null)
   const [mentionResults, setMentionResults] = useState<string[]>([])
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const [historyIdx, setHistoryIdx] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
 
@@ -178,6 +183,44 @@ export function ChatComposer({
       cycleMode()
       return
     }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L') && onClearConversation) {
+      e.preventDefault()
+      onClearConversation()
+      return
+    }
+    if (
+      e.key === 'ArrowUp' &&
+      !e.shiftKey &&
+      recentUserTexts &&
+      recentUserTexts.length > 0 &&
+      value === '' &&
+      historyIdx === null
+    ) {
+      e.preventDefault()
+      const lastIdx = recentUserTexts.length - 1
+      setHistoryIdx(lastIdx)
+      setValue(recentUserTexts[lastIdx])
+      return
+    }
+    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0) {
+      e.preventDefault()
+      const next = historyIdx - 1
+      setHistoryIdx(next)
+      setValue(recentUserTexts![next])
+      return
+    }
+    if (e.key === 'ArrowDown' && historyIdx !== null) {
+      e.preventDefault()
+      if (historyIdx < (recentUserTexts?.length ?? 0) - 1) {
+        const next = historyIdx + 1
+        setHistoryIdx(next)
+        setValue(recentUserTexts![next])
+      } else {
+        setHistoryIdx(null)
+        setValue('')
+      }
+      return
+    }
     if (e.key === 'Escape') {
       if (mention) {
         e.preventDefault()
@@ -216,6 +259,7 @@ export function ChatComposer({
     setValue(v)
     setShowSlash(v.startsWith('/'))
     setMention(detectMention(v, caret))
+    setHistoryIdx(null)
   }
 
   const onSelectSlash = (cmd: string) => {

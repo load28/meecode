@@ -242,6 +242,20 @@ pub fn control_request_set_permission_mode(request_id: String, mode: &str) -> St
     }
 }
 
+pub fn control_request_set_model(request_id: String, model: Option<&str>) -> StdinMessage {
+    StdinMessage::ControlRequest {
+        request_id,
+        request: serde_json::json!({ "subtype": "set_model", "model": model }),
+    }
+}
+
+pub fn control_request_set_thinking_level(request_id: String, level: &str) -> StdinMessage {
+    StdinMessage::ControlRequest {
+        request_id,
+        request: serde_json::json!({ "subtype": "set_thinking_level", "thinking_level": level }),
+    }
+}
+
 pub fn control_response_error(request_id: String, error: String) -> StdinMessage {
     StdinMessage::ControlResponse {
         response: ControlResponseEnvelope::Error {

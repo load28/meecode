@@ -55,6 +55,13 @@ export function SegmentView({ segment }: SegmentViewProps) {
     )
   }
   if (segment.kind === 'image') {
+    if (segment.data_url) {
+      return (
+        <div className="message-bubble__image">
+          <img src={segment.data_url} alt={segment.media_type} />
+        </div>
+      )
+    }
     return (
       <div className="message-bubble__image-placeholder" aria-label="이미지">
         🖼 이미지 ({segment.media_type})

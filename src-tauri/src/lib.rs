@@ -16,6 +16,8 @@ pub fn run() {
             commands::send_tool_response,
             commands::interrupt_session,
             commands::set_permission_mode,
+            commands::set_model,
+            commands::set_thinking_level,
             commands::search_files,
             commands::get_config,
             commands::set_config,

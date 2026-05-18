@@ -67,7 +67,16 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     model,
     interrupt,
     usage,
+    setModel,
+    clearConversation,
   } = useClaudeSession()
+
+  const recentUserTexts = useMemo(() => {
+    return pairs
+      .map((p) => p.user_text)
+      .filter((t) => !!t && !t.startsWith('──'))
+      .slice(-20)
+  }, [pairs])
   const {
     expandedId,
     setExpandedId,
@@ -114,6 +123,20 @@ function MainLayout({ projectPath }: { projectPath: string }) {
             ${usage.totalCostUsd.toFixed(4)} · {(usage.totalDurationMs / 1000).toFixed(1)}s
           </span>
         )}
+        <select
+          className="app__model-picker"
+          value={model ?? ''}
+          onChange={(e) => {
+            const v = e.target.value
+            setModel(v === '' ? null : v).catch(() => {})
+          }}
+          title="모델 선택"
+        >
+          <option value="">기본</option>
+          <option value="claude-opus-4-7">Opus 4.7</option>
+          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+        </select>
       </div>
       {hookActivity && (
         <div className="app__hook-banner">⚙ {hookActivity}</div>
@@ -151,6 +174,8 @@ function MainLayout({ projectPath }: { projectPath: string }) {
                 model={model}
                 busy={hookActivity !== null}
                 projectPath={projectPath}
+                recentUserTexts={recentUserTexts}
+                onClearConversation={clearConversation}
                 onInterrupt={() => {
                   interrupt().catch(() => {})
                 }}

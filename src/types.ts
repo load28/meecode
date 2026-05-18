@@ -13,7 +13,7 @@ export type AssistantSegment =
   | { kind: 'plan'; text: string }
   | { kind: 'thinking'; text: string }
   | { kind: 'redacted_thinking' }
-  | { kind: 'image'; media_type: string }
+  | { kind: 'image'; media_type: string; data_url?: string }
   | { kind: 'tool_use'; id: string; name: string; summary: string; input: unknown }
   | { kind: 'tool_result'; tool_use_id: string; text: string; is_error: boolean }
 
