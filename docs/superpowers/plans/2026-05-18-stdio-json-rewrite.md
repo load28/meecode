@@ -10,6 +10,13 @@
 
 **Spec reference:** `docs/superpowers/specs/2026-05-18-stdio-json-rewrite-design.md`
 
+**Confirmed schema (from capture + VS Code extension):** `src-tauri/tests/fixtures/stream-json/NOTES.md`. This file is the ground truth for every protocol decision in this plan and supersedes any contradicting code shown below. Key confirmations:
+- Spawn flag is `--permission-prompt-tool stdio` (hidden, not in `claude --help`)
+- Tool approval arrives as `{ type:"control_request", request:{ subtype:"can_use_tool", tool_name, input, tool_use_id, ... } }`
+- We answer with `{ type:"control_response", response:{ subtype:"success", request_id, response:{ behavior:"allow"|"deny", toolUseID } } }`
+- User input is `{ type:"user", session_id:"", message:{ role:"user", content:[{type:"text", text:"..."}] } }`
+- Top-level types observed: `system | user | assistant | result | rate_limit_event | control_request | control_response | control_cancel_request | keep_alive | transcript_mirror`
+
 ---
 
 ## File Structure
@@ -22,9 +29,9 @@
 - `src-tauri/src/claude_process/spawn.rs`
 - `src-tauri/src/history/mod.rs`
 - `src-tauri/src/history/load_recent.rs`
-- `src-tauri/tests/fixtures/stream-json/basic-turn.jsonl`
-- `src-tauri/tests/fixtures/stream-json/tool-permission.jsonl`
-- `src-tauri/tests/fixtures/stream-json/mode-change.jsonl`
+- `src-tauri/tests/fixtures/stream-json/basic-turn.jsonl` (already captured)
+- `src-tauri/tests/fixtures/stream-json/tool-use.jsonl` (already captured, default permission mode)
+- `src-tauri/tests/fixtures/stream-json/NOTES.md` (schema documentation, already written)
 
 **Modify (Rust):**
 - `src-tauri/Cargo.toml` — add `tokio`, remove `portable-pty`/`strip-ansi-escapes`/`notify`
