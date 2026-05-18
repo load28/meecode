@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod pty_manager;
+mod session_watcher;
 
 use commands::AppState;
 

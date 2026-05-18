@@ -32,26 +32,41 @@ export function TerminalPane() {
     let isComposing = false
 
     term.onData((data) => {
-      if (!isComposing) {
-        invoke('write_input', { text: data }).catch(console.error)
-      }
+      if (isComposing) return
+      invoke('write_input', { text: data }).catch(console.error)
     })
 
-    const container = containerRef.current
-    const onCompositionStart = () => { isComposing = true }
+    const textarea = containerRef.current.querySelector<HTMLTextAreaElement>(
+      '.xterm-helper-textarea'
+    )
+
+    const onCompositionStart = () => {
+      isComposing = true
+    }
     const onCompositionEnd = (e: CompositionEvent) => {
       isComposing = false
       if (e.data) {
         invoke('write_input', { text: e.data }).catch(console.error)
       }
+      if (textarea) textarea.value = ''
     }
-    container.addEventListener('compositionstart', onCompositionStart)
-    container.addEventListener('compositionend', onCompositionEnd)
+    const blockDuringComposition = (e: Event) => {
+      if (isComposing) {
+        e.stopImmediatePropagation()
+      }
+    }
+
+    textarea?.addEventListener('compositionstart', onCompositionStart, true)
+    textarea?.addEventListener('compositionend', onCompositionEnd, true)
+    textarea?.addEventListener('input', blockDuringComposition, true)
+    textarea?.addEventListener('keydown', blockDuringComposition, true)
+    textarea?.addEventListener('keypress', blockDuringComposition, true)
 
     const unlistenPty = listen<string>('pty:data', (event) => {
       term.write(event.payload)
     })
 
+    const container = containerRef.current
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit()
       invoke('resize_pty', { rows: term.rows, cols: term.cols }).catch(console.error)
@@ -59,8 +74,11 @@ export function TerminalPane() {
     resizeObserver.observe(container)
 
     return () => {
-      container.removeEventListener('compositionstart', onCompositionStart)
-      container.removeEventListener('compositionend', onCompositionEnd)
+      textarea?.removeEventListener('compositionstart', onCompositionStart, true)
+      textarea?.removeEventListener('compositionend', onCompositionEnd, true)
+      textarea?.removeEventListener('input', blockDuringComposition, true)
+      textarea?.removeEventListener('keydown', blockDuringComposition, true)
+      textarea?.removeEventListener('keypress', blockDuringComposition, true)
       resizeObserver.disconnect()
       unlistenPty.then((fn) => fn())
       term.dispose()

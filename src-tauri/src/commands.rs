@@ -1,10 +1,12 @@
 use crate::config::Config;
 use crate::pty_manager::PtyManager;
+use crate::session_watcher::SessionWatcher;
 use std::sync::Mutex;
 use tauri::State;
 
 pub struct AppState {
     pub pty: Mutex<Option<PtyManager>>,
+    pub watcher: Mutex<Option<SessionWatcher>>,
     pub config: Mutex<Config>,
 }
 
@@ -12,6 +14,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             pty: Mutex::new(None),
+            watcher: Mutex::new(None),
             config: Mutex::new(Config::load()),
         }
     }
@@ -27,8 +30,12 @@ pub fn start_session(
     let claude_cmd = config.claude_path.as_deref().unwrap_or("claude");
     let threshold = config.markdown_threshold;
 
-    let manager = PtyManager::spawn(app, claude_cmd, threshold, &path)?;
+    let manager = PtyManager::spawn(app.clone(), claude_cmd, &path)?;
     *state.pty.lock().map_err(|e| e.to_string())? = Some(manager);
+
+    let watcher = SessionWatcher::start(app, &path, threshold)?;
+    *state.watcher.lock().map_err(|e| e.to_string())? = Some(watcher);
+
     Ok(())
 }
 
