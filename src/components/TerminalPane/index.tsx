@@ -9,7 +9,6 @@ import './TerminalPane.css'
 const KEY_MAP: Record<string, string> = {
   Enter: '\r',
   Backspace: '\x7f',
-  Tab: '\t',
   Escape: '\x1b',
   ArrowUp: '\x1b[A',
   ArrowDown: '\x1b[B',
@@ -74,6 +73,12 @@ export function TerminalPane() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isComposing || e.isComposing || e.keyCode === 229) {
         e.stopImmediatePropagation()
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        send(e.shiftKey ? '\x1b[Z' : '\t')
         return
       }
       const mapped = KEY_MAP[e.key]
