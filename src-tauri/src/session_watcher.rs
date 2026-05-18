@@ -8,10 +8,18 @@ use std::time::SystemTime;
 use tauri::{AppHandle, Emitter};
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AssistantSegment {
+    Text { text: String },
+    Plan { text: String },
+    ToolUse { name: String, summary: String },
+}
+
+#[derive(Serialize, Clone, PartialEq, Debug)]
 pub struct QaPair {
     pub id: String,
     pub user_text: String,
-    pub assistant_text: String,
+    pub segments: Vec<AssistantSegment>,
     pub timestamp: String,
 }
 
@@ -83,25 +91,130 @@ impl SessionWatcher {
     }
 }
 
-fn extract_text_from_content(content: &Value) -> String {
+enum UserContent {
+    Real(String),
+    ToolResultOnly,
+}
+
+fn classify_user_content(content: &Value) -> UserContent {
     if let Some(s) = content.as_str() {
-        return s.to_string();
+        return UserContent::Real(s.to_string());
     }
-    if let Some(arr) = content.as_array() {
-        let mut out = String::new();
-        for item in arr {
-            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
-                if let Some(s) = item.get("text").and_then(|t| t.as_str()) {
-                    if !out.is_empty() {
-                        out.push('\n');
+    let Some(arr) = content.as_array() else {
+        return UserContent::Real(String::new());
+    };
+    let mut text = String::new();
+    let mut saw_text = false;
+    let mut saw_non_tool_result = false;
+    for item in arr {
+        let t = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        match t {
+            "text" => {
+                saw_text = true;
+                saw_non_tool_result = true;
+                if let Some(s) = item.get("text").and_then(|x| x.as_str()) {
+                    if !text.is_empty() {
+                        text.push('\n');
                     }
-                    out.push_str(s);
+                    text.push_str(s);
                 }
             }
+            "tool_result" => {}
+            _ => {
+                saw_non_tool_result = true;
+            }
         }
-        return out;
     }
-    String::new()
+    if !arr.is_empty() && !saw_non_tool_result {
+        return UserContent::ToolResultOnly;
+    }
+    if saw_text {
+        UserContent::Real(text)
+    } else {
+        UserContent::Real(String::new())
+    }
+}
+
+fn summarize_tool_input(name: &str, input: &Value) -> String {
+    let pick = |key: &str| -> Option<String> {
+        input
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    };
+    let raw = match name {
+        "Bash" => pick("command").or_else(|| pick("description")),
+        "Read" | "Edit" | "Write" | "NotebookEdit" => pick("file_path"),
+        "Skill" => pick("skill"),
+        "ToolSearch" => pick("query"),
+        "Grep" | "Glob" => pick("pattern"),
+        "WebFetch" | "WebSearch" => pick("url").or_else(|| pick("query")),
+        "Agent" => pick("description").or_else(|| pick("subagent_type")),
+        _ => input.as_object().and_then(|obj| {
+            obj.values()
+                .find_map(|v| v.as_str().map(|s| s.to_string()))
+        }),
+    };
+    let s = raw.unwrap_or_default();
+    let first_line = s.lines().next().unwrap_or("").trim();
+    const LIMIT: usize = 120;
+    if first_line.chars().count() > LIMIT {
+        let truncated: String = first_line.chars().take(LIMIT).collect();
+        format!("{}…", truncated)
+    } else {
+        first_line.to_string()
+    }
+}
+
+fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
+    let mut segs = Vec::new();
+    if let Some(s) = content.as_str() {
+        if !s.is_empty() {
+            segs.push(AssistantSegment::Text { text: s.to_string() });
+        }
+        return segs;
+    }
+    let Some(arr) = content.as_array() else {
+        return segs;
+    };
+    for item in arr {
+        let t = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        match t {
+            "text" => {
+                if let Some(s) = item.get("text").and_then(|x| x.as_str()) {
+                    if !s.is_empty() {
+                        segs.push(AssistantSegment::Text { text: s.to_string() });
+                    }
+                }
+            }
+            "tool_use" => {
+                let name = item
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                if name == "ExitPlanMode" {
+                    let plan = item
+                        .get("input")
+                        .and_then(|i| i.get("plan"))
+                        .and_then(|p| p.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    if !plan.is_empty() {
+                        segs.push(AssistantSegment::Plan { text: plan });
+                    }
+                } else if !name.is_empty() {
+                    let summary = item
+                        .get("input")
+                        .map(|i| summarize_tool_input(&name, i))
+                        .unwrap_or_default();
+                    segs.push(AssistantSegment::ToolUse { name, summary });
+                }
+            }
+            _ => {}
+        }
+    }
+    segs
 }
 
 pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
@@ -123,16 +236,21 @@ pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
         let msg_type = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
         match msg_type {
             "user" => {
-                if let Some(prev) = current.take() {
-                    pairs.push(prev);
-                }
-                let user_text = v
-                    .get("message")
-                    .and_then(|m| m.get("content"))
-                    .map(extract_text_from_content)
-                    .unwrap_or_default();
+                let Some(content) = v.get("message").and_then(|m| m.get("content")) else {
+                    continue;
+                };
+                // tool_result-only messages are NOT new user turns; they belong to
+                // the in-flight assistant turn. Treating them as new pairs would orphan
+                // any assistant text that follows the tool call.
+                let user_text = match classify_user_content(content) {
+                    UserContent::ToolResultOnly => continue,
+                    UserContent::Real(t) => t,
+                };
                 if user_text.is_empty() {
                     continue;
+                }
+                if let Some(prev) = current.take() {
+                    pairs.push(prev);
                 }
                 let id = v
                     .get("uuid")
@@ -147,24 +265,20 @@ pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
                 current = Some(QaPair {
                     id,
                     user_text,
-                    assistant_text: String::new(),
+                    segments: Vec::new(),
                     timestamp,
                 });
             }
             "assistant" => {
                 let Some(pair) = current.as_mut() else { continue };
-                let text = v
-                    .get("message")
-                    .and_then(|m| m.get("content"))
-                    .map(extract_text_from_content)
-                    .unwrap_or_default();
-                if text.is_empty() {
+                let Some(content) = v.get("message").and_then(|m| m.get("content")) else {
+                    continue;
+                };
+                let mut segs = assistant_segments_from_content(content);
+                if segs.is_empty() {
                     continue;
                 }
-                if !pair.assistant_text.is_empty() {
-                    pair.assistant_text.push('\n');
-                }
-                pair.assistant_text.push_str(&text);
+                pair.segments.append(&mut segs);
             }
             _ => {}
         }
@@ -180,6 +294,19 @@ mod tests {
     use super::*;
     use std::io::Write;
     use tempfile::NamedTempFile;
+
+    fn text(s: &str) -> AssistantSegment {
+        AssistantSegment::Text { text: s.to_string() }
+    }
+    fn plan(s: &str) -> AssistantSegment {
+        AssistantSegment::Plan { text: s.to_string() }
+    }
+    fn tool(name: &str, summary: &str) -> AssistantSegment {
+        AssistantSegment::ToolUse {
+            name: name.to_string(),
+            summary: summary.to_string(),
+        }
+    }
 
     #[test]
     fn projects_dir_replaces_slashes_with_dashes() {
@@ -197,7 +324,7 @@ mod tests {
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].id, "u1");
         assert_eq!(pairs[0].user_text, "hi");
-        assert_eq!(pairs[0].assistant_text, "hello");
+        assert_eq!(pairs[0].segments, vec![text("hello")]);
         assert_eq!(pairs[0].timestamp, "2026-05-18T00:00:00Z");
     }
 
@@ -209,7 +336,7 @@ mod tests {
         writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"second"}}]}}}}"#).unwrap();
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].assistant_text, "first\nsecond");
+        assert_eq!(pairs[0].segments, vec![text("first"), text("second")]);
     }
 
     #[test]
@@ -220,7 +347,7 @@ mod tests {
         writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"answer"}}]}}}}"#).unwrap();
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].assistant_text, "answer");
+        assert_eq!(pairs[0].segments, vec![text("answer")]);
     }
 
     #[test]
@@ -233,9 +360,9 @@ mod tests {
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs.len(), 2);
         assert_eq!(pairs[0].user_text, "q1");
-        assert_eq!(pairs[0].assistant_text, "a1");
+        assert_eq!(pairs[0].segments, vec![text("a1")]);
         assert_eq!(pairs[1].user_text, "q2");
-        assert_eq!(pairs[1].assistant_text, "a2");
+        assert_eq!(pairs[1].segments, vec![text("a2")]);
     }
 
     #[test]
@@ -258,5 +385,65 @@ mod tests {
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].user_text, "hello");
+    }
+
+    #[test]
+    fn tool_result_messages_do_not_split_turns() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"before tool"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"Bash","input":{{"command":"ls -la"}}}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"x","content":"output"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"after tool"}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1, "tool_result must not start a new pair");
+        assert_eq!(
+            pairs[0].segments,
+            vec![
+                text("before tool"),
+                tool("Bash", "ls -la"),
+                text("after tool"),
+            ]
+        );
+    }
+
+    #[test]
+    fn captures_exit_plan_mode_as_plan_segment() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r##"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"plan please"}}}}"##).unwrap();
+        writeln!(file, r##"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"ExitPlanMode","input":{{"plan":"# Plan\n\nstep 1"}}}}]}}}}"##).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].segments, vec![plan("# Plan\n\nstep 1")]);
+    }
+
+    #[test]
+    fn tool_use_summary_truncates_to_first_line() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"Bash","input":{{"command":"echo line1\necho line2"}}}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs[0].segments, vec![tool("Bash", "echo line1")]);
+    }
+
+    #[test]
+    fn tool_use_summary_picks_known_field_per_tool() {
+        let cases: Vec<(&str, &str, &str)> = vec![
+            (r#"{"file_path":"/x/y.rs"}"#, "Read", "/x/y.rs"),
+            (r#"{"skill":"brainstorming"}"#, "Skill", "brainstorming"),
+            (r#"{"query":"select:Read"}"#, "ToolSearch", "select:Read"),
+        ];
+        for (input, name, want) in cases {
+            let mut file = NamedTempFile::new().unwrap();
+            writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"{}","input":{}}}]}}}}"#,
+                name, input
+            )
+            .unwrap();
+            let pairs = extract_qa_pairs(file.path());
+            assert_eq!(pairs[0].segments, vec![tool(name, want)], "case {}", name);
+        }
     }
 }

@@ -1,4 +1,4 @@
-import type { QaPair } from '../../types'
+import type { AssistantSegment, QaPair } from '../../types'
 import './MessageList.css'
 
 interface Props {
@@ -16,10 +16,18 @@ function formatTime(iso: string): string {
   return `${hh}:${mm}`
 }
 
-function preview(text: string, max = 40): string {
+function previewText(text: string, max = 40): string {
   const oneLine = text.replace(/\s+/g, ' ').trim()
   if (oneLine.length <= max) return oneLine
   return oneLine.slice(0, max) + '…'
+}
+
+export function assistantPreview(segments: AssistantSegment[]): string {
+  const visible = segments
+    .map((s) => (s.kind === 'text' || s.kind === 'plan' ? s.text : ''))
+    .filter(Boolean)
+    .join(' ')
+  return visible
 }
 
 export function MessageList({ pairs, selectedId, onSelect }: Props) {
@@ -35,6 +43,7 @@ export function MessageList({ pairs, selectedId, onSelect }: Props) {
     <div className="message-list">
       {pairs.map((pair) => {
         const isSelected = pair.id === selectedId
+        const previewBody = assistantPreview(pair.segments)
         return (
           <button
             key={pair.id}
@@ -42,10 +51,10 @@ export function MessageList({ pairs, selectedId, onSelect }: Props) {
             onClick={() => onSelect(pair.id)}
           >
             <div className="message-list__time">{formatTime(pair.timestamp)}</div>
-            <div className="message-list__q">Q. {preview(pair.user_text)}</div>
+            <div className="message-list__q">Q. {previewText(pair.user_text)}</div>
             <div className="message-list__a">
-              {pair.assistant_text
-                ? `A. ${preview(pair.assistant_text)}`
+              {previewBody
+                ? `A. ${previewText(previewBody)}`
                 : <span className="message-list__pending">A. 응답 대기 중…</span>}
             </div>
           </button>

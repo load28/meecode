@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
 import { MessageList } from '../MessageList'
-import type { QaPair } from '../../types'
+import type { AssistantSegment, QaPair } from '../../types'
 import './MarkdownPane.css'
 
 interface Props {
@@ -14,6 +14,52 @@ interface Props {
   isVisible: boolean
 }
 
+function renderMarkdown(src: string): string {
+  const raw = marked.parse(src, { async: false }) as string
+  return DOMPurify.sanitize(raw)
+}
+
+function hasVisibleBody(segments: AssistantSegment[]): boolean {
+  return segments.some((s) => s.kind === 'text' || s.kind === 'plan')
+}
+
+interface SegmentViewProps {
+  segment: AssistantSegment
+  index: number
+}
+
+function SegmentView({ segment, index }: SegmentViewProps) {
+  if (segment.kind === 'text') {
+    return (
+      <div
+        className="markdown-pane__content"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+      />
+    )
+  }
+  if (segment.kind === 'plan') {
+    return (
+      <div className="markdown-pane__plan">
+        <div className="markdown-pane__plan-label">📋 Plan</div>
+        <div
+          className="markdown-pane__content"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+        />
+      </div>
+    )
+  }
+  return (
+    <details className="markdown-pane__tool" key={`tool-${index}`}>
+      <summary className="markdown-pane__tool-summary">
+        <span className="markdown-pane__tool-name">{segment.name}</span>
+        {segment.summary && (
+          <span className="markdown-pane__tool-arg">{segment.summary}</span>
+        )}
+      </summary>
+    </details>
+  )
+}
+
 export function MarkdownPane({ pairs, selectedId, onSelect, isVisible }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
 
@@ -21,12 +67,6 @@ export function MarkdownPane({ pairs, selectedId, onSelect, isVisible }: Props) 
     () => pairs.find((p) => p.id === selectedId) ?? null,
     [pairs, selectedId]
   )
-
-  const html = useMemo(() => {
-    if (!selected || !selected.assistant_text) return ''
-    const raw = marked.parse(selected.assistant_text, { async: false }) as string
-    return DOMPurify.sanitize(raw)
-  }, [selected])
 
   return (
     <div
@@ -43,11 +83,15 @@ export function MarkdownPane({ pairs, selectedId, onSelect, isVisible }: Props) 
               <div className="markdown-pane__question-label">질문</div>
               <div className="markdown-pane__question-text">{selected.user_text}</div>
             </div>
-            {selected.assistant_text ? (
-              <div
-                className="markdown-pane__content"
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
+            {selected.segments.length > 0 ? (
+              <div className="markdown-pane__segments">
+                {selected.segments.map((seg, i) => (
+                  <SegmentView key={i} segment={seg} index={i} />
+                ))}
+                {!hasVisibleBody(selected.segments) && (
+                  <div className="markdown-pane__pending">텍스트 응답 대기 중…</div>
+                )}
+              </div>
             ) : (
               <div className="markdown-pane__pending">응답 대기 중…</div>
             )}

@@ -8,9 +8,14 @@ export interface SelectionState {
   rect: DOMRect | null
 }
 
+export type AssistantSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'plan'; text: string }
+  | { kind: 'tool_use'; name: string; summary: string }
+
 export interface QaPair {
   id: string
   user_text: string
-  assistant_text: string
+  segments: AssistantSegment[]
   timestamp: string
 }

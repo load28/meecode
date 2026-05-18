@@ -29,8 +29,8 @@ describe('usePtyStream', () => {
     const { result } = renderHook(() => usePtyStream())
 
     const pairs: QaPair[] = [
-      { id: 'a', user_text: 'q1', assistant_text: 'r1', timestamp: 't1' },
-      { id: 'b', user_text: 'q2', assistant_text: 'r2', timestamp: 't2' },
+      { id: 'a', user_text: 'q1', segments: [{ kind: 'text', text: 'r1' }], timestamp: 't1' },
+      { id: 'b', user_text: 'q2', segments: [{ kind: 'text', text: 'r2' }], timestamp: 't2' },
     ]
 
     await act(async () => {
@@ -56,8 +56,8 @@ describe('usePtyStream', () => {
     const { result } = renderHook(() => usePtyStream())
 
     const initial: QaPair[] = [
-      { id: 'a', user_text: 'q1', assistant_text: 'r1', timestamp: 't1' },
-      { id: 'b', user_text: 'q2', assistant_text: 'r2', timestamp: 't2' },
+      { id: 'a', user_text: 'q1', segments: [{ kind: 'text', text: 'r1' }], timestamp: 't1' },
+      { id: 'b', user_text: 'q2', segments: [{ kind: 'text', text: 'r2' }], timestamp: 't2' },
     ]
     await act(async () => {
       handler?.({ payload: initial })
@@ -68,7 +68,7 @@ describe('usePtyStream', () => {
 
     const updated: QaPair[] = [
       ...initial,
-      { id: 'c', user_text: 'q3', assistant_text: 'r3', timestamp: 't3' },
+      { id: 'c', user_text: 'q3', segments: [{ kind: 'text', text: 'r3' }], timestamp: 't3' },
     ]
     await act(async () => {
       handler?.({ payload: updated })
@@ -91,8 +91,8 @@ describe('usePtyStream', () => {
 
     const { result } = renderHook(() => usePtyStream())
     const pairs: QaPair[] = [
-      { id: 'a', user_text: 'q1', assistant_text: 'r1', timestamp: 't1' },
-      { id: 'b', user_text: 'q2', assistant_text: 'r2', timestamp: 't2' },
+      { id: 'a', user_text: 'q1', segments: [{ kind: 'text', text: 'r1' }], timestamp: 't1' },
+      { id: 'b', user_text: 'q2', segments: [{ kind: 'text', text: 'r2' }], timestamp: 't2' },
     ]
     await act(async () => {
       handler?.({ payload: pairs })
