@@ -11,6 +11,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
+            commands::start_session,
+            commands::send_user_message,
+            commands::send_tool_response,
             commands::get_config,
             commands::set_config,
         ])
