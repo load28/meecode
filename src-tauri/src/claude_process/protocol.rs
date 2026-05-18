@@ -127,7 +127,20 @@ pub struct UserMessageBody {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UserContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
+    Image {
+        source: ImageSource,
+    },
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImageSource {
+    #[serde(rename = "type")]
+    pub kind: &'static str, // always "base64"
+    pub media_type: String,
+    pub data: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -167,6 +180,30 @@ pub fn user_text_message(text: String) -> StdinMessage {
         message: UserMessageBody {
             role: "user",
             content: vec![UserContentBlock::Text { text }],
+        },
+        parent_tool_use_id: None,
+    }
+}
+
+pub fn user_multipart_message(text: String, images: Vec<(String, String)>) -> StdinMessage {
+    let mut content: Vec<UserContentBlock> = Vec::new();
+    for (media_type, data) in images {
+        content.push(UserContentBlock::Image {
+            source: ImageSource {
+                kind: "base64",
+                media_type,
+                data,
+            },
+        });
+    }
+    if !text.is_empty() {
+        content.push(UserContentBlock::Text { text });
+    }
+    StdinMessage::User {
+        session_id: String::new(),
+        message: UserMessageBody {
+            role: "user",
+            content,
         },
         parent_tool_use_id: None,
     }

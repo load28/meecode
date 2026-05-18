@@ -18,7 +18,7 @@ describe('ChatComposer', () => {
     const ta = screen.getByRole('textbox') as HTMLTextAreaElement
     fireEvent.change(ta, { target: { value: 'hello' } })
     fireEvent.keyDown(ta, { key: 'Enter' })
-    expect(handlers.sendUserMessage).toHaveBeenCalledWith('hello')
+    expect(handlers.sendUserMessage).toHaveBeenCalledWith('hello', undefined)
   })
 
   it('Shift+Enter는 줄바꿈만, sendUserMessage 호출 안 함', () => {

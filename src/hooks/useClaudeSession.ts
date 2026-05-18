@@ -37,7 +37,10 @@ export interface UseClaudeSessionResult {
   slashCommands: SlashCommand[]
   model: string | null
   usage: UsageStats
-  sendUserMessage: (text: string) => Promise<void>
+  sendUserMessage: (
+    text: string,
+    images?: Array<{ media_type: string; data: string }>,
+  ) => Promise<void>
   respondTool: (
     requestId: string,
     allow: boolean,
@@ -175,6 +178,24 @@ export function useClaudeSession(): UseClaudeSessionResult {
     )
 
     unlistens.push(
+      listen('session:compact', () =>
+        setState((s) => ({
+          ...s,
+          pairs: [
+            ...s.pairs,
+            {
+              id: `compact-${Date.now()}`,
+              user_text: '── 이전 대화가 자동 압축됨 ──',
+              segments: [],
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          currentId: null,
+        })),
+      ),
+    )
+
+    unlistens.push(
       listen<{
         session_id?: string
         slash_commands?: Array<{ name?: string; description?: string }>
@@ -226,28 +247,36 @@ export function useClaudeSession(): UseClaudeSessionResult {
     }
   }, [])
 
-  const sendUserMessage = useCallback(async (text: string) => {
-    const localId = `local-${Date.now()}`
-    setState((s) => ({
-      ...s,
-      pairs: [
-        ...s.pairs,
-        {
-          id: localId,
-          user_text: text,
-          segments: [],
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      currentId: localId,
-    }))
-    try {
-      await invoke('send_user_message', { text })
-    } catch (e) {
-      console.error('[meecode] sendUserMessage invoke rejected', e)
-      throw e
-    }
-  }, [])
+  const sendUserMessage = useCallback(
+    async (
+      text: string,
+      images?: Array<{ media_type: string; data: string }>,
+    ) => {
+      const localId = `local-${Date.now()}`
+      const previewSuffix =
+        images && images.length > 0 ? ` 🖼×${images.length}` : ''
+      setState((s) => ({
+        ...s,
+        pairs: [
+          ...s.pairs,
+          {
+            id: localId,
+            user_text: (text || '') + previewSuffix,
+            segments: [],
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        currentId: localId,
+      }))
+      try {
+        await invoke('send_user_message', { text, images })
+      } catch (e) {
+        console.error('[meecode] sendUserMessage invoke rejected', e)
+        throw e
+      }
+    },
+    [],
+  )
 
   const respondTool = useCallback(
     async (

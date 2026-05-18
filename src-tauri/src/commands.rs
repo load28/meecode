@@ -1,6 +1,7 @@
 use crate::claude_process::protocol::{
     control_request_set_permission_mode, control_request_stop_task, control_response,
-    control_response_error, user_text_message, PermissionBehavior, StdinMessage,
+    control_response_error, user_multipart_message, user_text_message, PermissionBehavior,
+    StdinMessage,
 };
 use crate::claude_process::spawn::{spawn_claude, ProcessHandle};
 use crate::claude_process::stdout_parser::DomainEvent;
@@ -114,6 +115,9 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                 }),
             );
         }
+        DomainEvent::CompactBoundary => {
+            let _ = app.emit("session:compact", serde_json::json!({}));
+        }
         DomainEvent::HookActivity { hook_name, phase } => {
             let _ = app.emit(
                 "session:hook",
@@ -182,9 +186,28 @@ async fn send_to_stdin(app: &AppHandle, msg: StdinMessage) -> Result<(), String>
     tx.send(msg).await.map_err(|e| e.to_string())
 }
 
+#[derive(Deserialize)]
+pub struct ImageAttachment {
+    pub media_type: String,
+    pub data: String,
+}
+
 #[tauri::command]
-pub async fn send_user_message(app: AppHandle, text: String) -> Result<(), String> {
-    send_to_stdin(&app, user_text_message(text)).await
+pub async fn send_user_message(
+    app: AppHandle,
+    text: String,
+    #[allow(non_snake_case)] images: Option<Vec<ImageAttachment>>,
+) -> Result<(), String> {
+    let imgs = images.unwrap_or_default();
+    if imgs.is_empty() {
+        send_to_stdin(&app, user_text_message(text)).await
+    } else {
+        let pairs = imgs
+            .into_iter()
+            .map(|a| (a.media_type, a.data))
+            .collect::<Vec<_>>();
+        send_to_stdin(&app, user_multipart_message(text, pairs)).await
+    }
 }
 
 #[derive(Deserialize)]

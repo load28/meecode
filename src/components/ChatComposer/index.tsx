@@ -14,13 +14,23 @@ const MODE_LABEL: Record<Mode, string> = {
 interface Props {
   mode: Mode
   disabled: boolean
-  sendUserMessage: (text: string) => Promise<void>
+  sendUserMessage: (
+    text: string,
+    images?: Array<{ media_type: string; data: string }>,
+  ) => Promise<void>
   cycleMode: () => void
   slashCommands?: SlashCommand[]
   model?: string | null
   onInterrupt?: () => void
   busy?: boolean
   projectPath?: string
+}
+
+interface PendingImage {
+  id: string
+  mediaType: string
+  data: string // base64 (no prefix)
+  previewUrl: string // data: URL
 }
 
 interface MentionState {
@@ -44,21 +54,70 @@ export function ChatComposer({
   const [showSlash, setShowSlash] = useState(false)
   const [mention, setMention] = useState<MentionState | null>(null)
   const [mentionResults, setMentionResults] = useState<string[]>([])
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
 
   const submit = async () => {
-    if (!value) return
+    if (!value && pendingImages.length === 0) return
     const snapshot = value
+    const images = pendingImages.map((p) => ({
+      media_type: p.mediaType,
+      data: p.data,
+    }))
     setError(null)
     try {
-      await sendUserMessage(snapshot)
+      await sendUserMessage(snapshot, images.length > 0 ? images : undefined)
       setValue('')
+      setPendingImages([])
       setShowSlash(false)
       setMention(null)
     } catch (e) {
       setError(String(e))
     }
+  }
+
+  const ingestFile = async (file: File): Promise<PendingImage | null> => {
+    if (!file.type.startsWith('image/')) return null
+    const buf = await file.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+    const base64 = btoa(binary)
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      mediaType: file.type,
+      data: base64,
+      previewUrl: `data:${file.type};base64,${base64}`,
+    }
+  }
+
+  const onPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? [])
+    const images = items.filter((i) => i.kind === 'file' && i.type.startsWith('image/'))
+    if (images.length === 0) return
+    e.preventDefault()
+    for (const item of images) {
+      const file = item.getAsFile()
+      if (!file) continue
+      const img = await ingestFile(file)
+      if (img) setPendingImages((prev) => [...prev, img])
+    }
+  }
+
+  const onDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(e.dataTransfer.files ?? [])
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    if (images.length === 0) return
+    e.preventDefault()
+    for (const f of images) {
+      const img = await ingestFile(f)
+      if (img) setPendingImages((prev) => [...prev, img])
+    }
+  }
+
+  const removeImage = (id: string) => {
+    setPendingImages((prev) => prev.filter((p) => p.id !== id))
   }
 
   const detectMention = (text: string, caret: number): MentionState | null => {
@@ -214,6 +273,24 @@ export function ChatComposer({
           ))}
         </ul>
       )}
+      {pendingImages.length > 0 && (
+        <div className="chat-composer__attachments">
+          {pendingImages.map((img) => (
+            <div key={img.id} className="chat-composer__attachment">
+              <img src={img.previewUrl} alt="첨부 이미지" />
+              <button
+                type="button"
+                className="chat-composer__attachment-remove"
+                onClick={() => removeImage(img.id)}
+                aria-label="이미지 제거"
+                title="제거"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="chat-composer__row">
         <textarea
           ref={textareaRef}
@@ -222,6 +299,9 @@ export function ChatComposer({
           disabled={disabled}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          onDrop={onDrop}
+          onDragOver={(e) => e.preventDefault()}
           onCompositionStart={() => {
             isComposingRef.current = true
           }}
@@ -231,7 +311,7 @@ export function ChatComposer({
           placeholder={
             disabled
               ? '도구 승인을 먼저 처리하세요…'
-              : '메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈 · @로 파일)'
+              : '메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈 · @로 파일 · 이미지 paste/drop 지원)'
           }
           rows={2}
         />

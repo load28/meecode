@@ -26,6 +26,7 @@ pub enum DomainEvent {
         hook_name: String,
         phase: String,
     },
+    CompactBoundary,
     SessionInit {
         session_id: Option<String>,
         slash_commands: Vec<Value>,
@@ -50,6 +51,10 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
     }
     let msg: StreamMessage = serde_json::from_str(trimmed).ok()?;
     Some(match msg {
+        StreamMessage::System {
+            subtype: Some(ref sub),
+            ..
+        } if sub == "compact_boundary" => DomainEvent::CompactBoundary,
         StreamMessage::System {
             subtype: Some(ref sub),
             ref rest,
