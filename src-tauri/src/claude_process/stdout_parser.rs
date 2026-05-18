@@ -1,4 +1,4 @@
-use crate::claude_process::protocol::{ControlRequestBody, StreamMessage};
+use crate::claude_process::protocol::{decode_control_request, ControlRequestBody, StreamMessage};
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
@@ -18,6 +18,20 @@ pub enum DomainEvent {
         input: Value,
         tool_use_id: Option<String>,
     },
+    UnsupportedControlRequest {
+        request_id: String,
+        subtype_hint: String,
+    },
+    HookActivity {
+        hook_name: String,
+        phase: String,
+    },
+    RateLimit {
+        raw: Value,
+    },
+    ControlCancel {
+        request_id: String,
+    },
     TurnEnd {
         raw: Value,
     },
@@ -30,6 +44,21 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
     }
     let msg: StreamMessage = serde_json::from_str(trimmed).ok()?;
     Some(match msg {
+        StreamMessage::System {
+            subtype: Some(ref sub),
+            ref rest,
+            ..
+        } if sub == "hook_started" || sub == "hook_response" || sub == "hook_progress" => {
+            let hook_name = rest
+                .get("hook_name")
+                .and_then(|s| s.as_str())
+                .unwrap_or("")
+                .to_string();
+            DomainEvent::HookActivity {
+                hook_name,
+                phase: sub.clone(),
+            }
+        }
         StreamMessage::System {
             session_id: Some(id),
             ..
@@ -44,23 +73,33 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
             uuid,
             body: message,
         },
-        StreamMessage::ControlRequest { request_id, request } => match request {
-            ControlRequestBody::CanUseTool {
-                tool_name,
-                input,
-                tool_use_id,
-                ..
-            } => DomainEvent::ToolRequest {
-                request_id,
-                tool_name,
-                input,
-                tool_use_id,
-            },
-            ControlRequestBody::Unknown => return None,
-        },
+        StreamMessage::ControlRequest { request_id, request } => {
+            let (body, subtype) = decode_control_request(&request);
+            match body {
+                ControlRequestBody::CanUseTool {
+                    tool_name,
+                    input,
+                    tool_use_id,
+                    ..
+                } => DomainEvent::ToolRequest {
+                    request_id,
+                    tool_name,
+                    input,
+                    tool_use_id,
+                },
+                ControlRequestBody::Unknown => DomainEvent::UnsupportedControlRequest {
+                    request_id,
+                    subtype_hint: subtype,
+                },
+            }
+        }
         StreamMessage::Result { rest, subtype } => DomainEvent::TurnEnd {
             raw: serde_json::json!({ "subtype": subtype, "rest": rest }),
         },
+        StreamMessage::RateLimitEvent { rest } => DomainEvent::RateLimit { raw: rest },
+        StreamMessage::ControlCancelRequest { request_id } => {
+            DomainEvent::ControlCancel { request_id }
+        }
         _ => return None,
     })
 }

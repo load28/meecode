@@ -84,6 +84,20 @@ fn assistant_message_carries_kind_and_uuid() {
 }
 
 #[test]
+fn unknown_control_request_yields_unsupported_event() {
+    let raw = r#"{"type":"control_request","request_id":"req-h","request":{"subtype":"hook_callback","callback_id":"hc1"}}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::UnsupportedControlRequest { request_id, subtype_hint }] => {
+            assert_eq!(request_id, "req-h");
+            assert_eq!(subtype_hint, "hook_callback");
+        }
+        other => panic!("expected one UnsupportedControlRequest; got {other:?}"),
+    }
+}
+
+#[test]
 fn result_message_emits_turn_end() {
     let raw = r#"{"type":"result","subtype":"success","duration_ms":1000}"#;
     let mut events = Vec::new();

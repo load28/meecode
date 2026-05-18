@@ -1,5 +1,5 @@
 use crate::claude_process::protocol::{
-    control_response, user_text_message, PermissionBehavior, StdinMessage,
+    control_response, control_response_error, user_text_message, PermissionBehavior, StdinMessage,
 };
 use crate::claude_process::spawn::{spawn_claude, ProcessHandle};
 use crate::claude_process::stdout_parser::DomainEvent;
@@ -63,6 +63,46 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                     "input": input,
                     "tool_use_id": tool_use_id,
                 }),
+            );
+        }
+        DomainEvent::UnsupportedControlRequest {
+            request_id,
+            subtype_hint,
+        } => {
+            // Claude waits for a control_response for every control_request it
+            // sends. Auto-reply with a generic error so the session never
+            // stalls on a subtype we have no UI for.
+            eprintln!("[meecode] auto-replying error to control_request subtype={subtype_hint}");
+            if let Some(state) = app.try_state::<AppState>() {
+                let tx_opt = state
+                    .process
+                    .lock()
+                    .ok()
+                    .and_then(|g| g.as_ref().map(|h| h.stdin_tx.clone()));
+                if let Some(tx) = tx_opt {
+                    let msg = control_response_error(
+                        request_id,
+                        format!("meecode does not handle control_request subtype \"{subtype_hint}\""),
+                    );
+                    tokio::spawn(async move {
+                        let _ = tx.send(msg).await;
+                    });
+                }
+            }
+        }
+        DomainEvent::HookActivity { hook_name, phase } => {
+            let _ = app.emit(
+                "session:hook",
+                serde_json::json!({ "hook_name": hook_name, "phase": phase }),
+            );
+        }
+        DomainEvent::RateLimit { raw } => {
+            let _ = app.emit("session:rate_limit", raw);
+        }
+        DomainEvent::ControlCancel { request_id } => {
+            let _ = app.emit(
+                "session:control_cancel",
+                serde_json::json!({ "request_id": request_id }),
             );
         }
         DomainEvent::TurnEnd { raw } => {

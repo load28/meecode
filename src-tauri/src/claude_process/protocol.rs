@@ -36,7 +36,7 @@ pub enum StreamMessage {
     },
     ControlRequest {
         request_id: String,
-        request: ControlRequestBody,
+        request: Value,
     },
     ControlResponse {
         #[serde(default)]
@@ -58,6 +58,9 @@ pub enum StreamMessage {
     Unknown,
 }
 
+/// Decoded subtype of a `control_request.request` object.
+/// We only decode the shapes we care about; everything else is `Other` and gets
+/// auto-replied with an error so claude does not stall.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "subtype", rename_all = "snake_case")]
 pub enum ControlRequestBody {
@@ -81,6 +84,20 @@ pub enum ControlRequestBody {
     },
     #[serde(other)]
     Unknown,
+}
+
+/// Parse a raw `control_request.request` value into a structured body.
+/// Returns the body plus the original subtype string (best-effort) so the
+/// caller can include it in diagnostics or auto-replies.
+pub fn decode_control_request(request: &Value) -> (ControlRequestBody, String) {
+    let subtype = request
+        .get("subtype")
+        .and_then(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
+    let body = serde_json::from_value::<ControlRequestBody>(request.clone())
+        .unwrap_or(ControlRequestBody::Unknown);
+    (body, subtype)
 }
 
 /// Messages we send to claude on stdin (line-delimited JSON, one object per line).
@@ -110,10 +127,18 @@ pub enum UserContentBlock {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ControlResponseEnvelope {
-    pub subtype: &'static str, // "success"
-    pub request_id: String,
-    pub response: ToolPermissionResult,
+#[serde(untagged)]
+pub enum ControlResponseEnvelope {
+    Success {
+        subtype: &'static str, // always "success"
+        request_id: String,
+        response: ToolPermissionResult,
+    },
+    Error {
+        subtype: &'static str, // always "error"
+        request_id: String,
+        error: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -150,7 +175,7 @@ pub fn control_response(
     updated_input: Option<Value>,
 ) -> StdinMessage {
     StdinMessage::ControlResponse {
-        response: ControlResponseEnvelope {
+        response: ControlResponseEnvelope::Success {
             subtype: "success",
             request_id,
             response: ToolPermissionResult {
@@ -158,6 +183,16 @@ pub fn control_response(
                 tool_use_id,
                 updated_input,
             },
+        },
+    }
+}
+
+pub fn control_response_error(request_id: String, error: String) -> StdinMessage {
+    StdinMessage::ControlResponse {
+        response: ControlResponseEnvelope::Error {
+            subtype: "error",
+            request_id,
+            error,
         },
     }
 }

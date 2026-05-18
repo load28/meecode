@@ -60,6 +60,9 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     cycleMode,
     pendingTool,
     respondTool,
+    hookActivity,
+    rateLimit,
+    dismissRateLimit,
   } = useClaudeSession()
   const {
     expandedId,
@@ -103,6 +106,21 @@ function MainLayout({ projectPath }: { projectPath: string }) {
           긴 답변 자동 펼침
         </label>
       </div>
+      {hookActivity && (
+        <div className="app__hook-banner">⚙ {hookActivity}</div>
+      )}
+      {rateLimit && (
+        <div className="app__rate-limit-banner" role="alert">
+          <span>⚠ {rateLimit}</span>
+          <button
+            type="button"
+            className="app__rate-limit-dismiss"
+            onClick={dismissRateLimit}
+          >
+            닫기
+          </button>
+        </div>
+      )}
       <div className="app__body">
         <PanelGroup direction="horizontal">
           <Panel defaultSize={isOpen ? 60 : 100} minSize={30}>

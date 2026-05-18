@@ -150,6 +150,94 @@ function TodoWriteView({ segment }: ToolViewProps) {
   )
 }
 
+function GrepGlobView({ segment }: ToolViewProps) {
+  const pattern = pickString(segment.input, 'pattern')
+  const path = pickString(segment.input, 'path')
+  const glob = pickString(segment.input, 'glob')
+  return (
+    <div className="tool-view tool-view--search">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">🔎</span>
+        <span className="tool-view__name">{segment.name}</span>
+        <span className="tool-view__pattern">{pattern}</span>
+        {(path || glob) && (
+          <span className="tool-view__hint">
+            {path && <>in <code>{path}</code></>}
+            {path && glob && ' · '}
+            {glob && <code>{glob}</code>}
+          </span>
+        )}
+      </header>
+    </div>
+  )
+}
+
+function WebView({ segment }: ToolViewProps) {
+  const url = pickString(segment.input, 'url')
+  const query = pickString(segment.input, 'query')
+  const prompt = pickString(segment.input, 'prompt')
+  return (
+    <div className="tool-view tool-view--web">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">🌐</span>
+        <span className="tool-view__name">{segment.name}</span>
+        <span className="tool-view__path">{url || query}</span>
+      </header>
+      {prompt && <pre className="tool-view__code">{prompt}</pre>}
+    </div>
+  )
+}
+
+function SkillView({ segment }: ToolViewProps) {
+  const skill = pickString(segment.input, 'skill')
+  const args = pickString(segment.input, 'args')
+  return (
+    <div className="tool-view tool-view--skill">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">🎯</span>
+        <span className="tool-view__name">Skill</span>
+        <span className="tool-view__path">{skill}</span>
+        {args && <span className="tool-view__hint">{args}</span>}
+      </header>
+    </div>
+  )
+}
+
+function AgentView({ segment }: ToolViewProps) {
+  const description = pickString(segment.input, 'description')
+  const subagentType = pickString(segment.input, 'subagent_type')
+  const prompt = pickString(segment.input, 'prompt')
+  return (
+    <div className="tool-view tool-view--agent">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">🤖</span>
+        <span className="tool-view__name">Agent</span>
+        {subagentType && <span className="tool-view__hint">{subagentType}</span>}
+        <span className="tool-view__path">{description}</span>
+      </header>
+      {prompt && (
+        <details className="tool-view__diff">
+          <summary className="tool-view__diff-summary">프롬프트 보기</summary>
+          <pre className="tool-view__code">{prompt}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
+function ToolSearchView({ segment }: ToolViewProps) {
+  const query = pickString(segment.input, 'query')
+  return (
+    <div className="tool-view tool-view--search">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">🔧</span>
+        <span className="tool-view__name">ToolSearch</span>
+        <span className="tool-view__pattern">{query}</span>
+      </header>
+    </div>
+  )
+}
+
 function GenericToolView({ segment }: ToolViewProps) {
   return (
     <details className="tool-view tool-view--generic">
@@ -179,6 +267,18 @@ export function ToolUseView({ segment }: ToolViewProps) {
       return <ReadView segment={segment} />
     case 'TodoWrite':
       return <TodoWriteView segment={segment} />
+    case 'Grep':
+    case 'Glob':
+      return <GrepGlobView segment={segment} />
+    case 'WebFetch':
+    case 'WebSearch':
+      return <WebView segment={segment} />
+    case 'Skill':
+      return <SkillView segment={segment} />
+    case 'Agent':
+      return <AgentView segment={segment} />
+    case 'ToolSearch':
+      return <ToolSearchView segment={segment} />
     default:
       return <GenericToolView segment={segment} />
   }

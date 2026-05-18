@@ -190,6 +190,48 @@
   word-break: break-word;
 }
 
+/* Search-style (Grep/Glob/ToolSearch) */
+.tool-view--search .tool-view__icon,
+.tool-view--search .tool-view__name {
+  color: #f0883e;
+}
+
+.tool-view--search .tool-view__header {
+  border-bottom: none;
+}
+
+.tool-view__pattern {
+  font-family: 'Menlo', 'Monaco', monospace;
+  color: #e6edf3;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+/* Web */
+.tool-view--web .tool-view__icon,
+.tool-view--web .tool-view__name {
+  color: #58a6ff;
+}
+
+/* Skill */
+.tool-view--skill .tool-view__icon,
+.tool-view--skill .tool-view__name {
+  color: #d2a8ff;
+}
+
+.tool-view--skill .tool-view__header {
+  border-bottom: none;
+}
+
+/* Agent */
+.tool-view--agent .tool-view__icon,
+.tool-view--agent .tool-view__name {
+  color: #ffa657;
+}
+
 /* Generic */
 .tool-view--generic {
   background: #0f141b;

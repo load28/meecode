@@ -13,12 +13,16 @@ interface SessionState {
   currentId: string | null
   pendingTool: ToolRequest | null
   mode: Mode
+  hookActivity: string | null
+  rateLimit: string | null
 }
 
 export interface UseClaudeSessionResult {
   pairs: QaPair[]
   pendingTool: ToolRequest | null
   mode: Mode
+  hookActivity: string | null
+  rateLimit: string | null
   sendUserMessage: (text: string) => Promise<void>
   respondTool: (
     requestId: string,
@@ -27,6 +31,7 @@ export interface UseClaudeSessionResult {
     updatedInput?: unknown,
   ) => Promise<void>
   cycleMode: () => void
+  dismissRateLimit: () => void
 }
 
 const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
@@ -37,6 +42,8 @@ export function useClaudeSession(): UseClaudeSessionResult {
     currentId: null,
     pendingTool: null,
     mode: 'default',
+    hookActivity: null,
+    rateLimit: null,
   })
 
   useEffect(() => {
@@ -88,6 +95,32 @@ export function useClaudeSession(): UseClaudeSessionResult {
     unlistens.push(
       listen<string>('session:stderr', (e) =>
         console.warn('[claude stderr]', e.payload),
+      ),
+    )
+
+    unlistens.push(
+      listen<{ hook_name: string; phase: string }>('session:hook', (e) => {
+        const label =
+          e.payload.phase === 'hook_response'
+            ? null
+            : `${e.payload.hook_name} 훅 실행 중…`
+        setState((s) => ({ ...s, hookActivity: label }))
+      }),
+    )
+
+    unlistens.push(
+      listen<Record<string, unknown>>('session:rate_limit', (e) => {
+        const msg =
+          (typeof e.payload.message === 'string' && e.payload.message) ||
+          (typeof e.payload.reason === 'string' && e.payload.reason) ||
+          'rate limit hit — 잠시 후 다시 시도하세요'
+        setState((s) => ({ ...s, rateLimit: msg }))
+      }),
+    )
+
+    unlistens.push(
+      listen('session:control_cancel', () =>
+        setState((s) => ({ ...s, pendingTool: null })),
       ),
     )
 
@@ -146,12 +179,19 @@ export function useClaudeSession(): UseClaudeSessionResult {
     })
   }, [])
 
+  const dismissRateLimit = useCallback(() => {
+    setState((s) => ({ ...s, rateLimit: null }))
+  }, [])
+
   return {
     pairs: state.pairs,
     pendingTool: state.pendingTool,
     mode: state.mode,
+    hookActivity: state.hookActivity,
+    rateLimit: state.rateLimit,
     sendUserMessage,
     respondTool,
     cycleMode,
+    dismissRateLimit,
   }
 }

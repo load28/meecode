@@ -86,6 +86,53 @@ describe('ToolUseView', () => {
     expect(screen.getByText('do C')).toBeInTheDocument()
   })
 
+  it('Grep: pattern과 path를 표시', () => {
+    render(
+      <ToolUseView
+        segment={t('Grep', { pattern: 'TODO', path: 'src/', glob: '*.ts' })}
+      />,
+    )
+    expect(screen.getByText('Grep')).toBeInTheDocument()
+    expect(screen.getByText('TODO')).toBeInTheDocument()
+    expect(screen.getByText('src/')).toBeInTheDocument()
+    expect(screen.getByText('*.ts')).toBeInTheDocument()
+  })
+
+  it('WebFetch: url과 prompt 노출', () => {
+    render(
+      <ToolUseView
+        segment={t('WebFetch', {
+          url: 'https://example.com',
+          prompt: '제목 요약해줘',
+        })}
+      />,
+    )
+    expect(screen.getByText('WebFetch')).toBeInTheDocument()
+    expect(screen.getByText('https://example.com')).toBeInTheDocument()
+    expect(screen.getByText('제목 요약해줘')).toBeInTheDocument()
+  })
+
+  it('Skill: skill 이름 표시', () => {
+    render(<ToolUseView segment={t('Skill', { skill: 'brainstorming' })} />)
+    expect(screen.getByText('Skill')).toBeInTheDocument()
+    expect(screen.getByText('brainstorming')).toBeInTheDocument()
+  })
+
+  it('Agent: description + subagent_type + 프롬프트 펼침', () => {
+    render(
+      <ToolUseView
+        segment={t('Agent', {
+          description: '브랜치 감사',
+          subagent_type: 'Plan',
+          prompt: 'audit branch state',
+        })}
+      />,
+    )
+    expect(screen.getByText('Agent')).toBeInTheDocument()
+    expect(screen.getByText('브랜치 감사')).toBeInTheDocument()
+    expect(screen.getByText('Plan')).toBeInTheDocument()
+  })
+
   it('Generic: 알려진 도구가 아니면 JSON.stringify로 fallback', () => {
     render(<ToolUseView segment={t('UnknownTool', { foo: 'bar' })} />)
     expect(screen.getByText('UnknownTool')).toBeInTheDocument()

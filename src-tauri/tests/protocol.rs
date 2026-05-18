@@ -1,6 +1,6 @@
 use meecode_lib::claude_process::protocol::{
-    control_response, user_text_message, ControlRequestBody, PermissionBehavior, StdinMessage,
-    StreamMessage,
+    control_response, control_response_error, decode_control_request, user_text_message,
+    ControlRequestBody, PermissionBehavior, StdinMessage, StreamMessage,
 };
 use std::fs;
 
@@ -62,7 +62,9 @@ fn parses_can_use_tool_synthetic_control_request() {
     match msg {
         StreamMessage::ControlRequest { request_id, request } => {
             assert_eq!(request_id, "req-1");
-            match request {
+            let (body, subtype) = decode_control_request(&request);
+            assert_eq!(subtype, "can_use_tool");
+            match body {
                 ControlRequestBody::CanUseTool { tool_name, tool_use_id, .. } => {
                     assert_eq!(tool_name, "Edit");
                     assert_eq!(tool_use_id.as_deref(), Some("tu-1"));
@@ -72,6 +74,28 @@ fn parses_can_use_tool_synthetic_control_request() {
         }
         _ => panic!("expected ControlRequest variant"),
     }
+}
+
+#[test]
+fn unknown_control_request_subtype_decodes_to_unknown_with_hint() {
+    let raw = r#"{"type":"control_request","request_id":"req-x","request":{"subtype":"hook_callback","callback_id":"hc1"}}"#;
+    let msg: StreamMessage = serde_json::from_str(raw).unwrap();
+    let StreamMessage::ControlRequest { request, .. } = msg else {
+        panic!("expected control_request");
+    };
+    let (body, subtype) = decode_control_request(&request);
+    assert!(matches!(body, ControlRequestBody::Unknown));
+    assert_eq!(subtype, "hook_callback");
+}
+
+#[test]
+fn control_response_error_serializes_with_subtype_error() {
+    let msg = control_response_error("req-x".into(), "no handler".into());
+    let json = serde_json::to_string(&msg).unwrap();
+    assert!(json.contains("\"subtype\":\"error\""));
+    assert!(json.contains("\"request_id\":\"req-x\""));
+    assert!(json.contains("\"error\":\"no handler\""));
+    let _: StdinMessage = msg;
 }
 
 #[test]
