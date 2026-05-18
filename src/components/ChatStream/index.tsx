@@ -67,9 +67,15 @@ export function ChatStream({
 
   return (
     <div ref={scrollRef} className="chat-stream" onScroll={handleScroll}>
-      {pairs.map((p) => (
-        <QaCard key={p.id} pair={p} onExpand={() => onExpand(p.id)} />
-      ))}
+      {pairs.map((p) =>
+        p.id.startsWith('compact-') ? (
+          <div key={p.id} className="chat-stream__compact" role="separator">
+            <span>{p.user_text}</span>
+          </div>
+        ) : (
+          <QaCard key={p.id} pair={p} onExpand={() => onExpand(p.id)} />
+        ),
+      )}
       {pendingTool && (
         <ToolApprovalCard
           request={pendingTool}

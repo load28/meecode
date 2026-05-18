@@ -26,3 +26,29 @@
   pointer-events: none;
   text-align: center;
 }
+
+.chat-stream__compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 11px;
+  color: #6e7681;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  user-select: none;
+}
+
+.chat-stream__compact::before,
+.chat-stream__compact::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #21262d;
+}
+
+.chat-stream__compact span {
+  background: #0d1117;
+  padding: 0 8px;
+}
