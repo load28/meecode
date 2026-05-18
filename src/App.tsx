@@ -50,8 +50,14 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
 }
 
 function MainLayout({ projectPath }: { projectPath: string }) {
-  const { pairs, mode, sendUserMessage, cycleMode, pendingTool } =
-    useClaudeSession()
+  const {
+    pairs,
+    mode,
+    sendUserMessage,
+    cycleMode,
+    pendingTool,
+    respondTool,
+  } = useClaudeSession()
   const {
     expandedId,
     setExpandedId,
@@ -98,7 +104,14 @@ function MainLayout({ projectPath }: { projectPath: string }) {
         <PanelGroup direction="horizontal">
           <Panel defaultSize={isOpen ? 60 : 100} minSize={30}>
             <div className="app__chat">
-              <ChatStream pairs={pairs} onExpand={handleExpand} />
+              <ChatStream
+                pairs={pairs}
+                onExpand={handleExpand}
+                pendingTool={pendingTool}
+                onRespondTool={(reqId, allow, tuId) => {
+                  respondTool(reqId, allow, tuId)
+                }}
+              />
               <ChatComposer
                 mode={mode}
                 disabled={pendingTool !== null}
