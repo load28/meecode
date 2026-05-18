@@ -121,6 +121,8 @@ pub struct ToolPermissionResult {
     pub behavior: PermissionBehavior,
     #[serde(rename = "toolUseID", skip_serializing_if = "Option::is_none")]
     pub tool_use_id: Option<String>,
+    #[serde(rename = "updatedInput", skip_serializing_if = "Option::is_none")]
+    pub updated_input: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,6 +147,7 @@ pub fn control_response(
     request_id: String,
     behavior: PermissionBehavior,
     tool_use_id: Option<String>,
+    updated_input: Option<Value>,
 ) -> StdinMessage {
     StdinMessage::ControlResponse {
         response: ControlResponseEnvelope {
@@ -153,6 +156,7 @@ pub fn control_response(
             response: ToolPermissionResult {
                 behavior,
                 tool_use_id,
+                updated_input,
             },
         },
     }

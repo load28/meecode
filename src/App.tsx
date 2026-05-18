@@ -111,8 +111,8 @@ function MainLayout({ projectPath }: { projectPath: string }) {
                 pairs={pairs}
                 onExpand={handleExpand}
                 pendingTool={pendingTool}
-                onRespondTool={(reqId, allow, tuId) => {
-                  respondTool(reqId, allow, tuId)
+                onRespondTool={(reqId, allow, tuId, updatedInput) => {
+                  respondTool(reqId, allow, tuId, updatedInput)
                 }}
               />
               <ChatComposer

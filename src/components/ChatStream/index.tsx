@@ -12,6 +12,7 @@ interface Props {
     requestId: string,
     allow: boolean,
     toolUseId: string | null,
+    updatedInput?: unknown,
   ) => void
 }
 
@@ -72,11 +73,12 @@ export function ChatStream({
       {pendingTool && (
         <ToolApprovalCard
           request={pendingTool}
-          onRespond={(allow) =>
+          onRespond={(allow, updatedInput) =>
             onRespondTool(
               pendingTool.request_id,
               allow,
               pendingTool.tool_use_id,
+              updatedInput,
             )
           }
         />

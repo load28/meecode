@@ -129,6 +129,8 @@ pub struct ToolResponseArgs {
     pub allow: bool,
     #[serde(default)]
     pub tool_use_id: Option<String>,
+    #[serde(default)]
+    pub updated_input: Option<serde_json::Value>,
 }
 
 #[tauri::command]
@@ -141,7 +143,11 @@ pub async fn send_tool_response(
     } else {
         PermissionBehavior::Deny
     };
-    send_to_stdin(&app, control_response(args.request_id, behavior, args.tool_use_id)).await
+    send_to_stdin(
+        &app,
+        control_response(args.request_id, behavior, args.tool_use_id, args.updated_input),
+    )
+    .await
 }
 
 #[tauri::command]

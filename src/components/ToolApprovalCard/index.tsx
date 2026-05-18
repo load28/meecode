@@ -1,9 +1,10 @@
 import type { ToolRequest } from '../../types'
+import { AskUserQuestionCard, type AskInput } from '../AskUserQuestionCard'
 import './ToolApprovalCard.css'
 
 interface Props {
   request: ToolRequest
-  onRespond: (allow: boolean) => void
+  onRespond: (allow: boolean, updatedInput?: unknown) => void
 }
 
 function summarize(input: unknown): string {
@@ -26,6 +27,16 @@ function summarize(input: unknown): string {
 }
 
 export function ToolApprovalCard({ request, onRespond }: Props) {
+  if (request.tool_name === 'AskUserQuestion') {
+    const input = (request.input ?? { questions: [] }) as AskInput
+    return (
+      <AskUserQuestionCard
+        input={input}
+        onRespond={(allow, updated) => onRespond(allow, updated ?? undefined)}
+      />
+    )
+  }
+
   return (
     <section
       className="tool-approval-card"

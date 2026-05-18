@@ -121,7 +121,7 @@ describe('ChatStream', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: '허용' }))
-    expect(onRespondTool).toHaveBeenCalledWith('r1', true, 'tu-7')
+    expect(onRespondTool).toHaveBeenCalledWith('r1', true, 'tu-7', undefined)
   })
 
   it('pendingTool이 있으면 진행 인디케이터는 표시하지 않음', () => {

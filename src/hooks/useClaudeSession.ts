@@ -24,6 +24,7 @@ export interface UseClaudeSessionResult {
     requestId: string,
     allow: boolean,
     toolUseId: string | null,
+    updatedInput?: unknown,
   ) => Promise<void>
   cycleMode: () => void
 }
@@ -119,9 +120,19 @@ export function useClaudeSession(): UseClaudeSessionResult {
   }, [])
 
   const respondTool = useCallback(
-    async (requestId: string, allow: boolean, toolUseId: string | null) => {
+    async (
+      requestId: string,
+      allow: boolean,
+      toolUseId: string | null,
+      updatedInput?: unknown,
+    ) => {
       await invoke('send_tool_response', {
-        args: { request_id: requestId, allow, tool_use_id: toolUseId },
+        args: {
+          request_id: requestId,
+          allow,
+          tool_use_id: toolUseId,
+          updated_input: updatedInput ?? null,
+        },
       })
       setState((s) => ({ ...s, pendingTool: null }))
     },

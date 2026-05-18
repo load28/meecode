@@ -85,7 +85,12 @@ describe('useClaudeSession', () => {
       await result.current.respondTool('r1', true, 'tu-9')
     })
     expect(invokeMock).toHaveBeenCalledWith('send_tool_response', {
-      args: { request_id: 'r1', allow: true, tool_use_id: 'tu-9' },
+      args: {
+        request_id: 'r1',
+        allow: true,
+        tool_use_id: 'tu-9',
+        updated_input: null,
+      },
     })
     expect(result.current.pendingTool).toBeNull()
   })
