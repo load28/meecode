@@ -23,12 +23,11 @@ export function ChatComposer() {
   const submit = async () => {
     if (!value) return
     const toSend = value + '\r'
-    const snapshot = value
-    setValue('')
     try {
       await send(toSend)
+      setValue('')
     } catch {
-      setValue(snapshot)
+      // value remains as-is — user can retry or edit
     }
   }
 

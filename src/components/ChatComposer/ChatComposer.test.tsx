@@ -33,7 +33,7 @@ describe('ChatComposer', () => {
     const ta = screen.getByRole('textbox') as HTMLTextAreaElement
     fireEvent.change(ta, { target: { value: 'q' } })
     fireEvent.keyDown(ta, { key: 'Enter' })
-    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
     expect(ta.value).toBe('')
   })
 
