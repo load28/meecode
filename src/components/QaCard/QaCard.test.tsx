@@ -15,54 +15,45 @@ const pair = (id: string, segs: AssistantSegment[]): QaPair => ({
 const LONG = 'a'.repeat(600)
 
 describe('QaCard', () => {
-  it('짧은 답변은 전체 텍스트를 인라인 렌더', () => {
+  it('답변 본문 미리보기를 렌더', () => {
     const p = pair('a', [text('hello')])
-    render(<QaCard pair={p} isExpandedInPane={false} onExpand={() => {}} />)
+    render(<QaCard pair={p} onExpand={() => {}} />)
     expect(screen.getByText('hello')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /전체보기/ })).toBeNull()
   })
 
   it('질문 텍스트를 표시', () => {
-    render(<QaCard pair={pair('a', [text('r')])} isExpandedInPane={false} onExpand={() => {}} />)
+    render(<QaCard pair={pair('a', [text('r')])} onExpand={() => {}} />)
     expect(screen.getByText('내 질문')).toBeInTheDocument()
   })
 
-  it('500자 초과 답변은 미리보기 + 전체보기 버튼', () => {
-    render(
-      <QaCard pair={pair('a', [text(LONG)])} isExpandedInPane={false} onExpand={() => {}} />
-    )
+  it('답변이 있으면 길이와 무관하게 전체보기 버튼 노출', () => {
+    render(<QaCard pair={pair('short', [text('짧음')])} onExpand={() => {}} />)
     expect(screen.getByRole('button', { name: '답변 전체보기' })).toBeInTheDocument()
+
+    render(<QaCard pair={pair('long', [text(LONG)])} onExpand={() => {}} />)
+    expect(screen.getAllByRole('button', { name: '답변 전체보기' }).length).toBeGreaterThan(0)
   })
 
   it('전체보기 버튼 클릭 시 onExpand 호출', () => {
     const onExpand = vi.fn()
-    render(
-      <QaCard pair={pair('a', [text(LONG)])} isExpandedInPane={false} onExpand={onExpand} />
-    )
+    render(<QaCard pair={pair('a', [text(LONG)])} onExpand={onExpand} />)
     fireEvent.click(screen.getByRole('button', { name: '답변 전체보기' }))
     expect(onExpand).toHaveBeenCalledTimes(1)
   })
 
-  it('isExpandedInPane=true면 본문 자리에 안내 메시지', () => {
-    const { container } = render(
-      <QaCard pair={pair('a', [text(LONG)])} isExpandedInPane={true} onExpand={() => {}} />
-    )
-    expect(screen.getByText('오른쪽 패널에 펼쳐짐')).toBeInTheDocument()
-    expect(container.querySelector('.qa-card__preview')).toBeNull()
-  })
-
-  it('segments가 비어 있으면 응답 대기 placeholder', () => {
-    render(<QaCard pair={pair('a', [])} isExpandedInPane={false} onExpand={() => {}} />)
+  it('segments가 비어 있으면 응답 대기 placeholder + 전체보기 버튼 없음', () => {
+    render(<QaCard pair={pair('a', [])} onExpand={() => {}} />)
     expect(screen.getByText('응답 대기 중…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '답변 전체보기' })).toBeNull()
   })
 
-  it('tool_use는 폴드 무관 항상 inline', () => {
+  it('tool_use는 별도 영역에 inline 표시', () => {
     const p = pair('a', [text(LONG), tool('Bash', 'ls')])
-    render(<QaCard pair={p} isExpandedInPane={false} onExpand={() => {}} />)
+    render(<QaCard pair={p} onExpand={() => {}} />)
     expect(screen.getByText('Bash')).toBeInTheDocument()
   })
 
-  it('짧은 답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {
+  it('답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {
     const mockRect = {
       top: 100, left: 50, width: 80, height: 20,
       bottom: 120, right: 130, x: 50, y: 100,
@@ -75,7 +66,7 @@ describe('QaCard', () => {
     } as unknown as Selection)
 
     const { container } = render(
-      <QaCard pair={pair('a', [text('짧은 답변 텍스트')])} isExpandedInPane={false} onExpand={() => {}} />
+      <QaCard pair={pair('a', [text('짧은 답변 텍스트')])} onExpand={() => {}} />
     )
     fireEvent.mouseUp(container.querySelector('.qa-card__answer')!)
     expect(screen.getByText('💬 코멘트')).toBeInTheDocument()

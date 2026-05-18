@@ -5,11 +5,10 @@ import './ChatStream.css'
 
 interface Props {
   pairs: QaPair[]
-  expandedId: string | null
   onExpand: (id: string) => void
 }
 
-export function ChatStream({ pairs, expandedId, onExpand }: Props) {
+export function ChatStream({ pairs, onExpand }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
   const userScrolledRef = useRef(false)
@@ -56,7 +55,6 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
         <QaCard
           key={p.id}
           pair={p}
-          isExpandedInPane={p.id === expandedId}
           onExpand={() => onExpand(p.id)}
         />
       ))}

@@ -97,7 +97,7 @@ function MainLayout({ projectPath }: { projectPath: string }) {
         <PanelGroup direction="horizontal">
           <Panel defaultSize={isOpen ? 60 : 100} minSize={30}>
             <div className="app__chat">
-              <ChatStream pairs={pairs} expandedId={expandedId} onExpand={handleExpand} />
+              <ChatStream pairs={pairs} onExpand={handleExpand} />
               <ChatComposer />
             </div>
           </Panel>

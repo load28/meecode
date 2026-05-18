@@ -34,22 +34,22 @@ describe('makePreview', () => {
     expect(makePreview('hello')).toBe('hello')
   })
 
-  it('240자 초과 시 240자에서 자르고 말줄임표', () => {
-    const long = 'a'.repeat(300)
+  it('500자 초과 시 500자에서 자르고 말줄임표', () => {
+    const long = 'a'.repeat(600)
     const out = makePreview(long)
-    expect(out.length).toBe(241) // 240 + '…'
+    expect(out.length).toBe(501) // 500 + '…'
     expect(out.endsWith('…')).toBe(true)
   })
 
-  it('4줄 이상이면 3줄까지만 + 말줄임표', () => {
-    const four = 'line1\nline2\nline3\nline4'
-    expect(makePreview(four)).toBe('line1\nline2\nline3…')
+  it('6줄 이상이면 5줄까지만 + 말줄임표', () => {
+    const six = 'line1\nline2\nline3\nline4\nline5\nline6'
+    expect(makePreview(six)).toBe('line1\nline2\nline3\nline4\nline5…')
   })
 
-  it('3줄이지만 240자 초과면 240자 우선', () => {
-    const huge = 'a'.repeat(250) + '\nline2'
+  it('5줄이지만 500자 초과면 500자 우선', () => {
+    const huge = 'a'.repeat(510) + '\nline2'
     const out = makePreview(huge)
-    expect(out.length).toBe(241)
+    expect(out.length).toBe(501)
     expect(out.endsWith('…')).toBe(true)
   })
 

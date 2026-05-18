@@ -1,7 +1,7 @@
 import type { AssistantSegment } from '../types'
 
-const PREVIEW_MAX_CHARS = 240
-const PREVIEW_MAX_LINES = 3
+const PREVIEW_MAX_CHARS = 500
+const PREVIEW_MAX_LINES = 5
 const ELLIPSIS = '…'
 
 export function totalTextChars(segments: AssistantSegment[]): number {
