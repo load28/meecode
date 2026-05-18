@@ -19,9 +19,12 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
     setLoading(true)
     setError('')
     try {
+      console.log('[meecode] start_session →', selected)
       await invoke('start_session', { path: selected })
+      console.log('[meecode] start_session resolved')
       onStart(selected)
     } catch (e) {
+      console.error('[meecode] start_session failed', e)
       setError(String(e))
     } finally {
       setLoading(false)

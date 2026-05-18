@@ -118,6 +118,11 @@ export function reduceStreamMessage(
     const classified = classifyUserContent(content)
     if (classified.kind === 'tool_result_only') return state
     if (!classified.text) return state
+    const last = state.pairs[state.pairs.length - 1]
+    if (last && last.user_text === classified.text && last.segments.length === 0) {
+      // Treat as echo of the just-sent user message — keep the existing pair.
+      return state
+    }
     const id = ev.uuid || `idx-${state.pairs.length}`
     const newPair: QaPair = {
       id,

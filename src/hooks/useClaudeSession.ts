@@ -39,32 +39,48 @@ export function useClaudeSession(): UseClaudeSessionResult {
   })
 
   useEffect(() => {
+    console.log('[meecode] useClaudeSession mount — wiring listeners')
     const unlistens: Array<Promise<() => void>> = []
 
     unlistens.push(
-      listen<QaPair[]>('session:history', (e) =>
+      listen<QaPair[]>('session:history', (e) => {
+        console.log('[meecode] session:history', e.payload)
         setState((s) => {
           const init = makeInitialMessageState(e.payload)
           return { ...s, pairs: init.pairs, currentId: init.currentId }
-        }),
-      ),
+        })
+      }),
     )
 
     unlistens.push(
-      listen<StreamMessageEvent>('session:message', (e) =>
+      listen<StreamMessageEvent>('session:message', (e) => {
+        console.log('[meecode] session:message', e.payload)
         setState((s) => {
           const next = reduceStreamMessage(
             { pairs: s.pairs, currentId: s.currentId },
             e.payload,
           )
           return { ...s, pairs: next.pairs, currentId: next.currentId }
-        }),
+        })
+      }),
+    )
+
+    unlistens.push(
+      listen<ToolRequest>('session:tool_request', (e) => {
+        console.log('[meecode] session:tool_request', e.payload)
+        setState((s) => ({ ...s, pendingTool: e.payload }))
+      }),
+    )
+
+    unlistens.push(
+      listen<unknown>('session:turn_end', (e) =>
+        console.log('[meecode] session:turn_end', e.payload),
       ),
     )
 
     unlistens.push(
-      listen<ToolRequest>('session:tool_request', (e) =>
-        setState((s) => ({ ...s, pendingTool: e.payload })),
+      listen<{ session_id: string }>('session:start', (e) =>
+        console.log('[meecode] session:start', e.payload),
       ),
     )
 
@@ -80,7 +96,26 @@ export function useClaudeSession(): UseClaudeSessionResult {
   }, [])
 
   const sendUserMessage = useCallback(async (text: string) => {
-    await invoke('send_user_message', { text })
+    const localId = `local-${Date.now()}`
+    setState((s) => ({
+      ...s,
+      pairs: [
+        ...s.pairs,
+        {
+          id: localId,
+          user_text: text,
+          segments: [],
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      currentId: localId,
+    }))
+    try {
+      await invoke('send_user_message', { text })
+    } catch (e) {
+      console.error('[meecode] sendUserMessage invoke rejected', e)
+      throw e
+    }
   }, [])
 
   const respondTool = useCallback(
