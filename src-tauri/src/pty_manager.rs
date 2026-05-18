@@ -16,7 +16,12 @@ pub struct PtyManager {
 }
 
 impl PtyManager {
-    pub fn spawn(app: AppHandle, claude_cmd: &str, threshold: usize) -> Result<Self, String> {
+    pub fn spawn(
+        app: AppHandle,
+        claude_cmd: &str,
+        threshold: usize,
+        cwd: &str,
+    ) -> Result<Self, String> {
         let pty_system = native_pty_system();
         let pty = pty_system
             .openpty(PtySize {
@@ -27,7 +32,8 @@ impl PtyManager {
             })
             .map_err(|e| e.to_string())?;
 
-        let cmd = CommandBuilder::new(claude_cmd);
+        let mut cmd = CommandBuilder::new(claude_cmd);
+        cmd.cwd(cwd);
         pty.slave
             .spawn_command(cmd)
             .map_err(|e| e.to_string())?;

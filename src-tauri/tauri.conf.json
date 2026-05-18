@@ -10,5 +10,21 @@
   },
   "bundle": {
     "active": false
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MeeCode",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
   }
 }

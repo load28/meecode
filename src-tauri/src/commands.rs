@@ -18,12 +18,16 @@ impl AppState {
 }
 
 #[tauri::command]
-pub fn start_session(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
+pub fn start_session(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    path: String,
+) -> Result<(), String> {
     let config = state.config.lock().map_err(|e| e.to_string())?.clone();
     let claude_cmd = config.claude_path.as_deref().unwrap_or("claude");
     let threshold = config.markdown_threshold;
 
-    let manager = PtyManager::spawn(app, claude_cmd, threshold)?;
+    let manager = PtyManager::spawn(app, claude_cmd, threshold, &path)?;
     *state.pty.lock().map_err(|e| e.to_string())? = Some(manager);
     Ok(())
 }
