@@ -1,6 +1,35 @@
 import { useEffect, useRef } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import Prism from 'prismjs'
+// Prism components depend on a strict import order. JS is built-in,
+// markup needs to land before tsx, and typescript before tsx.
+import 'prismjs/components/prism-markup'
+import 'prismjs/components/prism-typescript'
+import 'prismjs/components/prism-jsx'
+import 'prismjs/components/prism-tsx'
+import 'prismjs/components/prism-bash'
+import 'prismjs/components/prism-json'
+import 'prismjs/components/prism-python'
+import 'prismjs/components/prism-rust'
+import 'prismjs/components/prism-go'
+import 'prismjs/components/prism-yaml'
+import 'prismjs/components/prism-css'
+import 'prismjs/components/prism-sql'
+import './prism-tokens.css'
+
+const LANG_ALIAS: Record<string, string> = {
+  ts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  jsx: 'jsx',
+  py: 'python',
+  sh: 'bash',
+  shell: 'bash',
+  yml: 'yaml',
+  md: 'markdown',
+  rs: 'rust',
+}
 
 export function renderMarkdown(src: string): string {
   const raw = marked.parse(src, { async: false }) as string
@@ -18,6 +47,24 @@ export function MarkdownContent({ source, className }: Props) {
   useEffect(() => {
     const root = ref.current
     if (!root) return
+    const codes = root.querySelectorAll('pre code')
+    codes.forEach((codeEl) => {
+      const cls = (codeEl as HTMLElement).className || ''
+      const m = cls.match(/language-([\w+-]+)/)
+      const lang = m ? LANG_ALIAS[m[1]] ?? m[1] : ''
+      if (lang && Prism.languages[lang]) {
+        try {
+          const html = Prism.highlight(
+            codeEl.textContent ?? '',
+            Prism.languages[lang],
+            lang,
+          )
+          codeEl.innerHTML = html
+        } catch {
+          // ignore highlight errors, fall back to raw text
+        }
+      }
+    })
     const pres = root.querySelectorAll('pre')
     const cleanups: Array<() => void> = []
     pres.forEach((pre) => {
