@@ -24,6 +24,17 @@ export function QaCard({ pair, onExpand }: Props) {
 
   return (
     <article className="qa-card">
+      {hasAnyContent && (
+        <button
+          type="button"
+          className="qa-card__expand-btn"
+          aria-label="답변 전체보기"
+          title="답변 전체보기"
+          onClick={onExpand}
+        >
+          ⤢
+        </button>
+      )}
       <header className="qa-card__question">
         <span className="qa-card__question-label">Q</span>
         <span className="qa-card__question-text">{pair.user_text}</span>
@@ -46,14 +57,6 @@ export function QaCard({ pair, onExpand }: Props) {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            className="qa-card__expand-btn"
-            aria-label="답변 전체보기"
-            onClick={onExpand}
-          >
-            전체보기 →
-          </button>
           {selection.text && selection.rect && (
             <CommentFloat
               selection={{ text: selection.text, rect: selection.rect }}
