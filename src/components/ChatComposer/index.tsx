@@ -1,11 +1,8 @@
 import { useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import type { Mode } from '../../types'
 import './ChatComposer.css'
 
 const SLASH_COMMANDS = ['/help', '/clear', '/model', '/cost', '/compact']
-
-const MODES = ['default', 'plan', 'auto-accept'] as const
-type Mode = typeof MODES[number]
 
 const MODE_LABEL: Record<Mode, string> = {
   default: '⏎ 기본 모드',
@@ -13,51 +10,48 @@ const MODE_LABEL: Record<Mode, string> = {
   'auto-accept': '⚡ Auto-accept 모드',
 }
 
-export function ChatComposer() {
+interface Props {
+  mode: Mode
+  disabled: boolean
+  sendUserMessage: (text: string) => Promise<void>
+  cycleMode: () => void
+}
+
+export function ChatComposer({
+  mode,
+  disabled,
+  sendUserMessage,
+  cycleMode,
+}: Props) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [showSlash, setShowSlash] = useState(false)
-  const [mode, setMode] = useState<Mode>('default')
   const isComposingRef = useRef(false)
-
-  const send = async (text: string) => {
-    setError(null)
-    try {
-      await invoke('write_input', { text })
-    } catch (e) {
-      setError(String(e))
-      throw e
-    }
-  }
 
   const submit = async () => {
     if (!value) return
-    const toSend = value + '\r'
+    const snapshot = value
+    setError(null)
     try {
-      await send(toSend)
+      await sendUserMessage(snapshot)
       setValue('')
-    } catch {
-      // value remains as-is — user can retry or edit
+      setShowSlash(false)
+    } catch (e) {
+      setError(String(e))
     }
   }
 
-  const sendShiftTab = () => {
-    setMode((prev) => MODES[(MODES.indexOf(prev) + 1) % MODES.length])
-    send('\x1b[Z').catch(() => {})
-  }
-
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (isComposingRef.current || e.keyCode === 229 || (e.nativeEvent as KeyboardEvent).isComposing) {
+    if (
+      isComposingRef.current ||
+      e.keyCode === 229 ||
+      (e.nativeEvent as KeyboardEvent).isComposing
+    ) {
       return
     }
     if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault()
-      sendShiftTab()
-      return
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      send('\x1b').catch(() => {})
+      cycleMode()
       return
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -75,12 +69,6 @@ export function ChatComposer() {
   const onSelectSlash = (cmd: string) => {
     setValue(cmd + ' ')
     setShowSlash(false)
-  }
-
-  const handleControl = (text: string) => {
-    send(text).catch(() => {
-      // send() already called setError; swallow only to suppress unhandled-rejection warning
-    })
   }
 
   return (
@@ -105,17 +93,26 @@ export function ChatComposer() {
         <textarea
           className="chat-composer__textarea"
           value={value}
+          disabled={disabled}
           onChange={onChange}
           onKeyDown={onKeyDown}
-          onCompositionStart={() => { isComposingRef.current = true }}
-          onCompositionEnd={() => { isComposingRef.current = false }}
-          placeholder="메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈)"
+          onCompositionStart={() => {
+            isComposingRef.current = true
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false
+          }}
+          placeholder={
+            disabled
+              ? '도구 승인을 먼저 처리하세요…'
+              : '메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈)'
+          }
           rows={2}
         />
         <div className="chat-composer__buttons">
-          <button type="button" onClick={() => handleControl('\x1b')}>ESC</button>
-          <button type="button" onClick={sendShiftTab}>Shift+Tab</button>
-          <button type="button" onClick={() => handleControl('\x03')}>Ctrl+C</button>
+          <button type="button" onClick={() => cycleMode()}>
+            Shift+Tab
+          </button>
         </div>
       </div>
       <div className="chat-composer__status" data-mode={mode}>
