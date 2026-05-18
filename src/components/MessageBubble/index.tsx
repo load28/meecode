@@ -1,13 +1,9 @@
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import type { AssistantSegment } from '../../types'
 import { ToolUseView } from '../ToolViews'
+import { MarkdownContent, renderMarkdown } from './MarkdownContent'
 import './MessageBubble.css'
 
-export function renderMarkdown(src: string): string {
-  const raw = marked.parse(src, { async: false }) as string
-  return DOMPurify.sanitize(raw)
-}
+export { renderMarkdown }
 
 interface SegmentViewProps {
   segment: AssistantSegment
@@ -16,9 +12,9 @@ interface SegmentViewProps {
 export function SegmentView({ segment }: SegmentViewProps) {
   if (segment.kind === 'text') {
     return (
-      <div
+      <MarkdownContent
         className="message-bubble__content"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+        source={segment.text}
       />
     )
   }
@@ -26,9 +22,9 @@ export function SegmentView({ segment }: SegmentViewProps) {
     return (
       <div className="message-bubble__plan">
         <div className="message-bubble__plan-label">📋 Plan</div>
-        <div
+        <MarkdownContent
           className="message-bubble__content"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+          source={segment.text}
         />
       </div>
     )
@@ -40,9 +36,9 @@ export function SegmentView({ segment }: SegmentViewProps) {
           <span className="message-bubble__thinking-icon" aria-hidden="true">💭</span>
           <span>Thinking</span>
         </summary>
-        <div
+        <MarkdownContent
           className="message-bubble__thinking-text"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+          source={segment.text}
         />
       </details>
     )

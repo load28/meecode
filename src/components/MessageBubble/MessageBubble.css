@@ -251,6 +251,35 @@
   border-radius: 8px;
   padding: 16px;
   overflow-x: auto;
+  position: relative;
+}
+
+.markdown-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  line-height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+pre:hover .markdown-copy-btn {
+  opacity: 1;
+}
+
+.markdown-copy-btn:hover {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
 }
 
 .message-bubble__content pre code {

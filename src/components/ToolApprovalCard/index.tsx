@@ -47,11 +47,23 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
         <span className="tool-approval-card__icon" aria-hidden="true">
           ⚙️
         </span>
-        <span className="tool-approval-card__name">{request.tool_name}</span>
+        <span className="tool-approval-card__name">
+          {request.title || request.tool_name}
+        </span>
       </header>
       <pre className="tool-approval-card__summary">
         {summarize(request.input)}
       </pre>
+      {request.decision_reason && (
+        <div className="tool-approval-card__reason">
+          🛈 {request.decision_reason}
+        </div>
+      )}
+      {request.blocked_path && (
+        <div className="tool-approval-card__blocked">
+          ⛔ {request.blocked_path}
+        </div>
+      )}
       <div className="tool-approval-card__buttons">
         <button
           type="button"

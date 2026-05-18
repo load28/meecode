@@ -17,6 +17,10 @@ pub enum DomainEvent {
         tool_name: String,
         input: Value,
         tool_use_id: Option<String>,
+        permission_suggestions: Option<Value>,
+        decision_reason: Option<String>,
+        blocked_path: Option<String>,
+        title: Option<String>,
     },
     UnsupportedControlRequest {
         request_id: String,
@@ -143,12 +147,20 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
                     tool_name,
                     input,
                     tool_use_id,
+                    permission_suggestions,
+                    decision_reason,
+                    blocked_path,
+                    title,
                     ..
                 } => DomainEvent::ToolRequest {
                     request_id,
                     tool_name,
                     input,
                     tool_use_id,
+                    permission_suggestions,
+                    decision_reason,
+                    blocked_path,
+                    title,
                 },
                 ControlRequestBody::Unknown => DomainEvent::UnsupportedControlRequest {
                     request_id,

@@ -14,6 +14,8 @@ interface UsageStats {
   turnCount: number
   inputTokens: number
   outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
 }
 
 export interface McpServerInfo {
@@ -119,6 +121,8 @@ export function useClaudeSession(): UseClaudeSessionResult {
       turnCount: 0,
       inputTokens: 0,
       outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
     },
     sessionId: null,
     cwd: null,
@@ -275,7 +279,12 @@ export function useClaudeSession(): UseClaudeSessionResult {
         rest?: {
           total_cost_usd?: number
           duration_ms?: number
-          usage?: { input_tokens?: number; output_tokens?: number }
+          usage?: {
+            input_tokens?: number
+            output_tokens?: number
+            cache_read_input_tokens?: number
+            cache_creation_input_tokens?: number
+          }
         }
       }>('session:turn_end', (e) => {
         const r = e.payload.rest ?? {}
@@ -289,6 +298,10 @@ export function useClaudeSession(): UseClaudeSessionResult {
             turnCount: s.usage.turnCount + 1,
             inputTokens: s.usage.inputTokens + (r.usage?.input_tokens ?? 0),
             outputTokens: s.usage.outputTokens + (r.usage?.output_tokens ?? 0),
+            cacheReadTokens:
+              s.usage.cacheReadTokens + (r.usage?.cache_read_input_tokens ?? 0),
+            cacheCreationTokens:
+              s.usage.cacheCreationTokens + (r.usage?.cache_creation_input_tokens ?? 0),
           },
         }))
       }),

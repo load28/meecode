@@ -57,6 +57,10 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
             tool_name,
             input,
             tool_use_id,
+            permission_suggestions,
+            decision_reason,
+            blocked_path,
+            title,
         } => {
             let _ = app.emit(
                 "session:tool_request",
@@ -65,6 +69,10 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                     "tool_name": tool_name,
                     "input": input,
                     "tool_use_id": tool_use_id,
+                    "permission_suggestions": permission_suggestions,
+                    "decision_reason": decision_reason,
+                    "blocked_path": blocked_path,
+                    "title": title,
                 }),
             );
         }

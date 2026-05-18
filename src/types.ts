@@ -34,6 +34,18 @@ export interface ToolRequest {
   tool_name: string
   input: unknown
   tool_use_id: string | null
+  permission_suggestions?: PermissionSuggestion[] | null
+  decision_reason?: string | null
+  blocked_path?: string | null
+  title?: string | null
+}
+
+export interface PermissionSuggestion {
+  type?: string
+  destination?: string
+  ruleContent?: string
+  reason?: string
+  label?: string
 }
 
 export type Mode = 'default' | 'plan' | 'auto-accept'

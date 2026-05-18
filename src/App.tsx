@@ -125,7 +125,15 @@ function MainLayout({ projectPath }: { projectPath: string }) {
           긴 답변 자동 펼침
         </label>
         {usage.turnCount > 0 && (
-          <span className="app__usage" title={`${usage.turnCount} turns · ${usage.inputTokens}↑ ${usage.outputTokens}↓ tokens`}>
+          <span
+            className="app__usage"
+            title={
+              `${usage.turnCount} turns · ${usage.inputTokens}↑ ${usage.outputTokens}↓ tokens` +
+              (usage.cacheReadTokens || usage.cacheCreationTokens
+                ? ` · cache ${usage.cacheReadTokens}↺/${usage.cacheCreationTokens}✦`
+                : '')
+            }
+          >
             ${usage.totalCostUsd.toFixed(4)} · {(usage.totalDurationMs / 1000).toFixed(1)}s
           </span>
         )}

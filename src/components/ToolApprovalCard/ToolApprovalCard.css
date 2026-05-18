@@ -37,6 +37,25 @@
   overflow: auto;
 }
 
+.tool-approval-card__reason {
+  font-size: 12px;
+  color: #d29922;
+  padding: 6px 8px;
+  background: #1a1408;
+  border-radius: 4px;
+  border-left: 2px solid #d29922;
+}
+
+.tool-approval-card__blocked {
+  font-size: 12px;
+  color: #f85149;
+  padding: 6px 8px;
+  background: #1a0d0e;
+  border-radius: 4px;
+  border-left: 2px solid #f85149;
+  font-family: 'Menlo', 'Monaco', monospace;
+}
+
 .tool-approval-card__buttons {
   display: flex;
   gap: 8px;
