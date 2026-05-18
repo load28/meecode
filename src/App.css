@@ -141,3 +141,25 @@ body,
 .resize-handle[data-resize-handle-active] {
   background: #58a6ff;
 }
+
+.app__chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #010409;
+}
+
+.app__auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c9d1d9;
+  font-size: 12px;
+  margin-left: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.app__auto-toggle input {
+  cursor: pointer;
+}

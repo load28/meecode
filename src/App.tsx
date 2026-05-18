@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { TerminalPane } from './components/TerminalPane'
-import { MarkdownPane } from './components/MarkdownPane'
+import { ChatStream } from './components/ChatStream'
+import { ChatComposer } from './components/ChatComposer'
+import { ExpandPane } from './components/ExpandPane'
 import { usePtyStream } from './hooks/usePtyStream'
+import { useExpandPanel } from './hooks/useExpandPanel'
 import './App.css'
 
 function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
@@ -14,7 +16,6 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
   const handleSelect = async () => {
     const selected = await open({ directory: true, multiple: false })
     if (!selected || typeof selected !== 'string') return
-
     setLoading(true)
     setError('')
     try {
@@ -49,34 +50,55 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
 }
 
 function MainLayout({ projectPath }: { projectPath: string }) {
-  const { pairs, selectedId, isVisible, selectPair } = usePtyStream()
+  const { pairs } = usePtyStream()
+  const {
+    expandedId,
+    setExpandedId,
+    isOpen,
+    toggleOpen,
+    autoExpand,
+    setAutoExpand,
+  } = useExpandPanel(pairs)
+
+  const expandedPair = useMemo(
+    () => pairs.find((p) => p.id === expandedId) ?? null,
+    [pairs, expandedId]
+  )
+
+  const handleExpand = (id: string) => {
+    setExpandedId(id)
+    if (!isOpen) toggleOpen()
+  }
 
   return (
     <div className="app">
       <div className="app__header">
         <span className="app__path">{projectPath}</span>
+        <label className="app__auto-toggle">
+          <input
+            type="checkbox"
+            checked={autoExpand}
+            onChange={(e) => setAutoExpand(e.target.checked)}
+          />
+          긴 답변 자동 펼침
+        </label>
       </div>
       <div className="app__body">
         <PanelGroup direction="horizontal">
-          <Panel defaultSize={50} minSize={20}>
-            <TerminalPane />
+          <Panel defaultSize={isOpen ? 60 : 100} minSize={30}>
+            <div className="app__chat">
+              <ChatStream pairs={pairs} expandedId={expandedId} onExpand={handleExpand} />
+              <ChatComposer />
+            </div>
           </Panel>
-          <PanelResizeHandle
-            className="resize-handle"
-            style={{ display: isVisible ? undefined : 'none' }}
-          />
-          <Panel
-            defaultSize={50}
-            minSize={20}
-            style={{ display: isVisible ? undefined : 'none' }}
-          >
-            <MarkdownPane
-              pairs={pairs}
-              selectedId={selectedId}
-              onSelect={selectPair}
-              isVisible={isVisible}
-            />
-          </Panel>
+          {isOpen && (
+            <>
+              <PanelResizeHandle className="resize-handle" />
+              <Panel defaultSize={40} minSize={20}>
+                <ExpandPane pair={expandedPair} isOpen={isOpen} onToggle={toggleOpen} />
+              </Panel>
+            </>
+          )}
         </PanelGroup>
       </div>
     </div>
@@ -85,12 +107,8 @@ function MainLayout({ projectPath }: { projectPath: string }) {
 
 function App() {
   const [projectPath, setProjectPath] = useState<string | null>(null)
-
-  if (!projectPath) {
-    return <FolderPicker onStart={setProjectPath} />
-  }
-
-  return <MainLayout projectPath={projectPath} />
+  if (!projectPath) return <FolderPicker onStart={setProjectPath} />
+  return <MainLayout key={projectPath} projectPath={projectPath} />
 }
 
 export default App
