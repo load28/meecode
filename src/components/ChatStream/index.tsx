@@ -84,8 +84,6 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
             return (
               <motion.div
                 key={p.id}
-                ref={virtualizer.measureElement}
-                data-index={vi.index}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
@@ -98,16 +96,29 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
                   transform: `translateY(${vi.start}px)`,
                 }}
               >
-                <QaCard
-                  pair={p}
-                  isExpandedInPane={p.id === expandedId}
-                  onExpand={() => onExpand(p.id)}
-                />
+                <div ref={virtualizer.measureElement} data-index={vi.index}>
+                  <QaCard
+                    pair={p}
+                    isExpandedInPane={p.id === expandedId}
+                    onExpand={() => onExpand(p.id)}
+                  />
+                </div>
               </motion.div>
             )
           })}
         </AnimatePresence>
       </div>
+      {pairs.length > 0 && (() => {
+        const last = pairs[pairs.length - 1]
+        const lastSeg = last.segments[last.segments.length - 1]
+        if (last.segments.length === 0) {
+          return <div className="chat-stream__status">Claude가 응답 대기 중…</div>
+        }
+        if (lastSeg && lastSeg.kind === 'tool_use') {
+          return <div className="chat-stream__status">Claude가 도구를 실행 중…</div>
+        }
+        return null
+      })()}
     </div>
   )
 }

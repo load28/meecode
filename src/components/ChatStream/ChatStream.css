@@ -14,3 +14,15 @@
   font-size: 14px;
   text-align: center;
 }
+
+.chat-stream__status {
+  position: sticky;
+  bottom: 0;
+  padding: 6px 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #8b949e;
+  background: linear-gradient(to bottom, transparent, rgba(1, 4, 9, 0.95) 30%);
+  pointer-events: none;
+  text-align: center;
+}

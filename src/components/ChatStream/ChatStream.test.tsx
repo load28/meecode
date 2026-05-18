@@ -39,4 +39,17 @@ describe('ChatStream', () => {
     render(<ChatStream pairs={pairs} expandedId="a" onExpand={() => {}} />)
     expect(screen.getByText('오른쪽 패널에 펼쳐짐')).toBeInTheDocument()
   })
+
+  it('마지막 페어 segments가 비어 있으면 "Claude가 응답 대기 중" 인디케이터 표시', () => {
+    const pairs = [pair('a', 'q', [])]
+    render(<ChatStream pairs={pairs} expandedId={null} onExpand={() => {}} />)
+    expect(screen.getByText('Claude가 응답 대기 중…')).toBeInTheDocument()
+  })
+
+  it('마지막 segment가 tool_use면 도구 실행 인디케이터 표시', () => {
+    const tool = { kind: 'tool_use' as const, name: 'Bash', summary: 'ls' }
+    const pairs = [pair('a', 'q', [tool])]
+    render(<ChatStream pairs={pairs} expandedId={null} onExpand={() => {}} />)
+    expect(screen.getByText('Claude가 도구를 실행 중…')).toBeInTheDocument()
+  })
 })

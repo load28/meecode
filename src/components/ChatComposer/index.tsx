@@ -53,7 +53,9 @@ export function ChatComposer() {
   }
 
   const handleControl = (text: string) => {
-    send(text).catch(() => {})
+    send(text).catch(() => {
+      // send() already called setError; swallow only to suppress unhandled-rejection warning
+    })
   }
 
   return (
