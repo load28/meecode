@@ -1,24 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
-import type { Virtualizer } from '@tanstack/react-virtual'
-import { AnimatePresence, motion } from 'framer-motion'
 import { QaCard } from '../QaCard'
 import type { QaPair } from '../../types'
 import './ChatStream.css'
-
-// jsdom에서는 offsetHeight가 0이어서 virtualizer가 아이템을 렌더링하지 않는다.
-// 실제 측정값이 0이면 대형 기본값으로 대체해 테스트 환경에서도 아이템을 렌더링한다.
-function observeElementRectWithFallback(
-  instance: Virtualizer<HTMLDivElement, HTMLElement>,
-  cb: (rect: { width: number; height: number }) => void,
-) {
-  return observeElementRect(instance as never, (rect) => {
-    cb({
-      width: rect.width || 1200,
-      height: rect.height || 800,
-    })
-  })
-}
 
 interface Props {
   pairs: QaPair[]
@@ -30,15 +13,6 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
   const userScrolledRef = useRef(false)
-
-  const virtualizer = useVirtualizer({
-    count: pairs.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 140,
-    measureElement: (el) => el.getBoundingClientRect().height,
-    overscan: 6,
-    observeElementRect: observeElementRectWithFallback,
-  })
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current || !scrollRef.current) return
@@ -67,58 +41,26 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
     )
   }
 
-  const items = virtualizer.getVirtualItems()
+  const last = pairs[pairs.length - 1]
+  const lastSeg = last.segments[last.segments.length - 1]
+  const indicator =
+    last.segments.length === 0
+      ? 'Claude가 응답 대기 중…'
+      : lastSeg && lastSeg.kind === 'tool_use'
+      ? 'Claude가 도구를 실행 중…'
+      : null
 
   return (
     <div ref={scrollRef} className="chat-stream" onScroll={handleScroll}>
-      <div
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }}
-      >
-        <AnimatePresence mode="popLayout">
-          {items.map((vi) => {
-            const p = pairs[vi.index]
-            return (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${vi.start}px)`,
-                }}
-              >
-                <div ref={virtualizer.measureElement} data-index={vi.index}>
-                  <QaCard
-                    pair={p}
-                    isExpandedInPane={p.id === expandedId}
-                    onExpand={() => onExpand(p.id)}
-                  />
-                </div>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-      </div>
-      {pairs.length > 0 && (() => {
-        const last = pairs[pairs.length - 1]
-        const lastSeg = last.segments[last.segments.length - 1]
-        if (last.segments.length === 0) {
-          return <div className="chat-stream__status">Claude가 응답 대기 중…</div>
-        }
-        if (lastSeg && lastSeg.kind === 'tool_use') {
-          return <div className="chat-stream__status">Claude가 도구를 실행 중…</div>
-        }
-        return null
-      })()}
+      {pairs.map((p) => (
+        <QaCard
+          key={p.id}
+          pair={p}
+          isExpandedInPane={p.id === expandedId}
+          onExpand={() => onExpand(p.id)}
+        />
+      ))}
+      {indicator && <div className="chat-stream__status">{indicator}</div>}
     </div>
   )
 }
