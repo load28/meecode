@@ -150,6 +150,7 @@ function MainLayout({ projectPath }: { projectPath: string }) {
                 slashCommands={slashCommands}
                 model={model}
                 busy={hookActivity !== null}
+                projectPath={projectPath}
                 onInterrupt={() => {
                   interrupt().catch(() => {})
                 }}

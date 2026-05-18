@@ -238,6 +238,70 @@ fn chrono_now_millis() -> u128 {
         .unwrap_or(0)
 }
 
+#[derive(serde::Deserialize)]
+pub struct SearchFilesArgs {
+    pub project_path: String,
+    pub query: String,
+}
+
+#[tauri::command]
+pub fn search_files(args: SearchFilesArgs) -> Result<Vec<String>, String> {
+    use std::collections::VecDeque;
+    use std::fs;
+    use std::path::PathBuf;
+
+    let root = PathBuf::from(&args.project_path);
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let query = args.query.to_lowercase();
+    let mut out: Vec<String> = Vec::new();
+    let mut stack: VecDeque<PathBuf> = VecDeque::from([root.clone()]);
+    let mut visited = 0usize;
+    const MAX_VISIT: usize = 20_000;
+    const MAX_RESULTS: usize = 50;
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", ".git", "target", "dist", "build", ".next", ".cache", ".turbo",
+    ];
+
+    while let Some(dir) = stack.pop_front() {
+        if visited > MAX_VISIT || out.len() >= MAX_RESULTS {
+            break;
+        }
+        visited += 1;
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') && name != ".env.example" {
+                continue;
+            }
+            let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            if is_dir {
+                if SKIP_DIRS.contains(&name.as_str()) {
+                    continue;
+                }
+                stack.push_back(path);
+                continue;
+            }
+            let rel = path
+                .strip_prefix(&root)
+                .ok()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or(name.clone());
+            if query.is_empty() || rel.to_lowercase().contains(&query) {
+                out.push(rel);
+                if out.len() >= MAX_RESULTS {
+                    break;
+                }
+            }
+        }
+    }
+
+    out.sort_by_key(|p| (p.len(), p.clone()));
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn get_config(state: State<AppState>) -> Result<Config, String> {
     Ok(state.config.lock().map_err(|e| e.to_string())?.clone())
