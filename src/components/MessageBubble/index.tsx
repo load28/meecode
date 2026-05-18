@@ -46,6 +46,27 @@ export function SegmentView({ segment }: SegmentViewProps) {
       </details>
     )
   }
+  if (segment.kind === 'tool_result') {
+    const cls = segment.is_error
+      ? 'message-bubble__tool-result is-error'
+      : 'message-bubble__tool-result'
+    const label = segment.is_error ? '❌ 도구 실패' : '✓ 도구 결과'
+    return (
+      <details className={cls}>
+        <summary className="message-bubble__tool-result-summary">
+          <span className="message-bubble__tool-result-label">{label}</span>
+          {segment.text && (
+            <span className="message-bubble__tool-result-preview">
+              {segment.text.split('\n')[0].slice(0, 100)}
+            </span>
+          )}
+        </summary>
+        {segment.text && (
+          <pre className="message-bubble__tool-result-body">{segment.text}</pre>
+        )}
+      </details>
+    )
+  }
   return (
     <details className="message-bubble__tool">
       <summary className="message-bubble__tool-summary">

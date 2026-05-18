@@ -69,16 +69,57 @@ function assistantSegmentsFrom(content: unknown): AssistantSegment[] {
       if (typeof text === 'string' && text) segs.push({ kind: 'thinking', text })
     } else if (t === 'tool_use') {
       const name = String((item as Record<string, unknown>).name ?? '')
+      const id = String((item as Record<string, unknown>).id ?? '')
       const input = (item as Record<string, unknown>).input
       if (name === 'ExitPlanMode') {
         const plan = (input as Record<string, unknown> | undefined)?.plan
         if (typeof plan === 'string' && plan) segs.push({ kind: 'plan', text: plan })
       } else if (name) {
-        segs.push({ kind: 'tool_use', name, summary: summarizeToolInput(name, input) })
+        segs.push({
+          kind: 'tool_use',
+          id,
+          name,
+          summary: summarizeToolInput(name, input),
+        })
       }
     }
   }
   return segs
+}
+
+function userToolResultsFromContent(content: unknown): AssistantSegment[] {
+  if (!Array.isArray(content)) return []
+  const out: AssistantSegment[] = []
+  for (const item of content) {
+    if (!item || typeof item !== 'object') continue
+    const obj = item as Record<string, unknown>
+    if (obj.type !== 'tool_result') continue
+    const toolUseId = typeof obj.tool_use_id === 'string' ? obj.tool_use_id : ''
+    const isError = obj.is_error === true
+    const text = flattenToolResultText(obj.content)
+    out.push({
+      kind: 'tool_result',
+      tool_use_id: toolUseId,
+      text,
+      is_error: isError,
+    })
+  }
+  return out
+}
+
+function flattenToolResultText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  const parts: string[] = []
+  for (const item of content) {
+    if (item && typeof item === 'object') {
+      const obj = item as Record<string, unknown>
+      if (obj.type === 'text' && typeof obj.text === 'string') {
+        parts.push(obj.text)
+      }
+    }
+  }
+  return parts.join('\n')
 }
 
 type UserContent = { kind: 'real'; text: string } | { kind: 'tool_result_only' }
@@ -119,7 +160,19 @@ export function reduceStreamMessage(
 
   if (ev.kind === 'user') {
     const classified = classifyUserContent(content)
-    if (classified.kind === 'tool_result_only') return state
+    if (classified.kind === 'tool_result_only') {
+      const results = userToolResultsFromContent(content)
+      if (results.length === 0 || !state.currentId) return state
+      const idx = state.pairs.findIndex((p) => p.id === state.currentId)
+      if (idx === -1) return state
+      const updated: QaPair = {
+        ...state.pairs[idx],
+        segments: [...state.pairs[idx].segments, ...results],
+      }
+      const next = state.pairs.slice()
+      next[idx] = updated
+      return { pairs: next, currentId: state.currentId }
+    }
     if (!classified.text) return state
     const last = state.pairs[state.pairs.length - 1]
     if (last && last.user_text === classified.text && last.segments.length === 0) {

@@ -21,6 +21,14 @@ export function QaCard({ pair, onExpand }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const thinkingSegments = pair.segments.filter((s) => s.kind === 'thinking')
   const toolSegments = pair.segments.filter((s) => s.kind === 'tool_use')
+  const toolResults = pair.segments.filter((s) => s.kind === 'tool_result')
+  const resultsByToolId = new Map<string, typeof toolResults>()
+  for (const r of toolResults) {
+    if (r.kind !== 'tool_result') continue
+    const list = resultsByToolId.get(r.tool_use_id) ?? []
+    list.push(r)
+    resultsByToolId.set(r.tool_use_id, list)
+  }
   const hasAnyContent = pair.segments.length > 0
 
   return (
@@ -58,9 +66,18 @@ export function QaCard({ pair, onExpand }: Props) {
           />
           {toolSegments.length > 0 && (
             <div className="qa-card__tools">
-              {toolSegments.map((seg, i) => (
-                <SegmentView key={i} segment={seg} />
-              ))}
+              {toolSegments.map((seg, i) => {
+                if (seg.kind !== 'tool_use') return null
+                const matched = resultsByToolId.get(seg.id) ?? []
+                return (
+                  <div key={i} className="qa-card__tool-group">
+                    <SegmentView segment={seg} />
+                    {matched.map((r, j) => (
+                      <SegmentView key={`r-${j}`} segment={r} />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
           )}
           {selection.text && selection.rect && (

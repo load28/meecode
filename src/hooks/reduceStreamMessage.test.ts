@@ -40,7 +40,7 @@ describe('reduceStreamMessage', () => {
     ])
   })
 
-  it('tool_result-only user 메시지는 새 페어를 만들지 않는다', () => {
+  it('tool_result-only user 메시지는 새 페어를 만들지 않고 in-flight 페어에 tool_result 추가', () => {
     let s = makeInitialMessageState([])
     s = reduceStreamMessage(s, user('u1', 'q'))
     s = reduceStreamMessage(s, assistant([{ type: 'text', text: 'before' }]))
@@ -52,6 +52,7 @@ describe('reduceStreamMessage', () => {
     expect(s.pairs).toHaveLength(1)
     expect(s.pairs[0].segments).toEqual([
       { kind: 'text', text: 'before' },
+      { kind: 'tool_result', tool_use_id: 'x', text: 'out', is_error: false },
       { kind: 'text', text: 'after' },
     ])
   })
@@ -67,16 +68,85 @@ describe('reduceStreamMessage', () => {
     expect(s.pairs[1].user_text).toBe('q2')
   })
 
-  it('tool_use는 tool_use segment로 들어간다', () => {
+  it('tool_use는 tool_use segment로 들어가고 id를 보존', () => {
     let s = makeInitialMessageState([])
     s = reduceStreamMessage(s, user('u1', 'q'))
     s = reduceStreamMessage(
       s,
-      assistant([{ type: 'tool_use', name: 'Bash', input: { command: 'ls -la' } }]),
+      assistant([
+        { type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls -la' } },
+      ]),
     )
     expect(s.pairs[0].segments).toEqual([
-      { kind: 'tool_use', name: 'Bash', summary: 'ls -la' },
+      { kind: 'tool_use', id: 'tu1', name: 'Bash', summary: 'ls -la' },
     ])
+  })
+
+  it('user.tool_result-only 메시지는 in-flight 페어에 tool_result segment 추가', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'q'))
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'tool_use', id: 'tu1', name: 'Read', input: { file_path: '/a' } },
+      ]),
+    )
+    s = reduceStreamMessage(s, {
+      kind: 'user',
+      uuid: 'u-tr',
+      body: {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'tu1', content: 'hello world' },
+        ],
+      },
+    })
+    expect(s.pairs).toHaveLength(1)
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'tool_use', id: 'tu1', name: 'Read', summary: '/a' },
+      {
+        kind: 'tool_result',
+        tool_use_id: 'tu1',
+        text: 'hello world',
+        is_error: false,
+      },
+    ])
+  })
+
+  it('tool_result.content가 array of text면 줄바꿈으로 합쳐 보존', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'q'))
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'tool_use', id: 'tu1', name: 'Bash', input: { command: 'ls' } },
+      ]),
+    )
+    s = reduceStreamMessage(s, {
+      kind: 'user',
+      uuid: 'u-tr',
+      body: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tu1',
+            content: [
+              { type: 'text', text: 'line1' },
+              { type: 'text', text: 'line2' },
+            ],
+            is_error: true,
+          },
+        ],
+      },
+    })
+    const last = s.pairs[0].segments.at(-1)!
+    expect(last).toEqual({
+      kind: 'tool_result',
+      tool_use_id: 'tu1',
+      text: 'line1\nline2',
+      is_error: true,
+    })
   })
 
   it('ExitPlanMode는 plan segment로 변환된다', () => {

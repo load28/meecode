@@ -4,8 +4,8 @@ import { QaCard } from './index'
 import type { AssistantSegment, QaPair } from '../../types'
 
 const text = (s: string): AssistantSegment => ({ kind: 'text', text: s })
-const tool = (name: string, summary = ''): AssistantSegment => ({
-  kind: 'tool_use', name, summary,
+const tool = (name: string, summary = '', id = ''): AssistantSegment => ({
+  kind: 'tool_use', id, name, summary,
 })
 
 const pair = (id: string, segs: AssistantSegment[]): QaPair => ({
@@ -63,6 +63,24 @@ describe('QaCard', () => {
     const p = pair('a', [text(LONG), tool('Bash', 'ls')])
     render(<QaCard pair={p} onExpand={() => {}} />)
     expect(screen.getByText('Bash')).toBeInTheDocument()
+  })
+
+  it('tool_use 뒤에 매칭되는 tool_result가 같은 그룹에 표시', () => {
+    const p = pair('a', [
+      tool('Bash', 'ls', 'tu1'),
+      { kind: 'tool_result', tool_use_id: 'tu1', text: 'file.txt', is_error: false },
+    ])
+    render(<QaCard pair={p} onExpand={() => {}} />)
+    expect(screen.getByText('✓ 도구 결과')).toBeInTheDocument()
+  })
+
+  it('tool_result.is_error=true면 실패 라벨', () => {
+    const p = pair('a', [
+      tool('Bash', 'oops', 'tu1'),
+      { kind: 'tool_result', tool_use_id: 'tu1', text: 'cmd not found', is_error: true },
+    ])
+    render(<QaCard pair={p} onExpand={() => {}} />)
+    expect(screen.getByText('❌ 도구 실패')).toBeInTheDocument()
   })
 
   it('답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {

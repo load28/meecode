@@ -6,10 +6,25 @@ use std::time::SystemTime;
 #[derive(Serialize, Clone, PartialEq, Debug)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AssistantSegment {
-    Text { text: String },
-    Plan { text: String },
-    Thinking { text: String },
-    ToolUse { name: String, summary: String },
+    Text {
+        text: String,
+    },
+    Plan {
+        text: String,
+    },
+    Thinking {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        summary: String,
+    },
+    ToolResult {
+        tool_use_id: String,
+        text: String,
+        is_error: bool,
+    },
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
@@ -164,6 +179,11 @@ fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
                     .and_then(|n| n.as_str())
                     .unwrap_or("")
                     .to_string();
+                let id = item
+                    .get("id")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 if name == "ExitPlanMode" {
                     let plan = item
                         .get("input")
@@ -179,13 +199,66 @@ fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
                         .get("input")
                         .map(|i| summarize_tool_input(&name, i))
                         .unwrap_or_default();
-                    segs.push(AssistantSegment::ToolUse { name, summary });
+                    segs.push(AssistantSegment::ToolUse { id, name, summary });
                 }
             }
             _ => {}
         }
     }
     segs
+}
+
+fn user_tool_results_from_content(content: &Value) -> Vec<AssistantSegment> {
+    let mut out = Vec::new();
+    let Some(arr) = content.as_array() else {
+        return out;
+    };
+    for item in arr {
+        let t = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if t != "tool_result" {
+            continue;
+        }
+        let tool_use_id = item
+            .get("tool_use_id")
+            .and_then(|s| s.as_str())
+            .unwrap_or("")
+            .to_string();
+        let is_error = item
+            .get("is_error")
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        let text = flatten_tool_result_text(item.get("content"));
+        out.push(AssistantSegment::ToolResult {
+            tool_use_id,
+            text,
+            is_error,
+        });
+    }
+    out
+}
+
+fn flatten_tool_result_text(content: Option<&Value>) -> String {
+    let Some(v) = content else {
+        return String::new();
+    };
+    if let Some(s) = v.as_str() {
+        return s.to_string();
+    }
+    let Some(arr) = v.as_array() else {
+        return String::new();
+    };
+    let mut out = String::new();
+    for part in arr {
+        if part.get("type").and_then(|t| t.as_str()) == Some("text") {
+            if let Some(s) = part.get("text").and_then(|s| s.as_str()) {
+                if !out.is_empty() {
+                    out.push('\n');
+                }
+                out.push_str(s);
+            }
+        }
+    }
+    out
 }
 
 pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
@@ -211,7 +284,13 @@ pub fn extract_qa_pairs(path: &Path) -> Vec<QaPair> {
                     continue;
                 };
                 let user_text = match classify_user_content(content) {
-                    UserContent::ToolResultOnly => continue,
+                    UserContent::ToolResultOnly => {
+                        if let Some(pair) = current.as_mut() {
+                            let mut results = user_tool_results_from_content(content);
+                            pair.segments.append(&mut results);
+                        }
+                        continue;
+                    }
                     UserContent::Real(t) => t,
                 };
                 if user_text.is_empty() {
@@ -282,8 +361,23 @@ mod tests {
     }
     fn tool(name: &str, summary: &str) -> AssistantSegment {
         AssistantSegment::ToolUse {
+            id: String::new(),
             name: name.to_string(),
             summary: summary.to_string(),
+        }
+    }
+    fn tool_with_id(id: &str, name: &str, summary: &str) -> AssistantSegment {
+        AssistantSegment::ToolUse {
+            id: id.to_string(),
+            name: name.to_string(),
+            summary: summary.to_string(),
+        }
+    }
+    fn tool_result(tool_use_id: &str, text: &str, is_error: bool) -> AssistantSegment {
+        AssistantSegment::ToolResult {
+            tool_use_id: tool_use_id.to_string(),
+            text: text.to_string(),
+            is_error,
         }
     }
 
@@ -367,12 +461,12 @@ mod tests {
     }
 
     #[test]
-    fn tool_result_messages_do_not_split_turns() {
+    fn tool_result_messages_do_not_split_turns_and_attach_inline() {
         let mut file = NamedTempFile::new().unwrap();
         writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
         writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"before tool"}}]}}}}"#).unwrap();
-        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"Bash","input":{{"command":"ls -la"}}}}]}}}}"#).unwrap();
-        writeln!(file, r#"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"x","content":"output"}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"tu1","name":"Bash","input":{{"command":"ls -la"}}}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"tu1","content":"file.txt"}}]}}}}"#).unwrap();
         writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"after tool"}}]}}}}"#).unwrap();
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs.len(), 1, "tool_result must not start a new pair");
@@ -380,8 +474,41 @@ mod tests {
             pairs[0].segments,
             vec![
                 text("before tool"),
-                tool("Bash", "ls -la"),
+                tool_with_id("tu1", "Bash", "ls -la"),
+                tool_result("tu1", "file.txt", false),
                 text("after tool"),
+            ]
+        );
+    }
+
+    #[test]
+    fn tool_result_with_array_content_concatenates_text_parts() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"tu1","name":"Read","input":{{"file_path":"/a"}}}}]}}}}"#).unwrap();
+        writeln!(file, r##"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"tu1","content":[{{"type":"text","text":"line1"}},{{"type":"text","text":"line2"}}]}}]}}}}"##).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(
+            pairs[0].segments,
+            vec![
+                tool_with_id("tu1", "Read", "/a"),
+                tool_result("tu1", "line1\nline2", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn tool_result_with_is_error_true_is_preserved() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"tu1","name":"Bash","input":{{"command":"oops"}}}}]}}}}"#).unwrap();
+        writeln!(file, r#"{{"type":"user","message":{{"content":[{{"type":"tool_result","tool_use_id":"tu1","content":"command not found","is_error":true}}]}}}}"#).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(
+            pairs[0].segments,
+            vec![
+                tool_with_id("tu1", "Bash", "oops"),
+                tool_result("tu1", "command not found", true),
             ]
         );
     }
