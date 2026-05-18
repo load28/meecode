@@ -68,6 +68,12 @@ export function useClaudeSession(): UseClaudeSessionResult {
       ),
     )
 
+    unlistens.push(
+      listen<string>('session:stderr', (e) =>
+        console.warn('[claude stderr]', e.payload),
+      ),
+    )
+
     return () => {
       unlistens.forEach((p) => p.then((fn) => fn()))
     }

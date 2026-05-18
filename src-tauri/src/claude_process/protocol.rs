@@ -90,6 +90,7 @@ pub enum StdinMessage {
     User {
         session_id: String,
         message: UserMessageBody,
+        parent_tool_use_id: Option<String>,
     },
     ControlResponse {
         response: ControlResponseEnvelope,
@@ -136,6 +137,7 @@ pub fn user_text_message(text: String) -> StdinMessage {
             role: "user",
             content: vec![UserContentBlock::Text { text }],
         },
+        parent_tool_use_id: None,
     }
 }
 

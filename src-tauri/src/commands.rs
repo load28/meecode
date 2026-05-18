@@ -91,9 +91,17 @@ pub async fn start_session(app: AppHandle, path: String) -> Result<(), String> {
         guard.clone()
     };
     let app_for_events = app.clone();
-    let handle = spawn_claude(&claude_bin, &path, resume.as_deref(), move |ev| {
-        dispatch_event(&app_for_events, ev);
-    })
+    let app_for_stderr = app.clone();
+    let handle = spawn_claude(
+        &claude_bin,
+        &path,
+        resume.as_deref(),
+        move |ev| dispatch_event(&app_for_events, ev),
+        move |line| {
+            eprintln!("[claude stderr] {line}");
+            let _ = app_for_stderr.emit("session:stderr", line);
+        },
+    )
     .await?;
 
     let state = app.state::<AppState>();
