@@ -32,7 +32,7 @@ describe('CommentFloat', () => {
     expect(screen.getByPlaceholderText('질문을 입력하세요...')).toBeInTheDocument()
   })
 
-  it('엔터 제출 시 [선택: "..."] 포맷으로 write_input 호출', async () => {
+  it('엔터 제출 시 [선택: "..."] 포맷으로 send_user_message 호출', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(<CommentFloat selection={mockSelection} onClose={onClose} />)
@@ -41,8 +41,8 @@ describe('CommentFloat', () => {
     await user.type(screen.getByPlaceholderText('질문을 입력하세요...'), 'async 없으면?')
     await user.keyboard('{Enter}')
 
-    expect(invoke).toHaveBeenCalledWith('write_input', {
-      text: '[선택: "await를 사용"] async 없으면?\r',
+    expect(invoke).toHaveBeenCalledWith('send_user_message', {
+      text: '[선택: "await를 사용"] async 없으면?',
     })
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -56,8 +56,8 @@ describe('CommentFloat', () => {
     await user.type(screen.getByPlaceholderText('질문을 입력하세요...'), '질문 내용')
     await user.click(screen.getByText('전송'))
 
-    expect(invoke).toHaveBeenCalledWith('write_input', {
-      text: '[선택: "await를 사용"] 질문 내용\r',
+    expect(invoke).toHaveBeenCalledWith('send_user_message', {
+      text: '[선택: "await를 사용"] 질문 내용',
     })
   })
 

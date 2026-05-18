@@ -22,8 +22,8 @@ export function CommentFloat({ selection, onClose }: Props) {
 
   const handleSubmit = async () => {
     if (!input.trim()) return
-    const message = `[선택: "${selection.text}"] ${input.trim()}\r`
-    await invoke('write_input', { text: message })
+    const message = `[선택: "${selection.text}"] ${input.trim()}`
+    await invoke('send_user_message', { text: message })
     setInput('')
     onClose()
   }
