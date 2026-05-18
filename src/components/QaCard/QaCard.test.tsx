@@ -5,7 +5,7 @@ import type { AssistantSegment, QaPair } from '../../types'
 
 const text = (s: string): AssistantSegment => ({ kind: 'text', text: s })
 const tool = (name: string, summary = '', id = ''): AssistantSegment => ({
-  kind: 'tool_use', id, name, summary,
+  kind: 'tool_use', id, name, summary, input: null,
 })
 
 const pair = (id: string, segs: AssistantSegment[]): QaPair => ({

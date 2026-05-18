@@ -80,6 +80,7 @@ function assistantSegmentsFrom(content: unknown): AssistantSegment[] {
           id,
           name,
           summary: summarizeToolInput(name, input),
+          input,
         })
       }
     }

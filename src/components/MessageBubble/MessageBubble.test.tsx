@@ -30,13 +30,16 @@ describe('SegmentView', () => {
     expect(container.querySelector('.message-bubble__plan')).toBeInTheDocument()
   })
 
-  it('tool_use 세그먼트를 details로 렌더 (기본 닫힘)', () => {
-    const seg: AssistantSegment = { kind: 'tool_use', name: 'Bash', summary: 'ls -la' }
+  it('tool_use(Bash) 세그먼트를 ToolView로 렌더 — 이름과 command 노출', () => {
+    const seg: AssistantSegment = {
+      kind: 'tool_use',
+      id: '',
+      name: 'Bash',
+      summary: 'ls -la',
+      input: { command: 'ls -la' },
+    }
     const { container } = render(<SegmentView segment={seg} />)
-    const det = container.querySelector('.message-bubble__tool') as HTMLDetailsElement
-    expect(det).not.toBeNull()
-    expect(det.open).toBe(false)
-    expect(det.textContent).toContain('Bash')
-    expect(det.textContent).toContain('ls -la')
+    expect(container.textContent).toContain('Bash')
+    expect(container.textContent).toContain('ls -la')
   })
 })

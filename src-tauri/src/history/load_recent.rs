@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-#[derive(Serialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Clone, Debug)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AssistantSegment {
     Text {
@@ -19,12 +19,53 @@ pub enum AssistantSegment {
         id: String,
         name: String,
         summary: String,
+        input: Value,
     },
     ToolResult {
         tool_use_id: String,
         text: String,
         is_error: bool,
     },
+}
+
+// PartialEq intentionally ignores raw `input` so unit tests can stay terse —
+// equality semantics elsewhere only care about identity + display fields.
+impl PartialEq for AssistantSegment {
+    fn eq(&self, other: &Self) -> bool {
+        use AssistantSegment::*;
+        match (self, other) {
+            (Text { text: a }, Text { text: b }) => a == b,
+            (Plan { text: a }, Plan { text: b }) => a == b,
+            (Thinking { text: a }, Thinking { text: b }) => a == b,
+            (
+                ToolUse {
+                    id: i1,
+                    name: n1,
+                    summary: s1,
+                    ..
+                },
+                ToolUse {
+                    id: i2,
+                    name: n2,
+                    summary: s2,
+                    ..
+                },
+            ) => i1 == i2 && n1 == n2 && s1 == s2,
+            (
+                ToolResult {
+                    tool_use_id: a1,
+                    text: t1,
+                    is_error: e1,
+                },
+                ToolResult {
+                    tool_use_id: a2,
+                    text: t2,
+                    is_error: e2,
+                },
+            ) => a1 == a2 && t1 == t2 && e1 == e2,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Serialize, Clone, PartialEq, Debug)]
@@ -195,11 +236,14 @@ fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
                         segs.push(AssistantSegment::Plan { text: plan });
                     }
                 } else if !name.is_empty() {
-                    let summary = item
-                        .get("input")
-                        .map(|i| summarize_tool_input(&name, i))
-                        .unwrap_or_default();
-                    segs.push(AssistantSegment::ToolUse { id, name, summary });
+                    let input = item.get("input").cloned().unwrap_or(Value::Null);
+                    let summary = summarize_tool_input(&name, &input);
+                    segs.push(AssistantSegment::ToolUse {
+                        id,
+                        name,
+                        summary,
+                        input,
+                    });
                 }
             }
             _ => {}
@@ -364,6 +408,7 @@ mod tests {
             id: String::new(),
             name: name.to_string(),
             summary: summary.to_string(),
+            input: Value::Null,
         }
     }
     fn tool_with_id(id: &str, name: &str, summary: &str) -> AssistantSegment {
@@ -371,6 +416,7 @@ mod tests {
             id: id.to_string(),
             name: name.to_string(),
             summary: summary.to_string(),
+            input: Value::Null,
         }
     }
     fn tool_result(tool_use_id: &str, text: &str, is_error: bool) -> AssistantSegment {

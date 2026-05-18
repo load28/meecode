@@ -1,6 +1,7 @@
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import type { AssistantSegment } from '../../types'
+import { ToolUseView } from '../ToolViews'
 import './MessageBubble.css'
 
 export function renderMarkdown(src: string): string {
@@ -67,14 +68,5 @@ export function SegmentView({ segment }: SegmentViewProps) {
       </details>
     )
   }
-  return (
-    <details className="message-bubble__tool">
-      <summary className="message-bubble__tool-summary">
-        <span className="message-bubble__tool-name">{segment.name}</span>
-        {segment.summary && (
-          <span className="message-bubble__tool-arg">{segment.summary}</span>
-        )}
-      </summary>
-    </details>
-  )
+  return <ToolUseView segment={segment} />
 }

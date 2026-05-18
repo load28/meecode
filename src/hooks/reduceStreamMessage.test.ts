@@ -78,7 +78,13 @@ describe('reduceStreamMessage', () => {
       ]),
     )
     expect(s.pairs[0].segments).toEqual([
-      { kind: 'tool_use', id: 'tu1', name: 'Bash', summary: 'ls -la' },
+      {
+        kind: 'tool_use',
+        id: 'tu1',
+        name: 'Bash',
+        summary: 'ls -la',
+        input: { command: 'ls -la' },
+      },
     ])
   })
 
@@ -103,7 +109,13 @@ describe('reduceStreamMessage', () => {
     })
     expect(s.pairs).toHaveLength(1)
     expect(s.pairs[0].segments).toEqual([
-      { kind: 'tool_use', id: 'tu1', name: 'Read', summary: '/a' },
+      {
+        kind: 'tool_use',
+        id: 'tu1',
+        name: 'Read',
+        summary: '/a',
+        input: { file_path: '/a' },
+      },
       {
         kind: 'tool_result',
         tool_use_id: 'tu1',
