@@ -125,6 +125,19 @@ export function ChatComposer({
     setPendingImages((prev) => prev.filter((p) => p.id !== id))
   }
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const openFilePicker = () => {
+    fileInputRef.current?.click()
+  }
+  const onFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    for (const f of files) {
+      const img = await ingestFile(f)
+      if (img) setPendingImages((prev) => [...prev, img])
+    }
+    e.target.value = ''
+  }
+
   const detectMention = (text: string, caret: number): MentionState | null => {
     if (caret === 0) return null
     let i = caret - 1
@@ -360,6 +373,22 @@ export function ChatComposer({
           rows={2}
         />
         <div className="chat-composer__buttons">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={onFileInputChange}
+          />
+          <button
+            type="button"
+            onClick={openFilePicker}
+            title="이미지 첨부"
+            aria-label="이미지 첨부"
+          >
+            🖼
+          </button>
           {busy && onInterrupt && (
             <button
               type="button"
