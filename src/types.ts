@@ -11,6 +11,7 @@ export interface SelectionState {
 export type AssistantSegment =
   | { kind: 'text'; text: string }
   | { kind: 'plan'; text: string }
+  | { kind: 'thinking'; text: string }
   | { kind: 'tool_use'; name: string; summary: string }
 
 export interface QaPair {

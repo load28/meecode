@@ -64,6 +64,9 @@ function assistantSegmentsFrom(content: unknown): AssistantSegment[] {
     if (t === 'text') {
       const text = (item as Record<string, unknown>).text
       if (typeof text === 'string' && text) segs.push({ kind: 'text', text })
+    } else if (t === 'thinking') {
+      const text = (item as Record<string, unknown>).thinking
+      if (typeof text === 'string' && text) segs.push({ kind: 'thinking', text })
     } else if (t === 'tool_use') {
       const name = String((item as Record<string, unknown>).name ?? '')
       const input = (item as Record<string, unknown>).input

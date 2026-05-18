@@ -32,6 +32,20 @@ export function SegmentView({ segment }: SegmentViewProps) {
       </div>
     )
   }
+  if (segment.kind === 'thinking') {
+    return (
+      <details className="message-bubble__thinking">
+        <summary className="message-bubble__thinking-summary">
+          <span className="message-bubble__thinking-icon" aria-hidden="true">💭</span>
+          <span>Thinking</span>
+        </summary>
+        <div
+          className="message-bubble__thinking-text"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(segment.text) }}
+        />
+      </details>
+    )
+  }
   return (
     <details className="message-bubble__tool">
       <summary className="message-bubble__tool-summary">

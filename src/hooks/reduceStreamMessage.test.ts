@@ -109,6 +109,35 @@ describe('reduceStreamMessage', () => {
     ])
   })
 
+  it('thinking은 thinking segment로 들어가고 text보다 앞에 위치', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'q'))
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'thinking', thinking: '사용자에게 친근하게 답하자' },
+        { type: 'text', text: '안녕하세요' },
+      ]),
+    )
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'thinking', text: '사용자에게 친근하게 답하자' },
+      { kind: 'text', text: '안녕하세요' },
+    ])
+  })
+
+  it('빈 thinking은 무시', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'q'))
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'thinking', thinking: '' },
+        { type: 'text', text: 'answer' },
+      ]),
+    )
+    expect(s.pairs[0].segments).toEqual([{ kind: 'text', text: 'answer' }])
+  })
+
   it('빈 content는 무시', () => {
     let s = makeInitialMessageState([])
     s = reduceStreamMessage(s, user('u1', 'q'))

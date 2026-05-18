@@ -8,6 +8,7 @@ use std::time::SystemTime;
 pub enum AssistantSegment {
     Text { text: String },
     Plan { text: String },
+    Thinking { text: String },
     ToolUse { name: String, summary: String },
 }
 
@@ -148,6 +149,15 @@ fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
                     }
                 }
             }
+            "thinking" => {
+                if let Some(s) = item.get("thinking").and_then(|x| x.as_str()) {
+                    if !s.is_empty() {
+                        segs.push(AssistantSegment::Thinking {
+                            text: s.to_string(),
+                        });
+                    }
+                }
+            }
             "tool_use" => {
                 let name = item
                     .get("name")
@@ -262,6 +272,11 @@ mod tests {
     }
     fn plan(s: &str) -> AssistantSegment {
         AssistantSegment::Plan {
+            text: s.to_string(),
+        }
+    }
+    fn thinking(s: &str) -> AssistantSegment {
+        AssistantSegment::Thinking {
             text: s.to_string(),
         }
     }
@@ -388,6 +403,28 @@ mod tests {
         writeln!(file, r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","name":"Bash","input":{{"command":"echo line1\necho line2"}}}}]}}}}"#).unwrap();
         let pairs = extract_qa_pairs(file.path());
         assert_eq!(pairs[0].segments, vec![tool("Bash", "echo line1")]);
+    }
+
+    #[test]
+    fn extracts_thinking_segment() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r##"{{"type":"assistant","message":{{"content":[{{"type":"thinking","thinking":"reasoning..."}},{{"type":"text","text":"answer"}}]}}}}"##).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(
+            pairs[0].segments,
+            vec![thinking("reasoning..."), text("answer")]
+        );
+    }
+
+    #[test]
+    fn empty_thinking_is_dropped() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, r#"{{"type":"user","uuid":"u1","timestamp":"t","message":{{"content":"q"}}}}"#).unwrap();
+        writeln!(file, r##"{{"type":"assistant","message":{{"content":[{{"type":"thinking","thinking":""}},{{"type":"text","text":"answer"}}]}}}}"##).unwrap();
+        let pairs = extract_qa_pairs(file.path());
+        assert_eq!(pairs[0].segments, vec![text("answer")]);
     }
 
     #[test]

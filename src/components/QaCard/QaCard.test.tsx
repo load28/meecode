@@ -49,6 +49,16 @@ describe('QaCard', () => {
     expect(screen.getByText('응답 대기 중…')).toBeInTheDocument()
   })
 
+  it('thinking segment는 details 토글로 표시되고 Thinking 라벨 노출', () => {
+    const p = pair('a', [
+      { kind: 'thinking', text: '잠깐 생각하자' },
+      text('answer'),
+    ])
+    render(<QaCard pair={p} onExpand={() => {}} />)
+    expect(screen.getByText('Thinking')).toBeInTheDocument()
+    expect(screen.getByText('answer')).toBeInTheDocument()
+  })
+
   it('tool_use는 별도 영역에 inline 표시', () => {
     const p = pair('a', [text(LONG), tool('Bash', 'ls')])
     render(<QaCard pair={p} onExpand={() => {}} />)

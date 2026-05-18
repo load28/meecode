@@ -19,6 +19,61 @@
   font-size: 14px;
 }
 
+.message-bubble__thinking {
+  border: 1px solid #21262d;
+  border-left: 3px solid #6e7681;
+  border-radius: 6px;
+  background: #0f141b;
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.message-bubble__thinking[open] {
+  background: #11161d;
+}
+
+.message-bubble__thinking-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b949e;
+  font-style: italic;
+  user-select: none;
+}
+
+.message-bubble__thinking-summary::-webkit-details-marker {
+  display: none;
+}
+
+.message-bubble__thinking-summary::after {
+  content: '▸';
+  margin-left: auto;
+  color: #6e7681;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.message-bubble__thinking[open] > .message-bubble__thinking-summary::after {
+  transform: rotate(90deg);
+}
+
+.message-bubble__thinking-icon {
+  font-size: 12px;
+}
+
+.message-bubble__thinking-text {
+  padding: 6px 12px 10px 14px;
+  color: #8b949e;
+  font-size: 12px;
+  line-height: 1.5;
+  border-top: 1px dashed #21262d;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .message-bubble__tool {
   border: 1px solid #21262d;
   border-radius: 6px;
