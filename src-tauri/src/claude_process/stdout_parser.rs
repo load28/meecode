@@ -26,6 +26,11 @@ pub enum DomainEvent {
         hook_name: String,
         phase: String,
     },
+    SessionInit {
+        session_id: Option<String>,
+        slash_commands: Vec<Value>,
+        model: Option<String>,
+    },
     RateLimit {
         raw: Value,
     },
@@ -57,6 +62,26 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
             DomainEvent::HookActivity {
                 hook_name,
                 phase: sub.clone(),
+            }
+        }
+        StreamMessage::System {
+            subtype: Some(ref sub),
+            session_id,
+            ref rest,
+        } if sub == "init" => {
+            let slash_commands = rest
+                .get("slash_commands")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let model = rest
+                .get("model")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            DomainEvent::SessionInit {
+                session_id,
+                slash_commands,
+                model,
             }
         }
         StreamMessage::System {

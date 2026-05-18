@@ -14,6 +14,7 @@ pub fn run() {
             commands::start_session,
             commands::send_user_message,
             commands::send_tool_response,
+            commands::interrupt_session,
             commands::get_config,
             commands::set_config,
         ])

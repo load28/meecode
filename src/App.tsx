@@ -63,6 +63,9 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     hookActivity,
     rateLimit,
     dismissRateLimit,
+    slashCommands,
+    model,
+    interrupt,
   } = useClaudeSession()
   const {
     expandedId,
@@ -138,6 +141,12 @@ function MainLayout({ projectPath }: { projectPath: string }) {
                 disabled={pendingTool !== null}
                 sendUserMessage={sendUserMessage}
                 cycleMode={cycleMode}
+                slashCommands={slashCommands}
+                model={model}
+                busy={hookActivity !== null}
+                onInterrupt={() => {
+                  interrupt().catch(() => {})
+                }}
               />
             </div>
           </Panel>

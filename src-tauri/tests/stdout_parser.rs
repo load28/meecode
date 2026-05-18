@@ -13,11 +13,19 @@ fn parses_tool_use_fixture_emits_messages_and_session() {
         .count();
     assert!(messages > 0, "expected at least one Message event; got {events:?}");
 
-    let session_starts = events
+    let session_inits = events
         .iter()
-        .filter(|e| matches!(e, DomainEvent::SessionStart { .. }))
+        .filter(|e| {
+            matches!(
+                e,
+                DomainEvent::SessionStart { .. } | DomainEvent::SessionInit { .. }
+            )
+        })
         .count();
-    assert!(session_starts > 0, "expected at least one SessionStart event");
+    assert!(
+        session_inits > 0,
+        "expected at least one SessionStart/SessionInit event"
+    );
 }
 
 #[test]

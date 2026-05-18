@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
-import type { Mode, QaPair, ToolRequest } from '../types'
+import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
   makeInitialMessageState,
   reduceStreamMessage,
@@ -15,6 +15,8 @@ interface SessionState {
   mode: Mode
   hookActivity: string | null
   rateLimit: string | null
+  slashCommands: SlashCommand[]
+  model: string | null
 }
 
 export interface UseClaudeSessionResult {
@@ -23,6 +25,8 @@ export interface UseClaudeSessionResult {
   mode: Mode
   hookActivity: string | null
   rateLimit: string | null
+  slashCommands: SlashCommand[]
+  model: string | null
   sendUserMessage: (text: string) => Promise<void>
   respondTool: (
     requestId: string,
@@ -32,6 +36,7 @@ export interface UseClaudeSessionResult {
   ) => Promise<void>
   cycleMode: () => void
   dismissRateLimit: () => void
+  interrupt: () => Promise<void>
 }
 
 const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
@@ -44,6 +49,8 @@ export function useClaudeSession(): UseClaudeSessionResult {
     mode: 'default',
     hookActivity: null,
     rateLimit: null,
+    slashCommands: [],
+    model: null,
   })
 
   useEffect(() => {
@@ -124,6 +131,25 @@ export function useClaudeSession(): UseClaudeSessionResult {
       ),
     )
 
+    unlistens.push(
+      listen<{
+        session_id?: string
+        slash_commands?: Array<{ name?: string; description?: string }>
+        model?: string
+      }>('session:init', (e) => {
+        const cmds: SlashCommand[] = (e.payload.slash_commands ?? [])
+          .filter((c): c is { name: string; description?: string } =>
+            typeof c.name === 'string' && c.name.length > 0,
+          )
+          .map((c) => ({ name: c.name, description: c.description }))
+        setState((s) => ({
+          ...s,
+          slashCommands: cmds.length ? cmds : s.slashCommands,
+          model: e.payload.model ?? s.model,
+        }))
+      }),
+    )
+
     return () => {
       unlistens.forEach((p) => p.then((fn) => fn()))
     }
@@ -183,15 +209,22 @@ export function useClaudeSession(): UseClaudeSessionResult {
     setState((s) => ({ ...s, rateLimit: null }))
   }, [])
 
+  const interrupt = useCallback(async () => {
+    await invoke('interrupt_session')
+  }, [])
+
   return {
     pairs: state.pairs,
     pendingTool: state.pendingTool,
     mode: state.mode,
     hookActivity: state.hookActivity,
     rateLimit: state.rateLimit,
+    slashCommands: state.slashCommands,
+    model: state.model,
     sendUserMessage,
     respondTool,
     cycleMode,
     dismissRateLimit,
+    interrupt,
   }
 }

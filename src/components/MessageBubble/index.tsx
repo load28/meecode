@@ -47,6 +47,20 @@ export function SegmentView({ segment }: SegmentViewProps) {
       </details>
     )
   }
+  if (segment.kind === 'redacted_thinking') {
+    return (
+      <div className="message-bubble__redacted" aria-label="가려진 추론">
+        🔒 가려진 추론 (안전상 본문이 노출되지 않음)
+      </div>
+    )
+  }
+  if (segment.kind === 'image') {
+    return (
+      <div className="message-bubble__image-placeholder" aria-label="이미지">
+        🖼 이미지 ({segment.media_type})
+      </div>
+    )
+  }
   if (segment.kind === 'tool_result') {
     const cls = segment.is_error
       ? 'message-bubble__tool-result is-error'

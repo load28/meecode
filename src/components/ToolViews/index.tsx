@@ -238,6 +238,73 @@ function ToolSearchView({ segment }: ToolViewProps) {
   )
 }
 
+function NotebookEditView({ segment }: ToolViewProps) {
+  const path = pickString(segment.input, 'notebook_path')
+  const cellId = pickString(segment.input, 'cell_id')
+  const editMode = pickString(segment.input, 'edit_mode') || 'replace'
+  const newSource = pickString(segment.input, 'new_source')
+  return (
+    <div className="tool-view tool-view--edit">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">📓</span>
+        <span className="tool-view__name">NotebookEdit</span>
+        <span className="tool-view__path">{path}</span>
+        <span className="tool-view__hint">
+          {editMode}
+          {cellId && ` · ${cellId.slice(0, 8)}`}
+        </span>
+      </header>
+      {newSource && (
+        <details className="tool-view__diff">
+          <summary className="tool-view__diff-summary">셀 내용 보기</summary>
+          <pre className="tool-view__code">{newSource}</pre>
+        </details>
+      )}
+    </div>
+  )
+}
+
+function BashOutputView({ segment }: ToolViewProps) {
+  const bashId = pickString(segment.input, 'bash_id')
+  const filter = pickString(segment.input, 'filter')
+  return (
+    <div className="tool-view tool-view--bash">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">⏳</span>
+        <span className="tool-view__name">BashOutput</span>
+        <span className="tool-view__path">{bashId}</span>
+        {filter && <span className="tool-view__hint">filter: {filter}</span>}
+      </header>
+    </div>
+  )
+}
+
+function KillBashView({ segment }: ToolViewProps) {
+  const bashId = pickString(segment.input, 'shell_id') || pickString(segment.input, 'bash_id')
+  return (
+    <div className="tool-view tool-view--bash">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">⛔</span>
+        <span className="tool-view__name">KillBash</span>
+        <span className="tool-view__path">{bashId}</span>
+      </header>
+    </div>
+  )
+}
+
+function SlashCommandView({ segment }: ToolViewProps) {
+  const command = pickString(segment.input, 'command')
+  return (
+    <div className="tool-view tool-view--skill">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">/</span>
+        <span className="tool-view__name">SlashCommand</span>
+        <span className="tool-view__path">{command}</span>
+      </header>
+    </div>
+  )
+}
+
 function GenericToolView({ segment }: ToolViewProps) {
   return (
     <details className="tool-view tool-view--generic">
@@ -279,6 +346,15 @@ export function ToolUseView({ segment }: ToolViewProps) {
       return <AgentView segment={segment} />
     case 'ToolSearch':
       return <ToolSearchView segment={segment} />
+    case 'NotebookEdit':
+      return <NotebookEditView segment={segment} />
+    case 'BashOutput':
+      return <BashOutputView segment={segment} />
+    case 'KillBash':
+    case 'KillShell':
+      return <KillBashView segment={segment} />
+    case 'SlashCommand':
+      return <SlashCommandView segment={segment} />
     default:
       return <GenericToolView segment={segment} />
   }

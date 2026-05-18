@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
-import type { Mode } from '../../types'
+import type { Mode, SlashCommand } from '../../types'
 import './ChatComposer.css'
 
-const SLASH_COMMANDS = ['/help', '/clear', '/model', '/cost', '/compact']
+const BUILTIN_SLASH = ['/help', '/clear', '/model', '/cost', '/compact', '/resume']
 
 const MODE_LABEL: Record<Mode, string> = {
   default: '⏎ 기본 모드',
@@ -15,6 +15,10 @@ interface Props {
   disabled: boolean
   sendUserMessage: (text: string) => Promise<void>
   cycleMode: () => void
+  slashCommands?: SlashCommand[]
+  model?: string | null
+  onInterrupt?: () => void
+  busy?: boolean
 }
 
 export function ChatComposer({
@@ -22,6 +26,10 @@ export function ChatComposer({
   disabled,
   sendUserMessage,
   cycleMode,
+  slashCommands,
+  model,
+  onInterrupt,
+  busy,
 }: Props) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -54,11 +62,30 @@ export function ChatComposer({
       cycleMode()
       return
     }
+    if (e.key === 'Escape' && busy && onInterrupt) {
+      e.preventDefault()
+      onInterrupt()
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
     }
   }
+
+  const allSlashes: SlashCommand[] = (() => {
+    const dynamic = slashCommands ?? []
+    const builtins = BUILTIN_SLASH.map((n) => ({ name: n }))
+    const seen = new Set<string>()
+    const out: SlashCommand[] = []
+    for (const c of [...dynamic, ...builtins]) {
+      const key = c.name.startsWith('/') ? c.name : '/' + c.name
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({ ...c, name: key })
+    }
+    return out.filter((c) => c.name.startsWith(value))
+  })()
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value
@@ -78,12 +105,15 @@ export function ChatComposer({
           {error}
         </div>
       )}
-      {showSlash && (
+      {showSlash && allSlashes.length > 0 && (
         <ul className="chat-composer__slash" role="listbox">
-          {SLASH_COMMANDS.filter((c) => c.startsWith(value)).map((c) => (
-            <li key={c}>
-              <button type="button" onClick={() => onSelectSlash(c)}>
-                {c}
+          {allSlashes.slice(0, 10).map((c) => (
+            <li key={c.name}>
+              <button type="button" onClick={() => onSelectSlash(c.name)}>
+                <span className="chat-composer__slash-name">{c.name}</span>
+                {c.description && (
+                  <span className="chat-composer__slash-desc">{c.description}</span>
+                )}
               </button>
             </li>
           ))}
@@ -110,13 +140,24 @@ export function ChatComposer({
           rows={2}
         />
         <div className="chat-composer__buttons">
+          {busy && onInterrupt && (
+            <button
+              type="button"
+              className="chat-composer__interrupt"
+              onClick={onInterrupt}
+              title="진행 중인 작업 취소 (ESC)"
+            >
+              ⛔ 중단
+            </button>
+          )}
           <button type="button" onClick={() => cycleMode()}>
             Shift+Tab
           </button>
         </div>
       </div>
       <div className="chat-composer__status" data-mode={mode}>
-        {MODE_LABEL[mode]}
+        <span>{MODE_LABEL[mode]}</span>
+        {model && <span className="chat-composer__model">· {model}</span>}
       </div>
     </div>
   )

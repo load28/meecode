@@ -1,5 +1,6 @@
 use crate::claude_process::protocol::{
-    control_response, control_response_error, user_text_message, PermissionBehavior, StdinMessage,
+    control_request_stop_task, control_response, control_response_error, user_text_message,
+    PermissionBehavior, StdinMessage,
 };
 use crate::claude_process::spawn::{spawn_claude, ProcessHandle};
 use crate::claude_process::stdout_parser::DomainEvent;
@@ -89,6 +90,27 @@ fn dispatch_event(app: &AppHandle, ev: DomainEvent) {
                     });
                 }
             }
+        }
+        DomainEvent::SessionInit {
+            session_id,
+            slash_commands,
+            model,
+        } => {
+            if let Some(ref id) = session_id {
+                if let Some(state) = app.try_state::<AppState>() {
+                    if let Ok(mut guard) = state.session_id.lock() {
+                        *guard = Some(id.clone());
+                    }
+                }
+            }
+            let _ = app.emit(
+                "session:init",
+                serde_json::json!({
+                    "session_id": session_id,
+                    "slash_commands": slash_commands,
+                    "model": model,
+                }),
+            );
         }
         DomainEvent::HookActivity { hook_name, phase } => {
             let _ = app.emit(
@@ -188,6 +210,20 @@ pub async fn send_tool_response(
         control_response(args.request_id, behavior, args.tool_use_id, args.updated_input),
     )
     .await
+}
+
+#[tauri::command]
+pub async fn interrupt_session(app: AppHandle) -> Result<(), String> {
+    let request_id = format!("interrupt-{}", chrono_now_millis());
+    send_to_stdin(&app, control_request_stop_task(request_id)).await
+}
+
+fn chrono_now_millis() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
 }
 
 #[tauri::command]

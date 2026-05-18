@@ -127,6 +127,18 @@
   min-width: 0;
 }
 
+.message-bubble__redacted,
+.message-bubble__image-placeholder {
+  font-size: 12px;
+  color: #8b949e;
+  background: #11161d;
+  border: 1px dashed #30363d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin: 4px 0;
+  font-style: italic;
+}
+
 .message-bubble__tool-result {
   border: 1px solid #1f2a37;
   border-left: 3px solid #2ea043;

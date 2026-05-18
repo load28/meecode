@@ -26,6 +26,10 @@ pub enum AssistantSegment {
         text: String,
         is_error: bool,
     },
+    RedactedThinking,
+    Image {
+        media_type: String,
+    },
 }
 
 // PartialEq intentionally ignores raw `input` so unit tests can stay terse —
@@ -63,6 +67,8 @@ impl PartialEq for AssistantSegment {
                     is_error: e2,
                 },
             ) => a1 == a2 && t1 == t2 && e1 == e2,
+            (RedactedThinking, RedactedThinking) => true,
+            (Image { media_type: a }, Image { media_type: b }) => a == b,
             _ => false,
         }
     }
@@ -213,6 +219,18 @@ fn assistant_segments_from_content(content: &Value) -> Vec<AssistantSegment> {
                         });
                     }
                 }
+            }
+            "redacted_thinking" => {
+                segs.push(AssistantSegment::RedactedThinking);
+            }
+            "image" => {
+                let media_type = item
+                    .get("source")
+                    .and_then(|s| s.get("media_type"))
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("image/*")
+                    .to_string();
+                segs.push(AssistantSegment::Image { media_type });
             }
             "tool_use" => {
                 let name = item

@@ -109,6 +109,10 @@ pub enum StdinMessage {
         message: UserMessageBody,
         parent_tool_use_id: Option<String>,
     },
+    ControlRequest {
+        request_id: String,
+        request: Value,
+    },
     ControlResponse {
         response: ControlResponseEnvelope,
     },
@@ -184,6 +188,13 @@ pub fn control_response(
                 updated_input,
             },
         },
+    }
+}
+
+pub fn control_request_stop_task(request_id: String) -> StdinMessage {
+    StdinMessage::ControlRequest {
+        request_id,
+        request: serde_json::json!({ "subtype": "interrupt" }),
     }
 }
 

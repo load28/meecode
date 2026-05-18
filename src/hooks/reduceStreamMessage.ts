@@ -67,6 +67,16 @@ function assistantSegmentsFrom(content: unknown): AssistantSegment[] {
     } else if (t === 'thinking') {
       const text = (item as Record<string, unknown>).thinking
       if (typeof text === 'string' && text) segs.push({ kind: 'thinking', text })
+    } else if (t === 'redacted_thinking') {
+      segs.push({ kind: 'redacted_thinking' })
+    } else if (t === 'image') {
+      const source = (item as Record<string, unknown>).source as
+        | Record<string, unknown>
+        | undefined
+      const media =
+        (typeof source?.media_type === 'string' && source.media_type) ||
+        'image/*'
+      segs.push({ kind: 'image', media_type: media })
     } else if (t === 'tool_use') {
       const name = String((item as Record<string, unknown>).name ?? '')
       const id = String((item as Record<string, unknown>).id ?? '')
