@@ -118,6 +118,53 @@ body,
   white-space: nowrap;
 }
 
+.app__queue {
+  border-top: 1px dashed #21262d;
+  background: #11161d;
+  padding: 6px 14px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app__queue-label {
+  color: #d29922;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app__queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 4px;
+}
+
+.app__queue-text {
+  flex: 1;
+  color: #c9d1d9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app__queue-remove {
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.app__queue-remove:hover {
+  color: #f85149;
+}
+
 .app__model-picker {
   background: #161b22;
   color: #c9d1d9;

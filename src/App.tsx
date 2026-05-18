@@ -75,6 +75,8 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     mcpServers,
     agents,
     tools,
+    queue,
+    removeQueued,
   } = useClaudeSession()
 
   const recentUserTexts = useMemo(() => {
@@ -186,6 +188,26 @@ function MainLayout({ projectPath }: { projectPath: string }) {
                   respondTool(reqId, allow, tuId, updatedInput)
                 }}
               />
+              {queue.length > 0 && (
+                <div className="app__queue">
+                  <div className="app__queue-label">
+                    ⏳ 큐에 대기 중 ({queue.length})
+                  </div>
+                  {queue.map((q) => (
+                    <div key={q.id} className="app__queue-item">
+                      <span className="app__queue-text">{q.text || '🖼'}</span>
+                      <button
+                        type="button"
+                        className="app__queue-remove"
+                        onClick={() => removeQueued(q.id)}
+                        title="큐에서 제거"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <ChatComposer
                 mode={mode}
                 disabled={pendingTool !== null}

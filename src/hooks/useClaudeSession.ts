@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
@@ -28,6 +29,12 @@ export interface AgentInfo {
   description?: string
 }
 
+interface QueuedMessage {
+  id: string
+  text: string
+  images?: Array<{ media_type: string; data: string }>
+}
+
 interface SessionState {
   pairs: QaPair[]
   currentId: string | null
@@ -43,6 +50,7 @@ interface SessionState {
   mcpServers: McpServerInfo[]
   agents: AgentInfo[]
   tools: string[]
+  queue: QueuedMessage[]
 }
 
 export interface UseClaudeSessionResult {
@@ -59,6 +67,7 @@ export interface UseClaudeSessionResult {
   mcpServers: McpServerInfo[]
   agents: AgentInfo[]
   tools: string[]
+  queue: QueuedMessage[]
   sendUserMessage: (
     text: string,
     images?: Array<{ media_type: string; data: string }>,
@@ -75,6 +84,7 @@ export interface UseClaudeSessionResult {
   setModel: (model: string | null) => Promise<void>
   setThinkingLevel: (level: string) => Promise<void>
   clearConversation: () => void
+  removeQueued: (id: string) => void
 }
 
 function modeFromClaude(s: string | undefined | null): Mode | null {
@@ -129,6 +139,7 @@ export function useClaudeSession(): UseClaudeSessionResult {
     mcpServers: [],
     agents: [],
     tools: [],
+    queue: [],
   })
 
   useEffect(() => {
@@ -279,6 +290,9 @@ export function useClaudeSession(): UseClaudeSessionResult {
         rest?: {
           total_cost_usd?: number
           duration_ms?: number
+          is_error?: boolean
+          result?: string
+          api_error_status?: unknown
           usage?: {
             input_tokens?: number
             output_tokens?: number
@@ -288,8 +302,18 @@ export function useClaudeSession(): UseClaudeSessionResult {
         }
       }>('session:turn_end', (e) => {
         const r = e.payload.rest ?? {}
+        const sub = e.payload.subtype
+        const errLabel =
+          sub && sub !== 'success'
+            ? sub.replace(/_/g, ' ')
+            : r.is_error
+            ? typeof r.result === 'string'
+              ? r.result
+              : 'turn ended with error'
+            : null
         setState((s) => ({
           ...s,
+          rateLimit: errLabel ?? s.rateLimit,
           usage: {
             totalCostUsd:
               s.usage.totalCostUsd + (typeof r.total_cost_usd === 'number' ? r.total_cost_usd : 0),
@@ -312,12 +336,9 @@ export function useClaudeSession(): UseClaudeSessionResult {
     }
   }, [])
 
-  const sendUserMessage = useCallback(
-    async (
-      text: string,
-      images?: Array<{ media_type: string; data: string }>,
-    ) => {
-      const localId = `local-${Date.now()}`
+  const flushOne = useCallback(
+    async (text: string, images?: Array<{ media_type: string; data: string }>) => {
+      const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
       const imageSegments =
         images?.map((img) => ({
           kind: 'image' as const,
@@ -337,15 +358,50 @@ export function useClaudeSession(): UseClaudeSessionResult {
         ],
         currentId: localId,
       }))
+      await invoke('send_user_message', { text, images })
+    },
+    [],
+  )
+
+  const sendUserMessage = useCallback(
+    async (
+      text: string,
+      images?: Array<{ media_type: string; data: string }>,
+    ) => {
+      // If a tool approval is pending, queue the message instead of flushing.
+      let queued = false
+      setState((s) => {
+        if (s.pendingTool) {
+          queued = true
+          const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          return { ...s, queue: [...s.queue, { id, text, images }] }
+        }
+        return s
+      })
+      if (queued) return
       try {
-        await invoke('send_user_message', { text, images })
+        await flushOne(text, images)
       } catch (e) {
         console.error('[meecode] sendUserMessage invoke rejected', e)
         throw e
       }
     },
-    [],
+    [flushOne],
   )
+
+  // Drain queue once the gate (pendingTool) lifts.
+  useEffect(() => {
+    if (state.pendingTool || state.queue.length === 0) return
+    const next = state.queue[0]
+    setState((s) => ({ ...s, queue: s.queue.slice(1) }))
+    flushOne(next.text, next.images).catch((e) =>
+      console.error('[meecode] queued flush failed', e),
+    )
+  }, [state.pendingTool, state.queue, flushOne])
+
+  const removeQueued = useCallback((id: string) => {
+    setState((s) => ({ ...s, queue: s.queue.filter((q) => q.id !== id) }))
+  }, [])
 
   const respondTool = useCallback(
     async (
@@ -412,6 +468,7 @@ export function useClaudeSession(): UseClaudeSessionResult {
     mcpServers: state.mcpServers,
     agents: state.agents,
     tools: state.tools,
+    queue: state.queue,
     sendUserMessage,
     respondTool,
     cycleMode,
@@ -420,5 +477,6 @@ export function useClaudeSession(): UseClaudeSessionResult {
     setModel,
     setThinkingLevel,
     clearConversation,
+    removeQueued,
   }
 }
