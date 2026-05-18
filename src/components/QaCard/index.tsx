@@ -1,6 +1,8 @@
 import type { QaPair } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
 import { totalTextChars, makePreview } from '../../utils/segmentHelpers'
+import { useSelection } from '../../hooks/useSelection'
+import { CommentFloat } from '../CommentFloat'
 import './QaCard.css'
 
 const FOLD_THRESHOLD = 500
@@ -19,6 +21,7 @@ function combineTextPlan(segments: QaPair['segments']): string {
 }
 
 export function QaCard({ pair, isExpandedInPane, onExpand }: Props) {
+  const { selection, handleMouseUp, clearSelection } = useSelection()
   const totalChars = totalTextChars(pair.segments)
   const isFolded = totalChars > FOLD_THRESHOLD
   const toolSegments = pair.segments.filter((s) => s.kind === 'tool_use')
@@ -61,10 +64,16 @@ export function QaCard({ pair, isExpandedInPane, onExpand }: Props) {
           </button>
         </div>
       ) : (
-        <div className="qa-card__answer">
+        <div className="qa-card__answer" onMouseUp={handleMouseUp}>
           {pair.segments.map((seg, i) => (
             <SegmentView key={i} segment={seg} />
           ))}
+          {selection.text && selection.rect && (
+            <CommentFloat
+              selection={{ text: selection.text, rect: selection.rect }}
+              onClose={clearSelection}
+            />
+          )}
         </div>
       )}
     </article>

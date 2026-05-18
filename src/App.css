@@ -149,6 +149,21 @@ body,
   background: #010409;
 }
 
+.app__reopen-btn {
+  background: #161b22;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.app__reopen-btn + .app__auto-toggle {
+  margin-left: 12px;
+}
+
 .app__auto-toggle {
   display: inline-flex;
   align-items: center;

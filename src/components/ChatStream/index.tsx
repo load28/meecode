@@ -35,6 +35,7 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
     count: pairs.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 140,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 6,
     observeElementRect: observeElementRectWithFallback,
   })
@@ -83,6 +84,7 @@ export function ChatStream({ pairs, expandedId, onExpand }: Props) {
             return (
               <motion.div
                 key={p.id}
+                ref={virtualizer.measureElement}
                 data-index={vi.index}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}

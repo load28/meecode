@@ -74,6 +74,16 @@ function MainLayout({ projectPath }: { projectPath: string }) {
     <div className="app">
       <div className="app__header">
         <span className="app__path">{projectPath}</span>
+        {!isOpen && expandedId !== null && (
+          <button
+            type="button"
+            className="app__reopen-btn"
+            aria-label="펼쳐보기 패널 열기"
+            onClick={toggleOpen}
+          >
+            ◀ 패널 열기
+          </button>
+        )}
         <label className="app__auto-toggle">
           <input
             type="checkbox"

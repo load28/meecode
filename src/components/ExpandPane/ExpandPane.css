@@ -11,11 +11,6 @@
   position: relative;
 }
 
-.expand-pane--collapsed {
-  width: 24px;
-  border-left: 1px solid #21262d;
-}
-
 .expand-pane__header {
   display: flex;
   align-items: center;

@@ -21,19 +21,7 @@ export function ExpandPane({ pair, isOpen, onToggle }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
 
   if (!isOpen) {
-    return (
-      <div className="expand-pane expand-pane--collapsed">
-        <button
-          type="button"
-          className="expand-pane__toggle"
-          aria-label="펼쳐보기 패널 열기"
-          aria-expanded={false}
-          onClick={onToggle}
-        >
-          ◀
-        </button>
-      </div>
-    )
+    return null
   }
 
   return (

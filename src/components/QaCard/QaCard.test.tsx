@@ -61,4 +61,23 @@ describe('QaCard', () => {
     render(<QaCard pair={p} isExpandedInPane={false} onExpand={() => {}} />)
     expect(screen.getByText('Bash')).toBeInTheDocument()
   })
+
+  it('짧은 답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {
+    const mockRect = {
+      top: 100, left: 50, width: 80, height: 20,
+      bottom: 120, right: 130, x: 50, y: 100,
+      toJSON: () => ({}),
+    } as DOMRect
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      toString: () => '선택',
+      getRangeAt: () => ({ getBoundingClientRect: () => mockRect }),
+    } as unknown as Selection)
+
+    const { container } = render(
+      <QaCard pair={pair('a', [text('짧은 답변 텍스트')])} isExpandedInPane={false} onExpand={() => {}} />
+    )
+    fireEvent.mouseUp(container.querySelector('.qa-card__answer')!)
+    expect(screen.getByText('💬 코멘트')).toBeInTheDocument()
+  })
 })

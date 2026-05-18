@@ -28,11 +28,11 @@ describe('ExpandPane', () => {
     expect(onToggle).toHaveBeenCalled()
   })
 
-  it('isOpen=false 시 패널 본문 미렌더 (collapsed strip만)', () => {
+  it('isOpen=false 시 패널 본문 미렌더 (null 반환)', () => {
     const { container } = render(
       <ExpandPane pair={pair('a', 'q', [text('r')])} isOpen={false} onToggle={() => {}} />
     )
-    expect(container.querySelector('.expand-pane--collapsed')).toBeInTheDocument()
     expect(container.querySelector('.expand-pane__body')).toBeNull()
+    expect(container.querySelector('.expand-pane')).toBeNull()
   })
 })
