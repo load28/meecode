@@ -42,7 +42,7 @@ describe('CommentFloat', () => {
     await user.keyboard('{Enter}')
 
     expect(invoke).toHaveBeenCalledWith('write_input', {
-      text: '[선택: "await를 사용"] async 없으면?\n',
+      text: '[선택: "await를 사용"] async 없으면?\r',
     })
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -57,7 +57,7 @@ describe('CommentFloat', () => {
     await user.click(screen.getByText('전송'))
 
     expect(invoke).toHaveBeenCalledWith('write_input', {
-      text: '[선택: "await를 사용"] 질문 내용\n',
+      text: '[선택: "await를 사용"] 질문 내용\r',
     })
   })
 
