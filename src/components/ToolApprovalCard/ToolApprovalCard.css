@@ -1,0 +1,70 @@
+.tool-approval-card {
+  border: 1px solid #d29922;
+  border-left: 4px solid #d29922;
+  border-radius: 10px;
+  background: #1f1a0a;
+  padding: 12px 14px;
+  margin: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-approval-card__header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #d29922;
+  font-weight: 700;
+}
+
+.tool-approval-card__name {
+  font-family: 'Menlo', 'Monaco', monospace;
+}
+
+.tool-approval-card__summary {
+  margin: 0;
+  padding: 8px 10px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 8em;
+  overflow: auto;
+}
+
+.tool-approval-card__buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tool-approval-card__deny,
+.tool-approval-card__allow {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tool-approval-card__deny {
+  background: transparent;
+  color: #c9d1d9;
+}
+.tool-approval-card__deny:hover {
+  background: #30363d;
+}
+
+.tool-approval-card__allow {
+  background: #1f6feb;
+  color: #fff;
+  border-color: #1f6feb;
+}
+.tool-approval-card__allow:hover {
+  background: #388bfd;
+}
