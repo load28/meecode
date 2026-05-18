@@ -1,3 +1,4 @@
+pub mod claude_process;
 pub mod commands;
 pub mod config;
 
