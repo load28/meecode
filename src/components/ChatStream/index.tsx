@@ -1,7 +1,7 @@
 import { QaCard } from '../QaCard'
 import { ToolApprovalCard } from '../ToolApprovalCard'
+import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
-import { useSpinnerVerb } from '../../utils/spinnerVerbs'
 import type { QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
 import './ChatStream.css'
@@ -41,20 +41,11 @@ export function ChatStream({
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
 
-  const last = pairs[pairs.length - 1]
-  const lastSeg = last?.segments[last.segments.length - 1]
-  // Compute the indicator override. Tool name takes priority over the
-  // generic gerund rotation — when claude is running Read/Bash/Edit, the
-  // user wants to see "Read" not "Cogitating".
-  const override: string | null =
-    !pendingTool && last
-      ? last.segments.length === 0
-        ? null // free gerund rotation while still empty
-        : lastSeg && lastSeg.kind === 'tool_use'
-        ? `${lastSeg.name}`
-        : null
-      : null
-  const showIndicator = turnInProgress && !pendingTool && last !== undefined
+  const { show: showIndicator, override } = computeTurnIndicator(
+    pairs,
+    pendingTool,
+    turnInProgress,
+  )
 
   if (pairs.length === 0 && !pendingTool) {
     return (
@@ -104,27 +95,3 @@ export function ChatStream({
   )
 }
 
-function StatusIndicator({
-  override,
-  taskActivity,
-  hookActivity,
-}: {
-  override: string | null
-  taskActivity: TaskActivity | null
-  hookActivity: string | null
-}) {
-  const verb = useSpinnerVerb({ override })
-  const detail = taskActivity?.description ?? hookActivity ?? null
-  return (
-    <div className="chat-stream__status" role="status" aria-live="polite">
-      <span className="chat-stream__spinner" aria-hidden="true" />
-      <span className="chat-stream__status-label">{verb}…</span>
-      {detail && <span className="chat-stream__status-detail">{detail}</span>}
-      <span className="chat-stream__status-dots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
-    </div>
-  )
-}

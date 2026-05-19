@@ -23,7 +23,10 @@ const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'Notebook
 const ANSWER_MAX_HEIGHT_PX = 180
 
 function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): string {
-  if (seg.partial) return 'Thinking…'
+  // While streaming we drop the trailing "…" — the animated dot triplet
+  // beside the label provides the "in progress" feel instead of a static
+  // ellipsis glyph.
+  if (seg.partial) return 'Thinking'
   if (typeof seg.duration_ms === 'number') {
     return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
   }

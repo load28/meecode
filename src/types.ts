@@ -44,6 +44,13 @@ export type AssistantSegment =
       progress?: ToolProgressEntry[]
     }
   | { kind: 'tool_result'; tool_use_id: string; text: string; is_error: boolean }
+  /**
+   * Body of a freshly-loaded skill, echoed back as a user message by the
+   * Claude Code CLI after the assistant invokes the `Skill` tool. We attach
+   * it to the same pair that owns the Skill tool_use instead of letting the
+   * reducer mint a brand-new question card.
+   */
+  | { kind: 'skill_body'; skill: string; text: string }
 
 export interface ToolProgressEntry {
   /** "running" | "completed" | "failed" | ... */

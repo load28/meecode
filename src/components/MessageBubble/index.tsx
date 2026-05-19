@@ -1,4 +1,5 @@
 import type { AssistantSegment } from '../../types'
+import { useSmoothedText } from '../../hooks/useSmoothedText'
 import { ToolUseView } from '../ToolViews'
 import { MarkdownContent, renderMarkdown } from './MarkdownContent'
 import './MessageBubble.css'
@@ -13,17 +14,7 @@ interface SegmentViewProps {
 
 export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewProps) {
   if (segment.kind === 'text') {
-    // Render markdown live, even while streaming. Headings/lists/code take
-    // their final shape as each token arrives, so the only reflows are
-    // small mid-stream ones — there is no abrupt size jump at
-    // `content_block_stop`. The bottom spinner verb already signals
-    // streaming progress, so no inline caret is needed here.
-    return (
-      <MarkdownContent
-        className="message-bubble__content"
-        source={segment.text}
-      />
-    )
+    return <TextSegment segment={segment} />
   }
   if (segment.kind === 'plan') {
     return (
@@ -78,6 +69,21 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
       </div>
     )
   }
+  if (segment.kind === 'skill_body') {
+    return (
+      <details className="message-bubble__skill-body">
+        <summary className="message-bubble__skill-body-summary">
+          <span aria-hidden="true">📚</span>
+          <span>Skill 본문</span>
+          <span className="message-bubble__skill-body-name">{segment.skill}</span>
+        </summary>
+        <MarkdownContent
+          className="message-bubble__skill-body-text"
+          source={segment.text}
+        />
+      </details>
+    )
+  }
   if (segment.kind === 'redacted_thinking') {
     return (
       <div className="message-bubble__redacted" aria-label="가려진 추론">
@@ -129,5 +135,20 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
       onOpenFile={onOpenFile}
       defaultOpen={defaultOpen}
     />
+  )
+}
+
+// Extracted so `useSmoothedText` only mounts on text segments — kept outside
+// SegmentView's per-kind switch to keep the hook order stable when the
+// segment list re-renders. Renders markdown live while streaming, snapping
+// to the full text once `partial` flips false.
+function TextSegment({
+  segment,
+}: {
+  segment: Extract<AssistantSegment, { kind: 'text' }>
+}) {
+  const displayed = useSmoothedText(segment.text, segment.partial === true)
+  return (
+    <MarkdownContent className="message-bubble__content" source={displayed} />
   )
 }

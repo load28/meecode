@@ -420,6 +420,11 @@ function MainLayout({
                   isOpen={isOpen}
                   onToggle={toggleOpen}
                   onOpenFile={handleOpenFile}
+                  pairs={pairs}
+                  pendingTool={pendingTool}
+                  turnInProgress={turnInProgress}
+                  taskActivity={taskActivity}
+                  hookActivity={hookActivity}
                 />
               </Panel>
             </>

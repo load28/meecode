@@ -33,6 +33,63 @@
   margin: 6px 0;
 }
 
+/* Skill body — collapsed by default. Click to reveal the loaded skill's
+   markdown. Visual treatment mirrors the thinking container so it reads as
+   "metadata for this turn" rather than primary content. */
+.message-bubble__skill-body {
+  border: 1px solid #21262d;
+  border-left: 3px solid #6e7681;
+  border-radius: 6px;
+  background: #0f141b;
+  margin: 6px 0;
+}
+
+.message-bubble__skill-body[open] {
+  background: #11161d;
+}
+
+.message-bubble__skill-body-summary {
+  font-size: 12px;
+  list-style: none;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b949e;
+  cursor: pointer;
+  user-select: none;
+}
+
+.message-bubble__skill-body-summary::-webkit-details-marker {
+  display: none;
+}
+
+.message-bubble__skill-body-summary::after {
+  content: '▸';
+  margin-left: auto;
+  color: #6e7681;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.message-bubble__skill-body[open] > .message-bubble__skill-body-summary::after {
+  transform: rotate(90deg);
+}
+
+.message-bubble__skill-body-name {
+  color: #c9d1d9;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.message-bubble__skill-body-text {
+  padding: 6px 12px 10px 14px;
+  color: #8b949e;
+  border-top: 1px dashed #21262d;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* `--badge` modifier is applied when the API returned only a thinking
    signature (no body) — collapse to a single-line label so the UI doesn't
    leave an empty container after the divider. */

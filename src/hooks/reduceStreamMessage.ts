@@ -163,6 +163,40 @@ function flattenToolResultText(content: unknown): string {
   return parts.join('\n')
 }
 
+/**
+ * Claude Code CLI echoes a freshly-loaded skill back as a user message that
+ * starts with `Base directory for this skill: /path/to/.claude/skills/<name>`
+ * followed by the full markdown body. We detect that prelude so the reducer
+ * can attach the body to the same pair that triggered the load instead of
+ * minting a new question card.
+ */
+const SKILL_ECHO_PREFIX = /^Base directory for this skill:\s*(.+?)(?:\n|$)/
+
+function detectSkillEcho(
+  content: unknown,
+): { skill: string; text: string } | null {
+  let text = ''
+  if (typeof content === 'string') {
+    text = content
+  } else if (Array.isArray(content)) {
+    for (const item of content) {
+      if (!item || typeof item !== 'object') return null
+      const obj = item as Record<string, unknown>
+      if (obj.type !== 'text') return null
+      const v = obj.text
+      if (typeof v !== 'string') return null
+      text += v
+    }
+  } else {
+    return null
+  }
+  const m = text.match(SKILL_ECHO_PREFIX)
+  if (!m) return null
+  const path = m[1].trim()
+  const name = path.split('/').filter(Boolean).pop() ?? path
+  return { skill: name, text }
+}
+
 type UserContent = { kind: 'real'; text: string } | { kind: 'tool_result_only' }
 
 function classifyUserContent(content: unknown): UserContent {
@@ -285,6 +319,29 @@ export function reduceStreamMessage(
       const next = state.pairs.slice()
       next[idx] = updated
       return { pairs: next, currentId: state.currentId }
+    }
+    // Skill-load echo from the CLI — attach the body to the current pair so
+    // the assistant's `Skill` tool_use step and the body live together in
+    // one card, instead of the body opening a fake new question.
+    const skillEcho = detectSkillEcho(content)
+    if (skillEcho && state.currentId) {
+      const idx = state.pairs.findIndex((p) => p.id === state.currentId)
+      if (idx !== -1) {
+        const updated: QaPair = {
+          ...state.pairs[idx],
+          segments: [
+            ...state.pairs[idx].segments,
+            {
+              kind: 'skill_body',
+              skill: skillEcho.skill,
+              text: skillEcho.text,
+            },
+          ],
+        }
+        const next = state.pairs.slice()
+        next[idx] = updated
+        return { pairs: next, currentId: state.currentId }
+      }
     }
     if (!classified.text) return state
     const last = state.pairs[state.pairs.length - 1]

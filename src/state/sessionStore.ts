@@ -210,7 +210,18 @@ export function bootstrapSessionListeners(): void {
           { pairs: s.pairs, currentId: s.currentId },
           e.payload,
         )
-        return { ...s, pairs: next.pairs, currentId: next.currentId }
+        // Any assistant/user message arrival means the agent is still
+        // emitting work — flip `turnInProgress` back on. Claude CLI emits
+        // intermediate `result` lines between tool roundtrips (each one
+        // hits the `session:turn_end` handler and clears the flag), so
+        // without this the StatusIndicator vanishes mid-conversation while
+        // the agent is still calling MCP/WebSearch tools.
+        return {
+          ...s,
+          pairs: next.pairs,
+          currentId: next.currentId,
+          turnInProgress: true,
+        }
       })
     },
   )
@@ -227,7 +238,14 @@ export function bootstrapSessionListeners(): void {
           { pairs: s.pairs, currentId: s.currentId },
           e.payload,
         )
-        return { ...s, pairs: next.pairs, currentId: next.currentId }
+        // Live SSE delta → agent is actively producing tokens; mark busy
+        // for the same reason as `session:message` above.
+        return {
+          ...s,
+          pairs: next.pairs,
+          currentId: next.currentId,
+          turnInProgress: true,
+        }
       })
     },
   )

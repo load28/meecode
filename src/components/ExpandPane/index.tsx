@@ -2,8 +2,10 @@ import { useSelection } from '../../hooks/useSelection'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
 import { CommentFloat } from '../CommentFloat'
 import { SegmentView } from '../MessageBubble'
+import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
 import { FilePath } from '../ToolViews'
-import type { AssistantSegment, QaPair } from '../../types'
+import type { AssistantSegment, QaPair, ToolRequest } from '../../types'
+import type { TaskActivity } from '../../state/sessionStore'
 import './ExpandPane.css'
 
 interface Props {
@@ -11,6 +13,17 @@ interface Props {
   isOpen: boolean
   onToggle: () => void
   onOpenFile?: (path: string) => void
+  /**
+   * Streaming status — when the agent loop is active, ExpandPane shows a
+   * bottom progress strip (✴ + verb + dots) mirroring ChatStream's footer.
+   * Computing visibility uses the *in-flight* pair (the tail of `pairs`),
+   * not whatever the user currently has expanded.
+   */
+  pairs?: QaPair[]
+  pendingTool?: ToolRequest | null
+  turnInProgress?: boolean
+  taskActivity?: TaskActivity | null
+  hookActivity?: string | null
 }
 
 function formatTime(iso: string): string {
@@ -24,14 +37,26 @@ function formatTime(iso: string): string {
 const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 
 function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): string {
-  if (seg.partial) return 'Thinking…'
+  // Mirrors QaCard: drop the trailing "…" while partial, since the pulsing
+  // dot triplet next to the label handles the "still working" cue.
+  if (seg.partial) return 'Thinking'
   if (typeof seg.duration_ms === 'number') {
     return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
   }
   return 'Thinking'
 }
 
-export function ExpandPane({ pair, isOpen, onToggle, onOpenFile }: Props) {
+export function ExpandPane({
+  pair,
+  isOpen,
+  onToggle,
+  onOpenFile,
+  pairs,
+  pendingTool,
+  turnInProgress,
+  taskActivity,
+  hookActivity,
+}: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   // Re-pin to bottom whenever the active pair gains segments — but only
   // if the user is already at the bottom. Scrolling up to re-read older
@@ -64,18 +89,19 @@ export function ExpandPane({ pair, isOpen, onToggle, onOpenFile }: Props) {
           )}
         </div>
       </header>
-      {pair ? (
-        <div
-          ref={bodyRef}
-          className="expand-pane__body"
-          onMouseUp={handleMouseUp}
-          onScroll={onScroll}
-        >
-          <section className="expand-pane__question">
-            <div className="expand-pane__question-label">질문</div>
-            <div className="expand-pane__question-text">{pair.user_text}</div>
-          </section>
-          {pair.segments.length > 0 ? (
+      <div
+        ref={bodyRef}
+        className="expand-pane__body"
+        onMouseUp={handleMouseUp}
+        onScroll={onScroll}
+      >
+        {pair ? (
+          <>
+            <section className="expand-pane__question">
+              <div className="expand-pane__question-label">질문</div>
+              <div className="expand-pane__question-text">{pair.user_text}</div>
+            </section>
+            {pair.segments.length > 0 ? (
             // Same compact step layout as QaCard:
             //   thinking → "● Thought for Ns" (body ignored even if present)
             //   tool_use → "● **Name** arg" (file_path tools render arg as link)
@@ -123,12 +149,35 @@ export function ExpandPane({ pair, isOpen, onToggle, onOpenFile }: Props) {
               onClose={clearSelection}
             />
           )}
-        </div>
-      ) : (
-        <div className="expand-pane__placeholder">
-          메인에서 '전체보기'를 눌러 답변을 펼쳐보세요
-        </div>
-      )}
+          </>
+        ) : (
+          <div className="expand-pane__placeholder">
+            메인에서 '전체보기'를 눌러 답변을 펼쳐보세요
+          </div>
+        )}
+        {(() => {
+          // Streaming indicator footer — visibility/override come from the
+          // session-level in-flight pair (tail of `pairs`), not the user's
+          // currently-expanded pair. Lives outside the `pair` conditional so
+          // it surfaces even when no card has been selected yet (right pane
+          // just opened during streaming).
+          if (!pairs || pairs.length === 0) return null
+          const { show, override } = computeTurnIndicator(
+            pairs,
+            pendingTool ?? null,
+            turnInProgress ?? false,
+          )
+          if (!show) return null
+          return (
+            <StatusIndicator
+              override={override}
+              taskActivity={taskActivity ?? null}
+              hookActivity={hookActivity ?? null}
+              className="status-indicator--inline"
+            />
+          )
+        })()}
+      </div>
     </aside>
   )
 }

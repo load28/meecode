@@ -550,6 +550,51 @@ describe('reduceStreamPartial (--include-partial-messages)', () => {
     ])
   })
 
+  it('Skill 로드 echo는 새 pair 만들지 않고 현재 pair에 skill_body로 부착', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'Hono 라이브러리란?'))
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        {
+          type: 'tool_use',
+          id: 'tu-skill',
+          name: 'Skill',
+          input: { skill: 'technical-documentation-standards' },
+        },
+      ]),
+    )
+    // CLI echoes back the loaded skill body as a user message.
+    s = reduceStreamMessage(s, {
+      kind: 'user',
+      uuid: 'u-echo',
+      body: {
+        role: 'user',
+        content:
+          'Base directory for this skill: /Users/x/.claude/skills/technical-documentation-standards\n\n# Technical Documentation Standards\n## Overview\n...',
+      },
+    })
+    expect(s.pairs).toHaveLength(1)
+    expect(s.pairs[0].user_text).toBe('Hono 라이브러리란?')
+    const last = s.pairs[0].segments.at(-1)
+    expect(last).toEqual({
+      kind: 'skill_body',
+      skill: 'technical-documentation-standards',
+      text:
+        'Base directory for this skill: /Users/x/.claude/skills/technical-documentation-standards\n\n# Technical Documentation Standards\n## Overview\n...',
+    })
+  })
+
+  it('Skill echo 패턴이 아니면 일반 user 메시지로 새 pair 생성 (기존 동작 유지)', () => {
+    let s = makeInitialMessageState([])
+    s = reduceStreamMessage(s, user('u1', 'q1'))
+    s = reduceStreamMessage(s, assistant([{ type: 'text', text: 'a1' }]))
+    // 일반 텍스트로 시작하는 follow-up user 메시지
+    s = reduceStreamMessage(s, user('u2', '두 번째 질문'))
+    expect(s.pairs).toHaveLength(2)
+    expect(s.pairs[1].user_text).toBe('두 번째 질문')
+  })
+
   it('parent_tool_use_id가 있는 stream_event는 (서브에이전트 partial은) 일단 noop', () => {
     let s = startPair()
     const before = s
