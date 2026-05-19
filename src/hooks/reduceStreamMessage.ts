@@ -308,33 +308,111 @@ export function reduceStreamMessage(
   if (segs.length === 0) return state
   const idx = state.pairs.findIndex((p) => p.id === state.currentId)
   if (idx === -1) return state
-  // When --include-partial-messages is on, the same thinking/text content
-  // already arrived as `stream_event` deltas and lives at the tail of the
-  // segment list. The aggregated `assistant` message we're processing now
-  // would otherwise duplicate it.
+  // When --include-partial-messages is on, thinking/text blocks have already
+  // landed at the tail of `segments` via `reduceStreamPartial` deltas. The
+  // aggregated `assistant` message arriving now would otherwise duplicate
+  // them. We can't just "strip all thinking/text from the agg message",
+  // because if `content_block_stop` was missed for a tail block (race),
+  // `dropTrailingLivePartials` removes it from state and the agg message is
+  // then the only source for that content — stripping it loses the block.
   //
-  // Strategy:
-  //   1. Drop trailing `partial: true` (in-flight) blocks — content_block_stop
-  //      may have been missed.
-  //   2. If the tail is a streamed thinking/text (partial defined), the
-  //      message's text/thinking blocks are redundant — keep only tool_use
-  //      / image / plan / redacted_thinking from the full message.
-  //   3. Otherwise (legacy path, partial-messages off), append every block.
+  // Correct approach: count the contiguous *settled* streamed blocks at the
+  // tail (partial defined → streaming-origin), then walk the agg content in
+  // order, consuming one streamed segment per thinking/text block seen and
+  // appending fresh segments for anything beyond that. tool_use/image/plan
+  // blocks (never streamed) always append in place, preserving the block
+  // order produced by Claude.
   const baseSegments = dropTrailingLivePartials(state.pairs[idx].segments)
-  const useStreamed = lastSegmentWasStreamed(baseSegments)
-  const filtered = useStreamed
-    ? segs.filter((s) => s.kind !== 'thinking' && s.kind !== 'text')
-    : segs
-  if (filtered.length === 0 && baseSegments === state.pairs[idx].segments) {
+  const streamedTail = countTrailingStreamed(baseSegments)
+  const merged = mergeWithStreamedTail(baseSegments, streamedTail, segs)
+  if (merged === baseSegments && baseSegments === state.pairs[idx].segments) {
     return state
   }
   const updated: QaPair = {
     ...state.pairs[idx],
-    segments: [...baseSegments, ...filtered],
+    segments: merged,
   }
   const next = state.pairs.slice()
   next[idx] = updated
   return { pairs: next, currentId: state.currentId }
+}
+
+function mergeWithStreamedTail(
+  baseSegments: AssistantSegment[],
+  streamedTail: number,
+  aggSegs: AssistantSegment[],
+): AssistantSegment[] {
+  if (streamedTail === 0 && aggSegs.length === 0) return baseSegments
+  // Claude Code SDK can fire `session:message` incrementally — one assistant
+  // turn may produce two separate aggregated messages (e.g. just `[thinking]`
+  // first, then `[text]`). Each msg also tends to arrive before the matching
+  // `content_block_stop`, so the live tail still has a `partial:true` block
+  // that `dropTrailingLivePartials` removes. After that, the streamed tail
+  // may be a different *kind* than the agg block we're about to process.
+  //
+  // Match by kind, not just position: if the streamed segment at `streamPtr`
+  // is a different kind than the agg block, the agg block is a brand-new one
+  // (not a dedup of streamed) — flush any unconsumed streamed first to
+  // preserve document order, then append the agg block.
+  const priorEnd = baseSegments.length - streamedTail
+  const result = baseSegments.slice(0, priorEnd)
+  let streamPtr = priorEnd
+  for (const seg of aggSegs) {
+    if (seg.kind === 'thinking' || seg.kind === 'text') {
+      if (
+        streamPtr < baseSegments.length &&
+        baseSegments[streamPtr].kind === seg.kind
+      ) {
+        // Same kind at the tail → this agg block reconciles the streamed one.
+        // Keep the streamed segment (its `partial:false` carries the
+        // "Thought for Ns" duration), but fall back to agg's text when the
+        // streamed text is shorter — e.g. when `content_block_stop` lagged
+        // and the in-flight `partial:true` segment got dropped, the streamed
+        // copy here is empty while the agg holds the canonical body.
+        const streamedSeg = baseSegments[streamPtr] as Extract<
+          AssistantSegment,
+          { kind: 'thinking' | 'text' }
+        >
+        const aggText =
+          typeof (seg as { text?: string }).text === 'string'
+            ? (seg as { text: string }).text
+            : ''
+        const streamedText = streamedSeg.text
+        const text = aggText.length > streamedText.length ? aggText : streamedText
+        const merged: AssistantSegment =
+          streamedSeg.kind === 'thinking'
+            ? {
+                kind: 'thinking',
+                text,
+                partial: false,
+                duration_ms: streamedSeg.duration_ms,
+              }
+            : { kind: 'text', text, partial: false }
+        result.push(merged)
+        streamPtr += 1
+      } else {
+        // Streamed tail kind doesn't match this agg block — agg block is new
+        // (typical incremental case where the streamed text was dropped as
+        // `partial:true` and the agg now carries its only copy). Flush
+        // remaining streamed first so document order survives, then push agg.
+        while (streamPtr < baseSegments.length) {
+          result.push(baseSegments[streamPtr])
+          streamPtr += 1
+        }
+        result.push(seg)
+      }
+    } else {
+      // Non-streamable kinds (tool_use, image, plan, redacted_thinking) only
+      // arrive via the aggregated message; append in agg's order.
+      result.push(seg)
+    }
+  }
+  // Defensive: any streamed blocks not yet consumed (rare).
+  while (streamPtr < baseSegments.length) {
+    result.push(baseSegments[streamPtr])
+    streamPtr += 1
+  }
+  return result
 }
 
 function dropTrailingLivePartials(
@@ -352,12 +430,17 @@ function dropTrailingLivePartials(
   return end === segments.length ? segments : segments.slice(0, end)
 }
 
-function lastSegmentWasStreamed(segments: AssistantSegment[]): boolean {
-  const s = segments[segments.length - 1]
-  if (!s) return false
-  return (
-    (s.kind === 'thinking' || s.kind === 'text') && s.partial !== undefined
-  )
+function countTrailingStreamed(segments: AssistantSegment[]): number {
+  let n = 0
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const s = segments[i]
+    if ((s.kind === 'thinking' || s.kind === 'text') && s.partial !== undefined) {
+      n += 1
+    } else {
+      break
+    }
+  }
+  return n
 }
 
 /**

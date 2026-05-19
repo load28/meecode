@@ -13,18 +13,11 @@ interface SegmentViewProps {
 
 export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewProps) {
   if (segment.kind === 'text') {
-    if (segment.partial) {
-      // While the assistant's text is still streaming, render as plain
-      // pre-wrap text with a live caret. Switching to full markdown only
-      // after the block finishes avoids reflows mid-stream (e.g. headings
-      // popping in as `#` characters arrive).
-      return (
-        <div className="message-bubble__streaming-text">
-          {segment.text}
-          <span className="message-bubble__streaming-caret" aria-hidden="true" />
-        </div>
-      )
-    }
+    // Render markdown live, even while streaming. Headings/lists/code take
+    // their final shape as each token arrives, so the only reflows are
+    // small mid-stream ones — there is no abrupt size jump at
+    // `content_block_stop`. The bottom spinner verb already signals
+    // streaming progress, so no inline caret is needed here.
     return (
       <MarkdownContent
         className="message-bubble__content"
@@ -49,37 +42,40 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
       : typeof segment.duration_ms === 'number'
       ? `Thought for ${Math.max(1, Math.round(segment.duration_ms / 1000))}s`
       : 'Thinking'
-    // While the thinking block is still streaming, default to open so the
-    // user sees the live text without a click. Once it stops, we honour
-    // `defaultOpen` (which the consumer can use to control collapsed state).
-    const open = segment.partial ? true : defaultOpen
-    return (
-      <details
-        className={
-          segment.partial
-            ? 'message-bubble__thinking message-bubble__thinking--live'
-            : 'message-bubble__thinking'
-        }
-        open={open}
-      >
-        <summary className="message-bubble__thinking-summary">
-          <span className="message-bubble__thinking-icon" aria-hidden="true">
-            💭
+    const hasBody = segment.text.length > 0
+    const containerCls = segment.partial
+      ? 'message-bubble__thinking message-bubble__thinking--live'
+      : 'message-bubble__thinking'
+    const header = (
+      <div className="message-bubble__thinking-summary">
+        <span className="message-bubble__thinking-icon" aria-hidden="true">
+          💭
+        </span>
+        <span>{label}</span>
+        {segment.partial && (
+          <span className="message-bubble__thinking-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
           </span>
-          <span>{label}</span>
-          {segment.partial && (
-            <span className="message-bubble__thinking-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-          )}
-        </summary>
+        )}
+      </div>
+    )
+    // No <details> toggle — thinking is shown inline as one step of the
+    // response process. When the API returned only a signature (no thinking
+    // body), collapse to a single-line badge so the UI doesn't leave an
+    // empty container behind.
+    if (!hasBody) {
+      return <div className={`${containerCls} message-bubble__thinking--badge`}>{header}</div>
+    }
+    return (
+      <div className={containerCls}>
+        {header}
         <MarkdownContent
           className="message-bubble__thinking-text"
           source={segment.text}
         />
-      </details>
+      </div>
     )
   }
   if (segment.kind === 'redacted_thinking') {

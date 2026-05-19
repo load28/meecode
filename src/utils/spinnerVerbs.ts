@@ -16,6 +16,7 @@ export const SPINNER_VERBS = [
   'Ruminating',
   'Cogitating',
   'Brewing',
+  'Concocting',
   'Cooking',
   'Crafting',
   'Forging',

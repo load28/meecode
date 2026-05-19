@@ -1,5 +1,6 @@
-import type { QaPair } from '../../types'
+import type { AssistantSegment, QaPair } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
+import { FilePath } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
@@ -11,26 +12,20 @@ interface Props {
   onOpenFile?: (path: string) => void
 }
 
-function combineTextPlan(segments: QaPair['segments']): string {
-  return segments
-    .filter((s) => s.kind === 'text' || s.kind === 'plan')
-    .map((s) => (s as { text: string }).text)
-    .join('\n\n')
+/** Tools whose `summary` (computed in `summarizeToolInput`) is a file path —
+ *  these render as a clickable link instead of plain text in the step row. */
+const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
+
+function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): string {
+  if (seg.partial) return 'Thinking…'
+  if (typeof seg.duration_ms === 'number') {
+    return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
+  }
+  return 'Thinking'
 }
 
 export function QaCard({ pair, onExpand, onOpenFile }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
-  const thinkingSegments = pair.segments.filter((s) => s.kind === 'thinking')
-  const imageSegments = pair.segments.filter((s) => s.kind === 'image')
-  const toolSegments = pair.segments.filter((s) => s.kind === 'tool_use')
-  const toolResults = pair.segments.filter((s) => s.kind === 'tool_result')
-  const resultsByToolId = new Map<string, typeof toolResults>()
-  for (const r of toolResults) {
-    if (r.kind !== 'tool_result') continue
-    const list = resultsByToolId.get(r.tool_use_id) ?? []
-    list.push(r)
-    resultsByToolId.set(r.tool_use_id, list)
-  }
   const hasAnyContent = pair.segments.length > 0
 
   return (
@@ -53,47 +48,62 @@ export function QaCard({ pair, onExpand, onOpenFile }: Props) {
         <div className="qa-card__pending">응답 대기 중…</div>
       ) : (
         <div className="qa-card__answer" onMouseUp={handleMouseUp}>
-          {imageSegments.length > 0 && (
-            <div className="qa-card__images">
-              {imageSegments.map((seg, i) => (
-                <SegmentView key={`im-${i}`} segment={seg} />
-              ))}
-            </div>
-          )}
-          {thinkingSegments.length > 0 && (
-            <div className="qa-card__thinking">
-              {thinkingSegments.map((seg, i) => (
-                <SegmentView key={`th-${i}`} segment={seg} />
-              ))}
-            </div>
-          )}
-          <div
-            // `message-bubble__content` opts the rendered markdown into the
-            // shared list/blockquote/spacing rules (ul/ol padding-left,
-            // line-height, etc.). Without it App.css's global `* { padding: 0 }`
-            // strips the default list indent and bullets/numbers collide
-            // with the card's left edge.
-            className="qa-card__preview message-bubble__content"
-            dangerouslySetInnerHTML={{
-              __html: renderMarkdown(makePreview(combineTextPlan(pair.segments))),
-            }}
-          />
-          {toolSegments.length > 0 && (
-            <div className="qa-card__tools">
-              {toolSegments.map((seg, i) => {
-                if (seg.kind !== 'tool_use') return null
-                const matched = resultsByToolId.get(seg.id) ?? []
-                return (
-                  <div key={i} className="qa-card__tool-group">
-                    <SegmentView segment={seg} onOpenFile={onOpenFile} />
-                    {matched.map((r, j) => (
-                      <SegmentView key={`r-${j}`} segment={r} onOpenFile={onOpenFile} />
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {/*
+            Compact step list, matching VS Code Claude plugin layout:
+              - thinking → "● Thought for Ns" one-liner (no body)
+              - tool_use → "● **Name** brief-arg" one-liner
+              - tool_result → hidden inline; full output stays in ExpandPane
+              - text / plan → markdown preview (truncated by makePreview)
+              - image / redacted_thinking → SegmentView as-is
+            Full segment renderings still live in ExpandPane via "전체보기".
+          */}
+          {pair.segments.map((seg, i) => {
+            if (seg.kind === 'tool_result') return null
+            if (seg.kind === 'thinking') {
+              return (
+                <div key={i} className="qa-card__step">
+                  <span className="qa-card__step-dot" aria-hidden="true" />
+                  <span className="qa-card__step-label">{thinkingLabel(seg)}</span>
+                </div>
+              )
+            }
+            if (seg.kind === 'tool_use') {
+              const isFilePath = FILE_PATH_TOOLS.has(seg.name) && seg.summary
+              return (
+                <div key={i} className="qa-card__step">
+                  <span className="qa-card__step-dot" aria-hidden="true" />
+                  <span className="qa-card__step-tool">{seg.name}</span>
+                  {isFilePath ? (
+                    <FilePath
+                      path={seg.summary}
+                      onOpen={onOpenFile}
+                      className="qa-card__step-arg qa-card__step-arg--link"
+                    />
+                  ) : (
+                    seg.summary && (
+                      <span className="qa-card__step-arg">{seg.summary}</span>
+                    )
+                  )}
+                </div>
+              )
+            }
+            if (seg.kind === 'text' || seg.kind === 'plan') {
+              return (
+                <div
+                  key={i}
+                  // `message-bubble__content` opts the rendered markdown into
+                  // the shared list/blockquote/spacing rules; without it the
+                  // global `* { padding: 0 }` strips list indents.
+                  className="qa-card__preview message-bubble__content"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(makePreview(seg.text)),
+                  }}
+                />
+              )
+            }
+            // image, redacted_thinking — unchanged
+            return <SegmentView key={i} segment={seg} onOpenFile={onOpenFile} />
+          })}
           {selection.text && selection.rect && (
             <CommentFloat
               selection={{ text: selection.text, rect: selection.rect }}

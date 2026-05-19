@@ -98,6 +98,65 @@
   line-height: 1.6;
 }
 
+/* Same compact step layout as QaCard. Only difference: ExpandPane sits at
+   the chat body's font size (15px), so dots/labels scale up a touch. */
+.expand-pane__step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  color: #8b949e;
+  font-size: 14px;
+  line-height: 1.6;
+  min-width: 0;
+}
+
+.expand-pane__step-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6e7681;
+  align-self: center;
+}
+
+.expand-pane__step-label {
+  font-style: italic;
+}
+
+.expand-pane__step-tool {
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+.expand-pane__step-arg {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #8b949e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.expand-pane__step-arg--link {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: #58a6ff;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.expand-pane__step-arg--link:hover {
+  text-decoration: underline;
+}
+
 .expand-pane__pending {
   color: #6e7681;
   font-size: 13px;

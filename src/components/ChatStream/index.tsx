@@ -20,6 +20,12 @@ interface Props {
   taskActivity?: TaskActivity | null
   /** Hook activity label from useClaudeSession. Surfaced as a badge below the stream. */
   hookActivity?: string | null
+  /**
+   * Whether the agent loop is still running. Gates the bottom StatusIndicator
+   * so it disappears once `session:turn_end` clears the flag — otherwise the
+   * gerund spinner would linger forever after the final assistant text.
+   */
+  turnInProgress?: boolean
 }
 
 export function ChatStream({
@@ -30,6 +36,7 @@ export function ChatStream({
   onOpenFile,
   taskActivity,
   hookActivity,
+  turnInProgress = false,
 }: Props) {
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
@@ -47,7 +54,7 @@ export function ChatStream({
         ? `${lastSeg.name}`
         : null
       : null
-  const showIndicator = !pendingTool && last !== undefined
+  const showIndicator = turnInProgress && !pendingTool && last !== undefined
 
   if (pairs.length === 0 && !pendingTool) {
     return (

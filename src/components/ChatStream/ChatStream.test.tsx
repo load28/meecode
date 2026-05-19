@@ -65,6 +65,7 @@ describe('ChatStream', () => {
         onExpand={() => {}}
         pendingTool={null}
         onRespondTool={() => {}}
+        turnInProgress
       />,
     )
     // verb 회전이라 정확한 라벨은 고정하지 않고 인디케이터 자체의 존재만 확인.
@@ -86,9 +87,24 @@ describe('ChatStream', () => {
         onExpand={() => {}}
         pendingTool={null}
         onRespondTool={() => {}}
+        turnInProgress
       />,
     )
     expect(screen.getByText('Bash…')).toBeInTheDocument()
+  })
+
+  it('turnInProgress=false면 완료된 페어가 있어도 인디케이터를 표시하지 않음', () => {
+    const pairs = [pair('a', 'q', [text('완료된 응답')])]
+    render(
+      <ChatStream
+        pairs={pairs}
+        onExpand={() => {}}
+        pendingTool={null}
+        onRespondTool={() => {}}
+        turnInProgress={false}
+      />,
+    )
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('pendingTool prop 있으면 ToolApprovalCard 렌더', () => {
@@ -104,6 +120,7 @@ describe('ChatStream', () => {
         onExpand={() => {}}
         pendingTool={req}
         onRespondTool={() => {}}
+        turnInProgress
       />,
     )
     expect(
@@ -125,6 +142,7 @@ describe('ChatStream', () => {
         onExpand={() => {}}
         pendingTool={req}
         onRespondTool={onRespondTool}
+        turnInProgress
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: '허용' }))
@@ -145,6 +163,7 @@ describe('ChatStream', () => {
         onExpand={() => {}}
         pendingTool={req}
         onRespondTool={() => {}}
+        turnInProgress
       />,
     )
     expect(screen.queryByRole('status')).toBeNull()

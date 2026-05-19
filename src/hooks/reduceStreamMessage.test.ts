@@ -409,6 +409,147 @@ describe('reduceStreamPartial (--include-partial-messages)', () => {
     ])
   })
 
+  it('content_block_stop이 text에 누락된 채 aggregated가 도착해도 thinking과 text 모두 보존', () => {
+    // 회귀: 사용자가 보고한 "thinking은 남는데 마지막 답변이 없어진다" 증상.
+    // 이전 로직은 partial:true text를 drop한 뒤 thinking이 streamed라는
+    // 이유만으로 agg.text까지 strip해 답변이 통째로 사라졌다.
+    let s = startPair()
+    s = reduceStreamPartial(
+      s,
+      { event: { type: 'content_block_start', content_block: { type: 'thinking', thinking: '' } } },
+      1_000,
+    )
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'plan' } },
+    })
+    s = reduceStreamPartial(s, { event: { type: 'content_block_stop' } }, 2_000)
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_start', content_block: { type: 'text', text: '' } },
+    })
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'text_delta', text: '답변 일부' } },
+    })
+    // content_block_stop이 text에 대해 도착하지 않은 시점에 aggregated가 도착.
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'thinking', thinking: 'plan' },
+        { type: 'text', text: '답변 일부 + 마무리' },
+      ]),
+    )
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'thinking', text: 'plan', partial: false, duration_ms: 1_000 },
+      { kind: 'text', text: '답변 일부 + 마무리' },
+    ])
+  })
+
+  it('multi-tool 턴에서 streamed thinking·text 사이의 tool_use가 올바른 순서로 삽입', () => {
+    // assistant 한 턴 안에서 thinking → text → tool_use → text2 → tool_use2 시퀀스.
+    // text/thinking만 stream되고 tool_use는 aggregated로만 들어오는 경우에도
+    // 블록 순서가 보존되어야 한다.
+    let s = startPair()
+    // 첫 thinking 스트림
+    s = reduceStreamPartial(
+      s,
+      { event: { type: 'content_block_start', content_block: { type: 'thinking', thinking: '' } } },
+      1_000,
+    )
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 't' } },
+    })
+    s = reduceStreamPartial(s, { event: { type: 'content_block_stop' } }, 1_500)
+    // 첫 text 스트림
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_start', content_block: { type: 'text', text: '' } },
+    })
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'a' } },
+    })
+    s = reduceStreamPartial(s, { event: { type: 'content_block_stop' } })
+    // 두 번째 text 스트림 (사이의 tool_use는 stream 안 됨)
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_start', content_block: { type: 'text', text: '' } },
+    })
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'b' } },
+    })
+    s = reduceStreamPartial(s, { event: { type: 'content_block_stop' } })
+    // aggregated 도착
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        { type: 'thinking', thinking: 't' },
+        { type: 'text', text: 'a' },
+        { type: 'tool_use', id: 'tu-1', name: 'Bash', input: { command: 'ls' } },
+        { type: 'text', text: 'b' },
+        { type: 'tool_use', id: 'tu-2', name: 'Read', input: { file_path: '/x' } },
+      ]),
+    )
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'thinking', text: 't', partial: false, duration_ms: 500 },
+      { kind: 'text', text: 'a', partial: false },
+      {
+        kind: 'tool_use',
+        id: 'tu-1',
+        name: 'Bash',
+        summary: 'ls',
+        input: { command: 'ls' },
+      },
+      { kind: 'text', text: 'b', partial: false },
+      {
+        kind: 'tool_use',
+        id: 'tu-2',
+        name: 'Read',
+        summary: '/x',
+        input: { file_path: '/x' },
+      },
+    ])
+  })
+
+  it('Claude Code SDK 인크리멘탈 session:message — 비어있는 thinking msg → 이어지는 text msg가 최종 답변으로 보존', () => {
+    // 실 로그 재현 시나리오:
+    //   1) content_block_start thinking → signature_delta만 옴 (extended
+    //      thinking, 본문 텍스트 없음)
+    //   2) session:message {kinds:[thinking[len=0]]} 도착 → 빈 thinking은
+    //      assistantSegmentsFrom이 필터링 → segs=[] 조기 반환 (no-op)
+    //   3) content_block_stop → thinking{partial:false, text:'', duration}
+    //   4) content_block_start text → text{partial:true}
+    //   5) text_delta로 누적 → text{partial:true, text:'553자...'}
+    //   6) session:message {kinds:[text[len=553]]} 도착 (text의 stop이 오기 전)
+    //     - dropTrailingLivePartials가 text{p:true} 제거
+    //     - 이전 버전: mergeWithStreamedTail이 baseSegments[0]=thinking을
+    //       agg.text 자리로 소모 → 텍스트 통째로 사라짐
+    //     - 현재 버전: kind 미스매치 감지 → streamed thinking flush 후
+    //       agg.text 추가
+    let s = startPair()
+    // (1)~(3) thinking partial 라이프사이클
+    s = reduceStreamPartial(
+      s,
+      { event: { type: 'content_block_start', content_block: { type: 'thinking', thinking: '' } } },
+      1_000,
+    )
+    // signature_delta는 reduceStreamPartial에서 무시됨 (text 누적 없음) — 별도 디스패치 생략
+    // 첫 번째 session:message: 빈 thinking → no-op
+    s = reduceStreamMessage(s, assistant([{ type: 'thinking', thinking: '' }]))
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'thinking', text: '', partial: true, duration_ms: 1_000 },
+    ])
+    s = reduceStreamPartial(s, { event: { type: 'content_block_stop' } }, 9_000)
+    // (4)~(5) text 스트리밍
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_start', content_block: { type: 'text', text: '' } },
+    })
+    s = reduceStreamPartial(s, {
+      event: { type: 'content_block_delta', delta: { type: 'text_delta', text: '최종 답변 본문' } },
+    })
+    // (6) text의 stop 도착 전에 aggregated msg 도착
+    s = reduceStreamMessage(s, assistant([{ type: 'text', text: '최종 답변 본문 전체' }]))
+    expect(s.pairs[0].segments).toEqual([
+      { kind: 'thinking', text: '', partial: false, duration_ms: 8_000 },
+      { kind: 'text', text: '최종 답변 본문 전체' },
+    ])
+  })
+
   it('parent_tool_use_id가 있는 stream_event는 (서브에이전트 partial은) 일단 noop', () => {
     let s = startPair()
     const before = s

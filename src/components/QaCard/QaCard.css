@@ -49,10 +49,67 @@
   user-select: text;
 }
 
-.qa-card__tools {
+/* Compact step row used for thinking + tool_use in QaCard. Matches the
+   VS Code Claude plugin's "● Thought for Ns" / "● **Name** arg" rows. The
+   full inline rendering of these segments lives in ExpandPane (via 전체보기). */
+.qa-card__step {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: baseline;
+  gap: 8px;
+  padding: 1px 0;
+  color: #8b949e;
+  font-size: 13px;
+  line-height: 1.55;
+  min-width: 0;
+}
+
+.qa-card__step-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6e7681;
+  align-self: center;
+}
+
+.qa-card__step-label {
+  font-style: italic;
+}
+
+.qa-card__step-tool {
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+.qa-card__step-arg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #8b949e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* When `qa-card__step-arg` renders as a <button> (file_path tools), strip
+   the browser-default white background/border so it visually matches the
+   plain-text variant, then add a subtle link affordance. */
+.qa-card__step-arg--link {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: #58a6ff;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.qa-card__step-arg--link:hover {
+  text-decoration: underline;
 }
 
 .qa-card__expand-btn {

@@ -49,38 +49,58 @@ describe('QaCard', () => {
     expect(screen.getByText('응답 대기 중…')).toBeInTheDocument()
   })
 
-  it('thinking segment는 details 토글로 표시되고 Thinking 라벨 노출', () => {
+  it('thinking은 한 줄 step으로 노출 (본문은 카드에 안 나옴 — ExpandPane에서만)', () => {
     const p = pair('a', [
-      { kind: 'thinking', text: '잠깐 생각하자' },
+      { kind: 'thinking', text: '잠깐 생각하자', partial: false, duration_ms: 2_000 },
       text('answer'),
     ])
-    render(<QaCard pair={p} onExpand={() => {}} />)
-    expect(screen.getByText('Thinking')).toBeInTheDocument()
+    const { container } = render(<QaCard pair={p} onExpand={() => {}} />)
+    expect(screen.getByText('Thought for 2s')).toBeInTheDocument()
     expect(screen.getByText('answer')).toBeInTheDocument()
+    // thinking 본문 텍스트는 QaCard에 노출되지 않음 (compact)
+    expect(screen.queryByText('잠깐 생각하자')).toBeNull()
+    expect(
+      container.querySelector('.message-bubble__thinking'),
+    ).toBeNull()
   })
 
-  it('tool_use는 별도 영역에 inline 표시', () => {
-    const p = pair('a', [text(LONG), tool('Bash', 'ls')])
-    render(<QaCard pair={p} onExpand={() => {}} />)
+  it('tool_use는 compact step으로 도구명 + 인자 한 줄', () => {
+    const p = pair('a', [tool('Bash', 'ls -la')])
+    const { container } = render(<QaCard pair={p} onExpand={() => {}} />)
     expect(screen.getByText('Bash')).toBeInTheDocument()
+    expect(screen.getByText('ls -la')).toBeInTheDocument()
+    expect(container.querySelector('.qa-card__step')).not.toBeNull()
   })
 
-  it('tool_use 뒤에 매칭되는 tool_result가 같은 그룹에 표시', () => {
+  it('tool_result는 QaCard 인라인에서 숨김 (성공/실패 무관)', () => {
     const p = pair('a', [
       tool('Bash', 'ls', 'tu1'),
       { kind: 'tool_result', tool_use_id: 'tu1', text: 'file.txt', is_error: false },
+      tool('Bash', 'oops', 'tu2'),
+      { kind: 'tool_result', tool_use_id: 'tu2', text: 'cmd not found', is_error: true },
     ])
     render(<QaCard pair={p} onExpand={() => {}} />)
-    expect(screen.getByText('✓ 도구 결과')).toBeInTheDocument()
+    expect(screen.queryByText('✓ 도구 결과')).toBeNull()
+    expect(screen.queryByText('❌ 도구 실패')).toBeNull()
+    expect(screen.queryByText('file.txt')).toBeNull()
+    expect(screen.queryByText('cmd not found')).toBeNull()
   })
 
-  it('tool_result.is_error=true면 실패 라벨', () => {
+  it('file_path 도구는 클릭 가능한 링크로 렌더 — onOpenFile 호출', () => {
+    const onOpenFile = vi.fn()
     const p = pair('a', [
-      tool('Bash', 'oops', 'tu1'),
-      { kind: 'tool_result', tool_use_id: 'tu1', text: 'cmd not found', is_error: true },
+      {
+        kind: 'tool_use',
+        id: 'tu-r',
+        name: 'Read',
+        summary: '/abs/path/file.tsx',
+        input: { file_path: '/abs/path/file.tsx' },
+      },
     ])
-    render(<QaCard pair={p} onExpand={() => {}} />)
-    expect(screen.getByText('❌ 도구 실패')).toBeInTheDocument()
+    render(<QaCard pair={p} onExpand={() => {}} onOpenFile={onOpenFile} />)
+    const link = screen.getByRole('button', { name: /\/abs\/path\/file\.tsx/ })
+    fireEvent.click(link)
+    expect(onOpenFile).toHaveBeenCalledWith('/abs/path/file.tsx')
   })
 
   it('답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {

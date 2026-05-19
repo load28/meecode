@@ -9,18 +9,20 @@ function openExternal(path: string) {
   )
 }
 
-function FilePath({
+export function FilePath({
   path,
   onOpen,
+  className = 'tool-view__path tool-view__path-link',
 }: {
   path: string
   onOpen?: (path: string) => void
+  className?: string
 }) {
   if (!path) return null
   return (
     <button
       type="button"
-      className="tool-view__path tool-view__path-link"
+      className={className}
       onClick={() => {
         if (onOpen) onOpen(path)
         else openExternal(path)

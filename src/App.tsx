@@ -363,6 +363,7 @@ function MainLayout({
                 onOpenFile={handleOpenFile}
                 taskActivity={taskActivity}
                 hookActivity={hookActivity}
+                turnInProgress={turnInProgress}
                 onRespondTool={(reqId, allow, tuId, updatedInput) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)
