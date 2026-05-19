@@ -147,7 +147,7 @@ describe('useClaudeSession', () => {
     ])
   })
 
-  it('/clear는 invoke 없이 pairs/queue/turnError를 비운다', async () => {
+  it('/clear는 pairs/queue/turnError를 비우고 CLI에도 /clear를 forward', async () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {
       setTab('main', (s) => ({
@@ -161,13 +161,17 @@ describe('useClaudeSession', () => {
     await act(async () => {
       await result.current.sendUserMessage('/clear')
     })
-    expect(invokeMock).not.toHaveBeenCalled()
     expect(result.current.pairs).toEqual([])
     expect(result.current.queue).toEqual([])
     expect(result.current.turnError).toBeNull()
+    expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+      text: '/clear',
+      images: undefined,
+      tabId: 'main',
+    })
   })
 
-  it('/exit, /quit도 /clear와 동일하게 동작', async () => {
+  it('/exit, /quit도 /clear와 동일하게 CLI까지 리셋', async () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {
       setTab('main', (s) => ({ ...s, pairs: [pair('x')] }))
@@ -176,6 +180,12 @@ describe('useClaudeSession', () => {
       await result.current.sendUserMessage('/exit')
     })
     expect(result.current.pairs).toEqual([])
+    expect(invokeMock).toHaveBeenLastCalledWith('send_user_message', {
+      text: '/clear',
+      images: undefined,
+      tabId: 'main',
+    })
+    invokeMock.mockClear()
     act(() => {
       setTab('main', (s) => ({ ...s, pairs: [pair('y')] }))
     })
@@ -183,7 +193,11 @@ describe('useClaudeSession', () => {
       await result.current.sendUserMessage('/quit')
     })
     expect(result.current.pairs).toEqual([])
-    expect(invokeMock).not.toHaveBeenCalled()
+    expect(invokeMock).toHaveBeenLastCalledWith('send_user_message', {
+      text: '/clear',
+      images: undefined,
+      tabId: 'main',
+    })
   })
 
   it('/model <name>은 set_model 호출 후 store에 모델 반영', async () => {

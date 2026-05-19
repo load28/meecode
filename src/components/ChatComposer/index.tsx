@@ -1,42 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
+import {
+  CLIENT_SLASH_COMMANDS,
+  decorateServerSlash,
+} from '../../hooks/clientSlash'
 import './ChatComposer.css'
 
-// Slash commands meecode dispatches client-side (via Tauri control_request
-// handlers or local pair-clearing) — listed here so they always appear in
-// the suggestion menu regardless of what `session:init` advertises.
-// The CLI's `--input-format stream-json` mode treats these as
-// "interactive-only" and would just forward them to the model as text;
-// `useClaudeSession.sendUserMessage` intercepts them before that happens.
-const CLIENT_SIDE_SLASH: Array<{ name: string; description?: string }> = [
-  { name: '/clear', description: '대화 내역 비우기' },
-  { name: '/exit', description: '대화 내역 비우기 (alias of /clear)' },
-  { name: '/quit', description: '대화 내역 비우기 (alias of /clear)' },
-  { name: '/model', description: '모델 변경 (예: /model claude-sonnet-4-6)' },
-  {
-    name: '/permissions',
-    description: '권한 모드 변경 (default | plan | acceptEdits)',
-  },
-]
+// Commands MeeCode dispatches without sending anything to the CLI. See
+// `hooks/clientSlash.ts` for the dispatch logic; this list just drives
+// the suggestion menu so the same commands appear in both places.
+const CLIENT_SIDE_SLASH: ReadonlyArray<{ name: string; description?: string }> =
+  CLIENT_SLASH_COMMANDS
 
-// Lean fallback shown only until `session:init` delivers the authoritative
-// `slash_commands` list. Once that arrives we trust it exclusively — that
-// way plugin/skill commands match the running session and we don't
-// advertise commands the CLI hasn't actually wired.
-const FALLBACK_SLASH: Array<{ name: string; description?: string }> = [
-  { name: '/help', description: '도움말' },
+// Pre-`session:init` fallback for the CLI-dispatched built-ins. These
+// run via the CLI's own slash-command dispatcher when forwarded as user
+// text in stream-json mode (verified: `/init`, `/compact`, `/context`,
+// `/review`, `/security-review`). Once `session:init` arrives, the
+// authoritative list from the running session takes over — which also
+// includes plugin/skill commands like `superpowers:execute-plan`.
+const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
+  { name: '/init', description: '프로젝트 초기화 (CLAUDE.md 생성)' },
   { name: '/compact', description: '대화 압축' },
   { name: '/context', description: '컨텍스트 현황' },
-  { name: '/cost', description: '사용량/비용' },
-  { name: '/usage', description: '토큰 사용량' },
-  { name: '/status', description: '시스템 상태' },
-  { name: '/init', description: '프로젝트 초기화 (CLAUDE.md 생성)' },
   { name: '/review', description: '코드 리뷰' },
   { name: '/security-review', description: '보안 리뷰' },
-  { name: '/agents', description: '에이전트 목록' },
-  { name: '/mcp', description: 'MCP 서버 관리' },
-  { name: '/todos', description: 'TODO 목록' },
 ]
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -383,12 +371,15 @@ export function ChatComposer({
     }
     // Dynamic list from session:init is the authoritative source of what
     // the running CLI actually dispatches (plugin skills, user skills,
-    // built-ins). It supersedes the fallback once it arrives.
+    // built-ins). It supersedes the fallback once it arrives. The CLI
+    // doesn't serialize descriptions, so `decorateServerSlash` fills
+    // them in for the well-known built-ins; plugin/skill commands keep
+    // their bare names.
     for (const c of dynamic) {
       const key = c.name.startsWith('/') ? c.name : '/' + c.name
       if (seen.has(key)) continue
       seen.add(key)
-      out.push({ ...c, name: key })
+      out.push(decorateServerSlash({ ...c, name: key }))
     }
     // Pre-init fallback so the menu has useful entries on the first frame.
     if (dynamic.length === 0) {
