@@ -1,14 +1,24 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * Sticky-to-bottom scroll behavior.
+ * Sticky-to-bottom scroll behavior — matches the use-stick-to-bottom /
+ * VS Code Claude pane pattern.
  *
- * - If the user is at the bottom (within `threshold`px) when a content
- *   change arrives, the container is re-pinned to the bottom.
- * - If the user has scrolled up, their position is preserved across
- *   content changes (no surprise jumps while reading older messages).
+ * - When the user is pinned to the bottom (within `threshold`px), any
+ *   content growth re-snaps `scrollTop` to the bottom.
+ * - As soon as the user scrolls up past the threshold, stickiness flips
+ *   off and their position is preserved across all subsequent changes
+ *   until they scroll back down to the bottom.
  *
- * Pass `deps` that change whenever new content arrives.
+ * Growth detection uses `ResizeObserver` on each direct child of the
+ * scroll container, plus a `MutationObserver` to attach the RO to newly
+ * appended children. This catches both reducer-driven segment adds and
+ * in-place text growth from the smoothed-typewriter (when wrapping
+ * causes height to change) without polling every frame.
+ *
+ * `deps` still triggers an immediate re-pin (e.g. session swap, expanded
+ * pair change) so switching contexts lands at the bottom even before the
+ * observers fire.
  */
 export function useStickyScroll<T extends HTMLElement>(
   deps: ReadonlyArray<unknown>,
@@ -17,8 +27,7 @@ export function useStickyScroll<T extends HTMLElement>(
   const ref = useRef<T | null>(null)
   const stickyRef = useRef(true)
 
-  // After every content change, scroll to the bottom only if we were
-  // already pinned to the bottom before the change.
+  // Deps-triggered re-pin (cheap shortcut for explicit content swaps).
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -26,6 +35,40 @@ export function useStickyScroll<T extends HTMLElement>(
     el.scrollTop = el.scrollHeight
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const snap = () => {
+      if (stickyRef.current) {
+        el.scrollTop = el.scrollHeight
+      }
+    }
+
+    const ro = new ResizeObserver(snap)
+    for (const child of Array.from(el.children)) {
+      ro.observe(child)
+    }
+
+    const mo = new MutationObserver((records) => {
+      for (const rec of records) {
+        rec.addedNodes.forEach((n) => {
+          if (n instanceof Element) ro.observe(n)
+        })
+      }
+      // A newly mounted child contributes height before its first RO
+      // callback fires; snap synchronously so the new segment never
+      // briefly appears below the fold.
+      snap()
+    })
+    mo.observe(el, { childList: true })
+
+    return () => {
+      ro.disconnect()
+      mo.disconnect()
+    }
+  }, [])
 
   const onScroll = () => {
     const el = ref.current
