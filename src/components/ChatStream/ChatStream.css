@@ -52,6 +52,16 @@
   letter-spacing: 0.3px;
 }
 
+.chat-stream__status-detail {
+  font-size: 11px;
+  color: #8b949e;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+}
+
 .chat-stream__status-dots {
   display: inline-flex;
   gap: 3px;

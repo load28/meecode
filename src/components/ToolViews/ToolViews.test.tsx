@@ -35,7 +35,7 @@ describe('ToolUseView', () => {
     expect(screen.getByText('변경 보기')).toBeInTheDocument()
   })
 
-  it('Edit: details를 펼치면 old/new 두 블록 표시', () => {
+  it('Edit: details를 펼치면 unified diff로 old/new 라인 표시', () => {
     render(
       <ToolUseView
         segment={t('Edit', {
@@ -46,8 +46,11 @@ describe('ToolUseView', () => {
       />,
     )
     fireEvent.click(screen.getByText('변경 보기'))
-    expect(screen.getByText(/- aa/)).toBeInTheDocument()
-    expect(screen.getByText(/\+ bb/)).toBeInTheDocument()
+    expect(screen.getByText('aa')).toBeInTheDocument()
+    expect(screen.getByText('bb')).toBeInTheDocument()
+    // +1 added / -1 removed 통계
+    expect(screen.getByText('+1')).toBeInTheDocument()
+    expect(screen.getByText('−1')).toBeInTheDocument()
   })
 
   it('Write: file_path와 줄 수 hint', () => {

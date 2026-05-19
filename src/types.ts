@@ -8,14 +8,51 @@ export interface SelectionState {
   rect: DOMRect | null
 }
 
+/**
+ * Subagent inner message — emitted by the CLI with `parent_tool_use_id` set
+ * to the parent `Agent`/`Task` tool_use id. We thread these onto the parent
+ * tool_use segment so the UI can render a nested activity tree.
+ */
+export interface SubagentEntry {
+  /** "assistant" | "user" — the role of the inner message. */
+  role: 'assistant' | 'user'
+  segments: AssistantSegment[]
+}
+
 export type AssistantSegment =
-  | { kind: 'text'; text: string }
+  | { kind: 'text'; text: string; partial?: boolean }
   | { kind: 'plan'; text: string }
-  | { kind: 'thinking'; text: string }
+  | {
+      kind: 'thinking'
+      text: string
+      /** True while `content_block_delta` deltas are still arriving. */
+      partial?: boolean
+      /** ms elapsed between thinking start and stop. Set once partial flips false. */
+      duration_ms?: number
+    }
   | { kind: 'redacted_thinking' }
   | { kind: 'image'; media_type: string; data_url?: string }
-  | { kind: 'tool_use'; id: string; name: string; summary: string; input: unknown }
+  | {
+      kind: 'tool_use'
+      id: string
+      name: string
+      summary: string
+      input: unknown
+      /** Inner subagent messages routed via `parent_tool_use_id === id`. */
+      children?: SubagentEntry[]
+      /** Tool progress heartbeats: `{ phase, elapsed_seconds }`. */
+      progress?: ToolProgressEntry[]
+    }
   | { kind: 'tool_result'; tool_use_id: string; text: string; is_error: boolean }
+
+export interface ToolProgressEntry {
+  /** "running" | "completed" | "failed" | ... */
+  phase?: string
+  /** Seconds since the tool started (server-reported). */
+  elapsed_seconds?: number
+  /** Last inner tool name when this is a nested-call heartbeat. */
+  last_tool_name?: string
+}
 
 export interface SlashCommand {
   name: string

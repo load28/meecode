@@ -40,6 +40,16 @@ pub async fn spawn_claude(
     cmd.arg("--verbose");
     cmd.arg("--input-format").arg("stream-json");
     cmd.arg("--permission-prompt-tool").arg("stdio");
+    // --include-partial-messages: receive `stream_event` lines carrying
+    // Anthropic API SSE deltas (content_block_delta with thinking_delta /
+    // text_delta / input_json_delta). Without it the UI can only show
+    // assistant content after each block is fully complete, so live
+    // thinking is invisible.
+    cmd.arg("--include-partial-messages");
+    // --include-hook-events: surfaces `system:hook_*` so we can label
+    // hook activity in the UI. We already parse these, so opting in is
+    // purely additive.
+    cmd.arg("--include-hook-events");
     if let Some(id) = resume_session_id {
         cmd.arg("--resume").arg(id);
     }

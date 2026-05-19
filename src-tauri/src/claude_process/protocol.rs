@@ -20,6 +20,8 @@ pub enum StreamMessage {
         session_id: Option<String>,
         #[serde(default)]
         uuid: Option<String>,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
     },
     Assistant {
         message: Value,
@@ -27,6 +29,27 @@ pub enum StreamMessage {
         session_id: Option<String>,
         #[serde(default)]
         uuid: Option<String>,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
+    },
+    /// Anthropic API SSE delta lines emitted when claude is spawned with
+    /// `--include-partial-messages`. Carry `message_start`, `content_block_start`,
+    /// `content_block_delta` (text_delta / thinking_delta / input_json_delta),
+    /// `content_block_stop`, `message_delta`, `message_stop`.
+    StreamEvent {
+        event: Value,
+        #[serde(default)]
+        parent_tool_use_id: Option<String>,
+        #[serde(default)]
+        uuid: Option<String>,
+        #[serde(default)]
+        session_id: Option<String>,
+    },
+    /// Per-tool progress heartbeat for long-running tools (incl. nested
+    /// subagent calls).
+    ToolProgress {
+        #[serde(flatten)]
+        rest: Value,
     },
     Result {
         #[serde(default)]

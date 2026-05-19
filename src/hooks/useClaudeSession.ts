@@ -9,10 +9,11 @@ import {
   type AgentInfo,
   type McpServerInfo,
   type QueuedMessage,
+  type TaskActivity,
   type UsageStats,
 } from '../state/sessionStore'
 
-export type { AgentInfo, McpServerInfo, UsageStats }
+export type { AgentInfo, McpServerInfo, TaskActivity, UsageStats }
 
 export interface UseClaudeSessionResult {
   pairs: QaPair[]
@@ -20,6 +21,7 @@ export interface UseClaudeSessionResult {
   pendingTool: ToolRequest | null
   mode: Mode
   hookActivity: string | null
+  taskActivity: TaskActivity | null
   rateLimit: string | null
   turnError: string | null
   turnInProgress: boolean
@@ -328,6 +330,7 @@ export function useClaudeSession(
     pendingTool: state.pendingTool,
     mode: state.mode,
     hookActivity: state.hookActivity,
+    taskActivity: state.taskActivity,
     rateLimit: state.rateLimit,
     turnError: state.turnError,
     turnInProgress: state.turnInProgress,

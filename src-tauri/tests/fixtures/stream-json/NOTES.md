@@ -10,7 +10,9 @@ claude
   --output-format stream-json
   --input-format  stream-json
   --verbose
-  --permission-prompt-tool stdio   # hidden flag, not in `claude --help`
+  --permission-prompt-tool stdio        # hidden flag, not in `claude --help`
+  --include-partial-messages            # emit Anthropic SSE deltas (stream_event)
+  --include-hook-events                 # surface system:hook_* lifecycle
   [--resume <session_id>]
 ```
 
@@ -34,6 +36,26 @@ registered.
 | `control_cancel_request` | claude cancels a pending request | `request_id` |
 | `keep_alive` | heartbeat | none |
 | `transcript_mirror` | mirroring session jsonl | `filePath`, `entries` |
+| `stream_event` | per-token SSE delta (with `--include-partial-messages`) | `event.{type,...}`, `parent_tool_use_id?`, `uuid`, `session_id` |
+| `tool_progress` | long-running-tool heartbeat | `tool_use_id`, `tool_name`, `phase?`, `elapsed_time_seconds?`, `last_tool_name?`, `parent_tool_use_id?` |
+| `system` (`subtype:"task_started"\|"task_progress"\|"task_notification"`) | background-agent task lifecycle | `task_id`, `description`, `task_type`, `status?`, `usage?` |
+
+### `stream_event` sub-shapes
+
+The `event` field holds the raw Anthropic message-streaming SSE event:
+
+- `message_start` — `{ message: { id, role, model, content: [], ... } }`
+- `content_block_start` — `{ index, content_block: { type: "text"|"thinking"|"tool_use", ... } }`
+- `content_block_delta` — `{ index, delta: { type: "text_delta"|"thinking_delta"|"input_json_delta"|"signature_delta", ... } }`
+- `content_block_stop` — `{ index }`
+- `message_delta` — `{ delta: { stop_reason, ... } }`
+- `message_stop` — `{}`
+
+`parent_tool_use_id` on the envelope routes subagent inner activity into the parent `Agent`/`Task` tool_use card. Subagents can nest — children carry their own `parent_tool_use_id` of the inner agent.
+
+### Aggregated `assistant`/`user` vs `stream_event`
+
+When `--include-partial-messages` is on, the **same** thinking/text content arrives twice: once incrementally as `stream_event.content_block_delta` (token-by-token, used to render the live "Thinking…" stream), then once aggregated in the trailing `assistant` message. MeeCode dedupes by checking whether the segment list's tail is a streamed segment (`partial` field defined) — if yes, the aggregated message's `thinking` / `text` blocks are dropped and only `tool_use` / `image` / `plan` are appended.
 
 ## `control_request` with `can_use_tool`
 
