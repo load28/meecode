@@ -10,8 +10,10 @@ import { ProjectSwitcher } from './components/ProjectSwitcher'
 import { SessionSwitcher } from './components/SessionSwitcher'
 import { SessionTabs, type TabDescriptor } from './components/SessionTabs'
 import { FilePanel } from './components/FilePanel'
+import { KnowledgePanel } from './components/KnowledgePanel'
 import { useFileTabs } from './hooks/useFileTabs'
 import { useDetachedFilePanel } from './hooks/useDetachedFilePanel'
+import { useProjectKnowledge } from './hooks/useProjectKnowledge'
 import { listen } from '@tauri-apps/api/event'
 import { useClaudeSession } from './hooks/useClaudeSession'
 import { useExpandPanel } from './hooks/useExpandPanel'
@@ -200,10 +202,37 @@ function MainLayout({
 
   const fileTabs = useFileTabs()
   const { isDetached, detach, openFile } = useDetachedFilePanel(fileTabs)
+  const knowledge = useProjectKnowledge(projectPath)
+  const [showKnowledge, setShowKnowledge] = useState(false)
   const [pendingContext, setPendingContext] = useState<{
     id: number
     text: string
   } | null>(null)
+
+  // Auto-open the knowledge panel when an organize job is running or a diff
+  // is waiting for review, so the user actually sees the result.
+  useEffect(() => {
+    if (
+      knowledge.status === 'running' ||
+      knowledge.status === 'diff-ready' ||
+      knowledge.status === 'error'
+    ) {
+      setShowKnowledge(true)
+    }
+  }, [knowledge.status])
+
+  const handlePin = async (input: {
+    segmentKind: string
+    text: string
+    qaId: string
+  }) => {
+    return knowledge.pin({
+      segmentKind: input.segmentKind,
+      text: input.text,
+      qaId: input.qaId,
+      sessionId,
+    })
+  }
 
   const handleOpenFile = (path: string) => {
     openFile(path)
@@ -278,6 +307,22 @@ function MainLayout({
             ◀ 패널 열기
           </button>
         )}
+        <button
+          type="button"
+          className={`app__knowledge-btn${
+            showKnowledge ? ' is-active' : ''
+          }`}
+          onClick={() => setShowKnowledge((v) => !v)}
+          title={`프로젝트 노트 (${knowledge.pins.length} 핀)`}
+        >
+          📚 노트 ({knowledge.pins.length})
+          {knowledge.status === 'running' && (
+            <span className="app__knowledge-pulse" aria-hidden>●</span>
+          )}
+          {knowledge.status === 'diff-ready' && (
+            <span className="app__knowledge-pending" aria-hidden>●</span>
+          )}
+        </button>
         <label className="app__auto-toggle">
           <input
             type="checkbox"
@@ -364,6 +409,7 @@ function MainLayout({
                 taskActivity={taskActivity}
                 hookActivity={hookActivity}
                 turnInProgress={turnInProgress}
+                onPin={handlePin}
                 onRespondTool={(reqId, allow, tuId, updatedInput) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)
@@ -443,6 +489,17 @@ function MainLayout({
                   onDetach={() => {
                     void detach()
                   }}
+                />
+              </Panel>
+            </>
+          )}
+          {showKnowledge && (
+            <>
+              <PanelResizeHandle className="resize-handle" />
+              <Panel defaultSize={28} minSize={20}>
+                <KnowledgePanel
+                  projectPath={projectPath}
+                  onClose={() => setShowKnowledge(false)}
                 />
               </Panel>
             </>

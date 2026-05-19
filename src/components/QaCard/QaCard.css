@@ -157,10 +157,16 @@
   text-decoration: underline;
 }
 
-.qa-card__expand-btn {
+.qa-card__actions {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.qa-card__pin-btn,
+.qa-card__expand-btn {
   width: 26px;
   height: 26px;
   display: inline-flex;
@@ -174,6 +180,20 @@
   line-height: 1;
   cursor: pointer;
   padding: 0;
+}
+
+.qa-card__pin-btn:hover:not(:disabled) {
+  background: #6f3a1f;
+  color: #fff;
+  border-color: #6f3a1f;
+}
+
+.qa-card__pin-btn.is-pinned,
+.qa-card__pin-btn:disabled {
+  background: #4a2614;
+  color: #f0b97b;
+  border-color: #4a2614;
+  cursor: default;
 }
 
 .qa-card__expand-btn:hover {

@@ -6,11 +6,13 @@ import './CommentFloat.css'
 interface Props {
   selection: SelectionState & { rect: DOMRect }
   onClose: () => void
+  onPin?: (text: string) => Promise<void> | void
 }
 
-export function CommentFloat({ selection, onClose }: Props) {
+export function CommentFloat({ selection, onClose, onPin }: Props) {
   const [showInput, setShowInput] = useState(false)
   const [input, setInput] = useState('')
+  const [pinned, setPinned] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -28,6 +30,15 @@ export function CommentFloat({ selection, onClose }: Props) {
     onClose()
   }
 
+  const handlePin = async () => {
+    if (!onPin) return
+    setPinned(true)
+    await onPin(selection.text)
+    // Keep the float open briefly so the user can read the "pinned" state,
+    // then close so the next selection starts clean.
+    setTimeout(onClose, 600)
+  }
+
   const style: React.CSSProperties = {
     position: 'fixed',
     top: selection.rect.top - 44,
@@ -38,12 +49,24 @@ export function CommentFloat({ selection, onClose }: Props) {
   return (
     <div style={style} className="comment-float">
       {!showInput ? (
-        <button
-          className="comment-float__button"
-          onClick={() => setShowInput(true)}
-        >
-          💬 코멘트
-        </button>
+        <div className="comment-float__actions">
+          {onPin && (
+            <button
+              className="comment-float__button comment-float__button--pin"
+              onClick={handlePin}
+              disabled={pinned}
+              title="이 선택을 프로젝트 핀으로 저장"
+            >
+              {pinned ? '📌 저장됨' : '📌 핀'}
+            </button>
+          )}
+          <button
+            className="comment-float__button"
+            onClick={() => setShowInput(true)}
+          >
+            💬 코멘트
+          </button>
+        </div>
       ) : (
         <div className="comment-float__input-row">
           <input

@@ -52,3 +52,21 @@
   font-size: 13px;
   cursor: pointer;
 }
+
+.comment-float__actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.comment-float__button--pin {
+  background: #6f3a1f;
+}
+
+.comment-float__button--pin:hover {
+  background: #8b4a26;
+}
+
+.comment-float__button--pin:disabled {
+  background: #4a2614;
+  cursor: default;
+}
