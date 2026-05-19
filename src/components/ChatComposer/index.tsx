@@ -3,73 +3,40 @@ import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
 import './ChatComposer.css'
 
-// Fallback list shown before session:init delivers the authoritative
-// `slash_commands` payload. Mirrors Claude Code 2.1.143's built-ins and the
-// common plugin / skill slash commands so the menu has useful entries even on
-// the first frame.
-const BUILTIN_SLASH: Array<{ name: string; description?: string }> = [
-  // Core session
-  { name: '/help', description: '도움말 보기' },
+// Slash commands meecode dispatches client-side (via Tauri control_request
+// handlers or local pair-clearing) — listed here so they always appear in
+// the suggestion menu regardless of what `session:init` advertises.
+// The CLI's `--input-format stream-json` mode treats these as
+// "interactive-only" and would just forward them to the model as text;
+// `useClaudeSession.sendUserMessage` intercepts them before that happens.
+const CLIENT_SIDE_SLASH: Array<{ name: string; description?: string }> = [
   { name: '/clear', description: '대화 내역 비우기' },
+  { name: '/exit', description: '대화 내역 비우기 (alias of /clear)' },
+  { name: '/quit', description: '대화 내역 비우기 (alias of /clear)' },
+  { name: '/model', description: '모델 변경 (예: /model claude-sonnet-4-6)' },
+  {
+    name: '/permissions',
+    description: '권한 모드 변경 (default | plan | acceptEdits)',
+  },
+]
+
+// Lean fallback shown only until `session:init` delivers the authoritative
+// `slash_commands` list. Once that arrives we trust it exclusively — that
+// way plugin/skill commands match the running session and we don't
+// advertise commands the CLI hasn't actually wired.
+const FALLBACK_SLASH: Array<{ name: string; description?: string }> = [
+  { name: '/help', description: '도움말' },
   { name: '/compact', description: '대화 압축' },
-  { name: '/resume', description: '세션 이어하기' },
-  { name: '/exit', description: '세션 종료' },
-  { name: '/quit', description: '세션 종료' },
-  // Account / status
-  { name: '/login', description: '로그인' },
-  { name: '/logout', description: '로그아웃' },
+  { name: '/context', description: '컨텍스트 현황' },
+  { name: '/cost', description: '사용량/비용' },
+  { name: '/usage', description: '토큰 사용량' },
   { name: '/status', description: '시스템 상태' },
-  { name: '/cost', description: '사용량/비용 보기' },
-  { name: '/usage', description: '토큰 사용량 보기' },
-  // Model & behavior
-  { name: '/model', description: '모델 선택' },
-  { name: '/think-harder', description: '더 깊이 사고' },
-  { name: '/ultraplan', description: 'Ultra plan 모드' },
-  { name: '/ultrareview', description: 'Ultra review (멀티-에이전트 검토)' },
-  { name: '/config', description: '설정 변경' },
-  { name: '/permissions', description: '도구 권한 관리' },
-  // Workspace
-  { name: '/init', description: '프로젝트 초기화' },
-  { name: '/add-dir', description: '작업 디렉토리 추가' },
-  { name: '/diff', description: '변경 사항 보기' },
-  { name: '/todos', description: 'TODO 목록 보기' },
-  { name: '/memory', description: '메모리 보기' },
-  { name: '/export', description: '대화 export' },
-  // Tooling
-  { name: '/agents', description: '에이전트 목록' },
-  { name: '/mcp', description: 'MCP 서버 관리' },
-  { name: '/ide', description: 'IDE 통합' },
-  { name: '/vim', description: 'Vim 모드 토글' },
-  { name: '/install-github-app', description: 'GitHub 앱 설치' },
-  { name: '/migrate-installer', description: '인스톨러 마이그레이션' },
-  // Workflow / loop / schedule
-  { name: '/loop', description: 'Loop 모드 시작' },
-  { name: '/schedule', description: '작업 스케줄' },
+  { name: '/init', description: '프로젝트 초기화 (CLAUDE.md 생성)' },
   { name: '/review', description: '코드 리뷰' },
   { name: '/security-review', description: '보안 리뷰' },
-  { name: '/pr_comments', description: 'PR 댓글 가져오기' },
-  // Feedback / misc
-  { name: '/bug', description: '버그 리포트' },
-  { name: '/feedback', description: '피드백 전송' },
-  { name: '/release-notes', description: '릴리즈 노트' },
-  { name: '/upgrade', description: '업그레이드' },
-  { name: '/remember', description: '메모리에 기억' },
-  // Plugin namespaces (matches actual plugin slash commands seen in VS Code)
-  { name: '/superpowers:brainstorming', description: '아이디어를 디자인으로' },
-  { name: '/superpowers:writing-plans', description: '구현 계획 작성' },
-  { name: '/superpowers:executing-plans', description: '계획 실행' },
-  { name: '/superpowers:subagent-driven-development', description: '서브에이전트 주도 개발' },
-  { name: '/superpowers:test-driven-development', description: 'TDD 워크플로우' },
-  { name: '/superpowers:debugging', description: '체계적 디버깅' },
-  { name: '/superpowers:requesting-code-review', description: '코드 리뷰 요청' },
-  { name: '/superpowers:finishing-a-development-branch', description: '브랜치 마무리' },
-  { name: '/superpowers:using-git-worktrees', description: 'Git worktree 격리' },
-  { name: '/context7:resolve-library-id', description: 'Context7 라이브러리 검색' },
-  { name: '/context7:query-docs', description: 'Context7 문서 질의' },
-  { name: '/honcho:chat', description: 'Honcho 메모리 대화' },
-  { name: '/honcho:get_context', description: 'Honcho 컨텍스트 조회' },
-  { name: '/serena:activate_project', description: 'Serena 프로젝트 활성화' },
-  { name: '/serena:find_symbol', description: 'Serena 심볼 검색' },
+  { name: '/agents', description: '에이전트 목록' },
+  { name: '/mcp', description: 'MCP 서버 관리' },
+  { name: '/todos', description: 'TODO 목록' },
 ]
 
 const MODE_LABEL: Record<Mode, string> = {
@@ -408,12 +375,28 @@ export function ChatComposer({
     const dynamic = slashCommands ?? []
     const seen = new Set<string>()
     const out: SlashCommand[] = []
-    // Dynamic (from session:init) is authoritative — list it first.
-    for (const c of [...dynamic, ...BUILTIN_SLASH]) {
+    // Client-wired commands always present, with our own descriptions.
+    for (const c of CLIENT_SIDE_SLASH) {
+      if (seen.has(c.name)) continue
+      seen.add(c.name)
+      out.push(c)
+    }
+    // Dynamic list from session:init is the authoritative source of what
+    // the running CLI actually dispatches (plugin skills, user skills,
+    // built-ins). It supersedes the fallback once it arrives.
+    for (const c of dynamic) {
       const key = c.name.startsWith('/') ? c.name : '/' + c.name
       if (seen.has(key)) continue
       seen.add(key)
       out.push({ ...c, name: key })
+    }
+    // Pre-init fallback so the menu has useful entries on the first frame.
+    if (dynamic.length === 0) {
+      for (const c of FALLBACK_SLASH) {
+        if (seen.has(c.name)) continue
+        seen.add(c.name)
+        out.push(c)
+      }
     }
     const q = value.trim().toLowerCase()
     if (!q.startsWith('/')) return []
