@@ -11,6 +11,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 import {
   CLIENT_SLASH_COMMANDS,
+  SERVER_SLASH_DESCRIPTIONS,
+  decorateServerSlash,
   dispatchClientSlash,
   parsePermissionsArg,
   parseSlash,
@@ -85,7 +87,7 @@ describe('dispatchClientSlash — 비-슬래시 텍스트', () => {
 })
 
 describe('dispatchClientSlash — /clear /exit /quit', () => {
-  it('/clear는 invoke 없이 pairs/queue/turnError 초기화 + true', async () => {
+  it('/clear는 pairs/queue/turnError 초기화 + CLI에도 forward', async () => {
     setTab(TAB, (s) => ({
       ...s,
       pairs: [
@@ -99,19 +101,41 @@ describe('dispatchClientSlash — /clear /exit /quit', () => {
     }))
     const r = await dispatchClientSlash('/clear', undefined, { tabId: TAB })
     expect(r).toBe(true)
-    expect(invokeMock).not.toHaveBeenCalled()
     const snap = getTabSnapshot(TAB)
     expect(snap.pairs).toEqual([])
     expect(snap.queue).toEqual([])
     expect(snap.turnError).toBeNull()
     expect(snap.turnInProgress).toBe(false)
+    expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+      text: '/clear',
+      images: undefined,
+      tabId: TAB,
+    })
   })
-  it.each(['/exit', '/quit'])('%s도 /clear와 동일', async (cmd) => {
+  it.each(['/exit', '/quit'])(
+    '%s는 alias — 로컬 비우고 CLI에 /clear forward',
+    async (cmd) => {
+      setTab(TAB, (s) => ({
+        ...s,
+        pairs: [{ id: 'x', user_text: 'q', segments: [], timestamp: 't' }],
+      }))
+      const r = await dispatchClientSlash(cmd, undefined, { tabId: TAB })
+      expect(r).toBe(true)
+      expect(getTabSnapshot(TAB).pairs).toEqual([])
+      expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+        text: '/clear',
+        images: undefined,
+        tabId: TAB,
+      })
+    },
+  )
+  it('/clear CLI forward 실패해도 로컬 상태는 비워진 채 유지', async () => {
     setTab(TAB, (s) => ({
       ...s,
-      pairs: [{ id: 'x', user_text: 'q', segments: [], timestamp: 't' }],
+      pairs: [{ id: 'a', user_text: 'q', segments: [], timestamp: 't' }],
     }))
-    const r = await dispatchClientSlash(cmd, undefined, { tabId: TAB })
+    invokeMock.mockRejectedValueOnce(new Error('no session'))
+    const r = await dispatchClientSlash('/clear', undefined, { tabId: TAB })
     expect(r).toBe(true)
     expect(getTabSnapshot(TAB).pairs).toEqual([])
   })
@@ -341,6 +365,29 @@ describe('dispatchClientSlash — CLI로 전달되는 명령', () => {
     const r = await dispatchClientSlash(cmd, undefined, { tabId: TAB })
     expect(r).toBe(false)
     expect(invokeMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('decorateServerSlash', () => {
+  it('설명이 이미 있으면 그대로 둔다', () => {
+    const c = { name: '/init', description: 'custom desc' }
+    expect(decorateServerSlash(c)).toEqual(c)
+  })
+  it('알려진 CLI 명령에 한글 설명을 채운다', () => {
+    expect(decorateServerSlash({ name: '/init' })).toEqual({
+      name: '/init',
+      description: SERVER_SLASH_DESCRIPTIONS['/init'],
+    })
+  })
+  it('슬래시 없이 들어와도 매핑된다', () => {
+    expect(decorateServerSlash({ name: 'compact' })).toMatchObject({
+      description: SERVER_SLASH_DESCRIPTIONS['/compact'],
+    })
+  })
+  it('알려지지 않은 플러그인/스킬 명령은 설명 없이 둔다', () => {
+    expect(decorateServerSlash({ name: '/superpowers:execute-plan' })).toEqual({
+      name: '/superpowers:execute-plan',
+    })
   })
 })
 

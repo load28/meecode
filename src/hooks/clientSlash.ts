@@ -107,6 +107,58 @@ export const CLIENT_SLASH_COMMANDS: ReadonlyArray<{
 const CLEAR_CMDS = new Set(['/clear', '/exit', '/quit'])
 const TERMINAL_ONLY_CMDS = new Set(['/login', '/logout', '/doctor'])
 
+/**
+ * Descriptions for well-known CLI-dispatched commands. The CLI's
+ * `session:init` payload only carries names (verified against the
+ * fixture and live captures); descriptions live in the CLI's internal
+ * command registry and aren't serialized. We hard-code the ones a
+ * meecode user is likely to see so the palette is more than a list of
+ * bare names.
+ *
+ * Plugin/skill commands (e.g. `superpowers:execute-plan`,
+ * `simplify`, `claude-api`) come and go with the user's installed
+ * plugins — we don't try to enumerate them here; the palette just
+ * shows the bare name from `session:init` and the user can read the
+ * skill's own README. The colon namespace makes them visually
+ * distinct from built-ins.
+ */
+export const SERVER_SLASH_DESCRIPTIONS: Record<string, string> = {
+  '/init': '프로젝트 초기화 (CLAUDE.md 생성)',
+  '/compact': '대화 압축',
+  '/context': '컨텍스트 사용량 보기',
+  '/cost': '사용량/비용 (CLI 내장)',
+  '/usage': '사용량/비용 (CLI 내장)',
+  '/review': '코드 리뷰',
+  '/security-review': '보안 리뷰',
+  '/insights': '세션 인사이트',
+  '/goal': '목표 설정/조회',
+  '/team-onboarding': '팀 온보딩',
+  '/heapdump': '힙 덤프 (디버그용)',
+  '/simplify': '변경 사항 단순화 검토',
+  '/claude-api': 'Claude API 도움말',
+  '/debug': '디버그 모드',
+  '/batch': '배치 모드',
+  '/loop': '루프 실행',
+  '/fewer-permission-prompts': '권한 프롬프트 줄이기',
+  '/update-config': '설정 업데이트',
+  '/session-start-hook': '세션 시작 훅',
+}
+
+/**
+ * Annotate a server-advertised slash command with our hard-coded
+ * description when the server didn't send one. Returns the command
+ * as-is if a description was already provided or no override is known.
+ */
+export function decorateServerSlash(c: {
+  name: string
+  description?: string
+}): { name: string; description?: string } {
+  if (c.description) return c
+  const key = c.name.startsWith('/') ? c.name : '/' + c.name
+  const desc = SERVER_SLASH_DESCRIPTIONS[key]
+  return desc ? { ...c, description: desc } : c
+}
+
 function emitSyntheticPair(
   tabId: string,
   userText: string,
@@ -291,6 +343,23 @@ export async function dispatchClientSlash(
       turnError: null,
       turnInProgress: false,
     }))
+    // Also reset the CLI's own conversation transcript so the next user
+    // message doesn't carry every prior turn as context. `/clear` is a
+    // `local` command in the CLI's registry — in stream-json mode it
+    // empties the in-memory message history and emits an empty
+    // assistant turn (verified). Forward it even on `/exit`/`/quit`
+    // since meecode treats those as aliases.
+    try {
+      await invoke('send_user_message', {
+        text: '/clear',
+        images: undefined,
+        tabId,
+      })
+    } catch (e) {
+      // CLI not running yet (e.g. user fired /clear from an empty
+      // folder picker tab) — fine; local state is already reset.
+      console.warn('[meecode] /clear forward to CLI failed', e)
+    }
     return true
   }
 

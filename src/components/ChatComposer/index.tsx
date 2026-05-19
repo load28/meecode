@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
-import { CLIENT_SLASH_COMMANDS } from '../../hooks/clientSlash'
+import {
+  CLIENT_SLASH_COMMANDS,
+  decorateServerSlash,
+} from '../../hooks/clientSlash'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -368,12 +371,15 @@ export function ChatComposer({
     }
     // Dynamic list from session:init is the authoritative source of what
     // the running CLI actually dispatches (plugin skills, user skills,
-    // built-ins). It supersedes the fallback once it arrives.
+    // built-ins). It supersedes the fallback once it arrives. The CLI
+    // doesn't serialize descriptions, so `decorateServerSlash` fills
+    // them in for the well-known built-ins; plugin/skill commands keep
+    // their bare names.
     for (const c of dynamic) {
       const key = c.name.startsWith('/') ? c.name : '/' + c.name
       if (seen.has(key)) continue
       seen.add(key)
-      out.push({ ...c, name: key })
+      out.push(decorateServerSlash({ ...c, name: key }))
     }
     // Pre-init fallback so the menu has useful entries on the first frame.
     if (dynamic.length === 0) {
