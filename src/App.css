@@ -379,6 +379,47 @@ body,
   margin-left: 12px;
 }
 
+.app__knowledge-btn {
+  background: #161b22;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.app__knowledge-btn:hover {
+  background: #21262d;
+  border-color: #58a6ff;
+}
+
+.app__knowledge-btn.is-active {
+  background: #1f6feb;
+  color: #fff;
+  border-color: #1f6feb;
+}
+
+.app__knowledge-pulse {
+  color: #f78166;
+  font-size: 9px;
+  animation: knowledge-btn-pulse 1.2s infinite ease-in-out;
+}
+
+.app__knowledge-pending {
+  color: #79c0ff;
+  font-size: 9px;
+}
+
+@keyframes knowledge-btn-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 .app__auto-toggle {
   display: inline-flex;
   align-items: center;
