@@ -19,7 +19,11 @@ import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
   makeInitialMessageState,
   reduceStreamMessage,
+  reduceStreamPartial,
+  reduceToolProgress,
   type StreamMessageEvent,
+  type StreamPartialEvent,
+  type ToolProgressPayload,
 } from '../hooks/reduceStreamMessage'
 
 export interface UsageStats {
@@ -48,12 +52,25 @@ export interface QueuedMessage {
   images?: Array<{ media_type: string; data: string }>
 }
 
+/**
+ * Latest background-task heartbeat. `status:requesting` is fired between
+ * API round-trips; `task_*` for background Agents/Bash. Cleared on turn_end.
+ */
+export interface TaskActivity {
+  subtype: string
+  task_id?: string
+  description?: string
+  last_tool_name?: string
+  tool_use_id?: string
+}
+
 export interface TabSession {
   pairs: QaPair[]
   currentId: string | null
   pendingTool: ToolRequest | null
   mode: Mode
   hookActivity: string | null
+  taskActivity: TaskActivity | null
   rateLimit: string | null
   turnError: string | null
   turnInProgress: boolean
@@ -75,6 +92,7 @@ export function initialTabSession(): TabSession {
     pendingTool: null,
     mode: 'default',
     hookActivity: null,
+    taskActivity: null,
     rateLimit: null,
     turnError: null,
     turnInProgress: false,
@@ -197,6 +215,70 @@ export function bootstrapSessionListeners(): void {
     },
   )
 
+  // Anthropic SSE deltas (--include-partial-messages). These drive
+  // token-by-token thinking/text rendering. The aggregated `assistant`
+  // message arriving afterwards replaces these partials.
+  listen<StreamPartialEvent & { tab_id?: string }>(
+    'session:stream_event',
+    (e) => {
+      const tab = tabIdOf(e.payload)
+      setTab(tab, (s) => {
+        const next = reduceStreamPartial(
+          { pairs: s.pairs, currentId: s.currentId },
+          e.payload,
+        )
+        return { ...s, pairs: next.pairs, currentId: next.currentId }
+      })
+    },
+  )
+
+  // Long-running-tool heartbeats. Attached to the matching tool_use segment
+  // so the UI can render a "running 3s" badge.
+  listen<ToolProgressPayload & { tab_id?: string }>(
+    'session:tool_progress',
+    (e) => {
+      const tab = tabIdOf(e.payload)
+      setTab(tab, (s) => {
+        const next = reduceToolProgress(
+          { pairs: s.pairs, currentId: s.currentId },
+          e.payload,
+        )
+        return { ...s, pairs: next.pairs, currentId: next.currentId }
+      })
+    },
+  )
+
+  // system:task_started/task_progress/task_notification — for background
+  // agents and long Bash. Surface as a single transient banner.
+  listen<{
+    tab_id?: string
+    subtype: string
+    task_id?: string
+    description?: string
+    last_tool_name?: string
+    tool_use_id?: string
+    status?: string
+  }>('session:task_activity', (e) => {
+    const tab = tabIdOf(e.payload)
+    const p = e.payload
+    setTab(tab, (s) => {
+      if (p.subtype === 'task_notification' && p.status !== 'in_progress') {
+        // Terminal status — clear the banner.
+        return { ...s, taskActivity: null }
+      }
+      return {
+        ...s,
+        taskActivity: {
+          subtype: p.subtype,
+          task_id: p.task_id,
+          description: p.description,
+          last_tool_name: p.last_tool_name,
+          tool_use_id: p.tool_use_id,
+        },
+      }
+    })
+  })
+
   listen<ToolRequest & { tab_id?: string }>('session:tool_request', (e) => {
     const tab = tabIdOf(e.payload)
     setTab(tab, (s) => ({ ...s, pendingTool: e.payload }))
@@ -310,6 +392,7 @@ export function bootstrapSessionListeners(): void {
       tools: tools.length ? tools : s.tools,
       turnInProgress: false,
       hookActivity: null,
+      taskActivity: null,
     }))
   })
 
@@ -345,6 +428,7 @@ export function bootstrapSessionListeners(): void {
       turnError: errLabel,
       turnInProgress: false,
       hookActivity: null,
+      taskActivity: null,
       usage: {
         totalCostUsd:
           s.usage.totalCostUsd +

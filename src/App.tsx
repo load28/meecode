@@ -139,6 +139,7 @@ function MainLayout({
     pendingTool,
     respondTool,
     hookActivity,
+    taskActivity,
     rateLimit,
     turnError,
     turnInProgress,
@@ -360,6 +361,8 @@ function MainLayout({
                 onExpand={handleExpand}
                 pendingTool={pendingTool}
                 onOpenFile={handleOpenFile}
+                taskActivity={taskActivity}
+                hookActivity={hookActivity}
                 onRespondTool={(reqId, allow, tuId, updatedInput) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)

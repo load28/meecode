@@ -11,6 +11,26 @@ pub enum DomainEvent {
         kind: &'static str,
         uuid: Option<String>,
         body: Value,
+        parent_tool_use_id: Option<String>,
+    },
+    /// Raw Anthropic SSE delta. Forwarded verbatim so the frontend
+    /// assembler can run `message_start` / `content_block_*` / `message_stop`
+    /// and live-render thinking/text without waiting for the aggregated
+    /// `assistant` message.
+    StreamEvent {
+        event: Value,
+        parent_tool_use_id: Option<String>,
+    },
+    /// Long-running-tool heartbeat. `tool_use_id` lets the UI attach the
+    /// progress to the right tool card.
+    ToolProgress {
+        raw: Value,
+    },
+    /// `system:task_started` / `task_progress` / `task_notification` emitted
+    /// for background tasks (Agent run in background, long Bash, Monitor).
+    TaskActivity {
+        subtype: String,
+        raw: Value,
     },
     ToolRequest {
         request_id: String,
@@ -80,6 +100,16 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
         }
         StreamMessage::System {
             subtype: Some(ref sub),
+            ref rest,
+            ..
+        } if sub == "task_started" || sub == "task_progress" || sub == "task_notification" => {
+            DomainEvent::TaskActivity {
+                subtype: sub.clone(),
+                raw: rest.clone(),
+            }
+        }
+        StreamMessage::System {
+            subtype: Some(ref sub),
             session_id,
             ref rest,
         } if sub == "init" => {
@@ -130,16 +160,37 @@ fn parse_one(line: &str) -> Option<DomainEvent> {
             session_id: Some(id),
             ..
         } => DomainEvent::SessionStart { session_id: id },
-        StreamMessage::Assistant { message, uuid, .. } => DomainEvent::Message {
+        StreamMessage::Assistant {
+            message,
+            uuid,
+            parent_tool_use_id,
+            ..
+        } => DomainEvent::Message {
             kind: "assistant",
             uuid,
             body: message,
+            parent_tool_use_id,
         },
-        StreamMessage::User { message, uuid, .. } => DomainEvent::Message {
+        StreamMessage::User {
+            message,
+            uuid,
+            parent_tool_use_id,
+            ..
+        } => DomainEvent::Message {
             kind: "user",
             uuid,
             body: message,
+            parent_tool_use_id,
         },
+        StreamMessage::StreamEvent {
+            event,
+            parent_tool_use_id,
+            ..
+        } => DomainEvent::StreamEvent {
+            event,
+            parent_tool_use_id,
+        },
+        StreamMessage::ToolProgress { rest } => DomainEvent::ToolProgress { raw: rest },
         StreamMessage::ControlRequest { request_id, request } => {
             let (body, subtype) = decode_control_request(&request);
             match body {

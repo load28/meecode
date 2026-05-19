@@ -82,7 +82,7 @@ fn assistant_message_carries_kind_and_uuid() {
     let mut events = Vec::new();
     parse_str(raw, |ev| events.push(ev));
     match events.as_slice() {
-        [DomainEvent::Message { kind, uuid, body }] => {
+        [DomainEvent::Message { kind, uuid, body, .. }] => {
             assert_eq!(*kind, "assistant");
             assert_eq!(uuid.as_deref(), Some("u-7"));
             assert!(body.get("content").is_some(), "body must keep content: {body:?}");
@@ -111,4 +111,84 @@ fn result_message_emits_turn_end() {
     let mut events = Vec::new();
     parse_str(raw, |ev| events.push(ev));
     assert!(matches!(events.as_slice(), [DomainEvent::TurnEnd { .. }]));
+}
+
+#[test]
+fn stream_event_with_content_block_delta_passes_through() {
+    let raw = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"음 "}},"parent_tool_use_id":null,"uuid":"u-1","session_id":"s-1"}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::StreamEvent {
+            event,
+            parent_tool_use_id,
+        }] => {
+            assert!(parent_tool_use_id.is_none());
+            assert_eq!(
+                event.get("type").and_then(|v| v.as_str()),
+                Some("content_block_delta")
+            );
+            assert_eq!(
+                event
+                    .get("delta")
+                    .and_then(|v| v.get("thinking"))
+                    .and_then(|v| v.as_str()),
+                Some("음 ")
+            );
+        }
+        other => panic!("expected one StreamEvent; got {other:?}"),
+    }
+}
+
+#[test]
+fn assistant_with_parent_tool_use_id_carries_it_through() {
+    let raw = r#"{"type":"assistant","uuid":"u-c","parent_tool_use_id":"tu-parent","message":{"role":"assistant","content":[{"type":"text","text":"sub"}]}}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::Message {
+            kind,
+            parent_tool_use_id,
+            ..
+        }] => {
+            assert_eq!(*kind, "assistant");
+            assert_eq!(parent_tool_use_id.as_deref(), Some("tu-parent"));
+        }
+        other => panic!("expected Message; got {other:?}"),
+    }
+}
+
+#[test]
+fn task_started_emits_task_activity() {
+    let raw = r#"{"type":"system","subtype":"task_started","task_id":"t-1","description":"explore","task_type":"local_agent","uuid":"u-x","session_id":"s-1"}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::TaskActivity { subtype, raw }] => {
+            assert_eq!(subtype, "task_started");
+            assert_eq!(raw.get("task_id").and_then(|v| v.as_str()), Some("t-1"));
+            assert_eq!(
+                raw.get("task_type").and_then(|v| v.as_str()),
+                Some("local_agent")
+            );
+        }
+        other => panic!("expected TaskActivity; got {other:?}"),
+    }
+}
+
+#[test]
+fn tool_progress_is_forwarded() {
+    let raw = r#"{"type":"tool_progress","tool_use_id":"tu-x","tool_name":"Bash","elapsed_time_seconds":3.5}"#;
+    let mut events = Vec::new();
+    parse_str(raw, |ev| events.push(ev));
+    match events.as_slice() {
+        [DomainEvent::ToolProgress { raw }] => {
+            assert_eq!(
+                raw.get("tool_use_id").and_then(|v| v.as_str()),
+                Some("tu-x")
+            );
+            assert_eq!(raw.get("tool_name").and_then(|v| v.as_str()), Some("Bash"));
+        }
+        other => panic!("expected ToolProgress; got {other:?}"),
+    }
 }

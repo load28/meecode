@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
+import { DiffView } from '../DiffView'
 import './ToolViews.css'
 
 function openExternal(path: string) {
@@ -37,6 +38,25 @@ interface ToolViewProps {
   defaultOpen?: boolean
 }
 
+function ProgressBadge({
+  segment,
+}: {
+  segment: Extract<AssistantSegment, { kind: 'tool_use' }>
+}) {
+  const latest = segment.progress?.[segment.progress.length - 1]
+  if (!latest) return null
+  const sec =
+    typeof latest.elapsed_seconds === 'number'
+      ? Math.round(latest.elapsed_seconds)
+      : null
+  return (
+    <span className="tool-view__progress-badge">
+      {latest.last_tool_name ? `↳ ${latest.last_tool_name}` : 'running'}
+      {sec !== null && <> · {sec}s</>}
+    </span>
+  )
+}
+
 function pickString(input: unknown, key: string): string {
   if (!input || typeof input !== 'object') return ''
   const v = (input as Record<string, unknown>)[key]
@@ -61,6 +81,7 @@ function BashView({ segment }: ToolViewProps) {
         {description && (
           <span className="tool-view__hint">{description}</span>
         )}
+        <ProgressBadge segment={segment} />
       </header>
       {/* Skip the empty pre when streaming hasn't filled `input.command`
           yet — otherwise the card renders a blank black box. */}
@@ -81,24 +102,42 @@ function EditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
         <FilePath path={filePath} onOpen={onOpenFile} />
       </header>
       {(oldStr || newStr) && (
-        <details className="tool-view__diff" open={defaultOpen}>
-          <summary className="tool-view__diff-summary">변경 보기</summary>
-          {oldStr && (
-            <pre className="tool-view__diff-old">
-              {oldStr.split('\n').map((l, i) => (
-                <div key={`o-${i}`}>- {l}</div>
-              ))}
-            </pre>
-          )}
-          {newStr && (
-            <pre className="tool-view__diff-new">
-              {newStr.split('\n').map((l, i) => (
-                <div key={`n-${i}`}>+ {l}</div>
-              ))}
-            </pre>
-          )}
-        </details>
+        <DiffView
+          oldText={oldStr}
+          newText={newStr}
+          defaultOpen={defaultOpen}
+          collapsibleLabel="변경 보기"
+        />
       )}
+    </div>
+  )
+}
+
+function MultiEditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
+  const filePath = pickString(segment.input, 'file_path')
+  const edits = pickArray(segment.input, 'edits') as Array<{
+    old_string?: string
+    new_string?: string
+  }>
+  return (
+    <div className="tool-view tool-view--edit">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">✎</span>
+        <span className="tool-view__name">MultiEdit</span>
+        <FilePath path={filePath} onOpen={onOpenFile} />
+        {edits.length > 0 && (
+          <span className="tool-view__hint">{edits.length}개 변경</span>
+        )}
+      </header>
+      {edits.map((e, i) => (
+        <DiffView
+          key={i}
+          oldText={typeof e.old_string === 'string' ? e.old_string : ''}
+          newText={typeof e.new_string === 'string' ? e.new_string : ''}
+          defaultOpen={defaultOpen}
+          collapsibleLabel={`변경 ${i + 1}`}
+        />
+      ))}
     </div>
   )
 }
@@ -118,10 +157,12 @@ function WriteView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
         )}
       </header>
       {content && (
-        <details className="tool-view__diff" open={defaultOpen}>
-          <summary className="tool-view__diff-summary">내용 보기</summary>
-          <pre className="tool-view__code">{content}</pre>
-        </details>
+        <DiffView
+          oldText=""
+          newText={content}
+          defaultOpen={defaultOpen}
+          collapsibleLabel="내용 보기"
+        />
       )}
     </div>
   )
@@ -185,6 +226,64 @@ function TodoWriteView({ segment }: ToolViewProps) {
   )
 }
 
+function TaskCreateView({ segment }: ToolViewProps) {
+  const subject = pickString(segment.input, 'subject')
+  const description = pickString(segment.input, 'description')
+  const activeForm = pickString(segment.input, 'activeForm')
+  return (
+    <div className="tool-view tool-view--todo">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">＋</span>
+        <span className="tool-view__name">Task 추가</span>
+        {activeForm && <span className="tool-view__hint">{activeForm}</span>}
+      </header>
+      {(subject || description) && (
+        <div className="tool-view__todo-detail">
+          {subject && <div className="tool-view__todo-subject">{subject}</div>}
+          {description && (
+            <div className="tool-view__todo-desc">{description}</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TaskUpdateView({ segment }: ToolViewProps) {
+  const taskId = pickString(segment.input, 'taskId')
+  const status = pickString(segment.input, 'status')
+  const subject = pickString(segment.input, 'subject')
+  const description = pickString(segment.input, 'description')
+  const marker =
+    status === 'completed' ? '✔' : status === 'in_progress' ? '▶' : status === 'deleted' ? '✕' : '○'
+  return (
+    <div className="tool-view tool-view--todo">
+      <header className="tool-view__header">
+        <span className="tool-view__icon">{marker}</span>
+        <span className="tool-view__name">Task 업데이트</span>
+        {status && (
+          <span
+            className={`tool-view__hint tool-view__todo-status tool-view__todo-status--${status}`}
+          >
+            {status}
+          </span>
+        )}
+        {taskId && (
+          <span className="tool-view__hint">{taskId.slice(0, 8)}</span>
+        )}
+      </header>
+      {(subject || description) && (
+        <div className="tool-view__todo-detail">
+          {subject && <div className="tool-view__todo-subject">{subject}</div>}
+          {description && (
+            <div className="tool-view__todo-desc">{description}</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function GrepGlobView({ segment }: ToolViewProps) {
   const pattern = pickString(segment.input, 'pattern')
   const path = pickString(segment.input, 'path')
@@ -238,10 +337,11 @@ function SkillView({ segment }: ToolViewProps) {
   )
 }
 
-function AgentView({ segment, defaultOpen }: ToolViewProps) {
+function AgentView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   const description = pickString(segment.input, 'description')
   const subagentType = pickString(segment.input, 'subagent_type')
   const prompt = pickString(segment.input, 'prompt')
+  const children = segment.children ?? []
   return (
     <div className="tool-view tool-view--agent">
       <header className="tool-view__header">
@@ -249,6 +349,10 @@ function AgentView({ segment, defaultOpen }: ToolViewProps) {
         <span className="tool-view__name">Agent</span>
         {subagentType && <span className="tool-view__hint">{subagentType}</span>}
         <span className="tool-view__path">{description}</span>
+        {children.length > 0 && (
+          <span className="tool-view__hint">{children.length} steps</span>
+        )}
+        <ProgressBadge segment={segment} />
       </header>
       {prompt && (
         <details className="tool-view__diff" open={defaultOpen}>
@@ -256,8 +360,93 @@ function AgentView({ segment, defaultOpen }: ToolViewProps) {
           <pre className="tool-view__code">{prompt}</pre>
         </details>
       )}
+      {children.length > 0 && (
+        <details
+          className="tool-view__subagent"
+          open={defaultOpen ?? true}
+        >
+          <summary className="tool-view__subagent-summary">
+            서브에이전트 활동 ({children.length})
+          </summary>
+          <SubagentTree entries={children} onOpenFile={onOpenFile} />
+        </details>
+      )}
     </div>
   )
+}
+
+/**
+ * Render the nested activity stream the subagent emitted. Each entry maps to
+ * one inner message (assistant or user). We reuse the same SegmentView via a
+ * lightweight lazy import to avoid the circular dep with MessageBubble.
+ */
+function SubagentTree({
+  entries,
+  onOpenFile,
+}: {
+  entries: NonNullable<Extract<AssistantSegment, { kind: 'tool_use' }>['children']>
+  onOpenFile?: (path: string) => void
+}) {
+  return (
+    <div className="tool-view__subagent-tree">
+      {entries.map((entry, i) => (
+        <div
+          key={i}
+          className={`tool-view__subagent-entry tool-view__subagent-entry--${entry.role}`}
+        >
+          {entry.segments.map((seg, j) => (
+            <SubagentSegment
+              key={j}
+              segment={seg}
+              onOpenFile={onOpenFile}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SubagentSegment({
+  segment,
+  onOpenFile,
+}: {
+  segment: AssistantSegment
+  onOpenFile?: (path: string) => void
+}) {
+  // Avoid the full SegmentView (which imports this file) by handling the
+  // most informative kinds inline. Text/thinking get a compact rendering;
+  // tool_use reuses ToolUseView (recursion is safe because subagent
+  // children are bounded by depth in practice).
+  if (segment.kind === 'text') {
+    return <div className="tool-view__subagent-text">{segment.text}</div>
+  }
+  if (segment.kind === 'thinking') {
+    return (
+      <div className="tool-view__subagent-thinking">
+        💭 {segment.text}
+      </div>
+    )
+  }
+  if (segment.kind === 'tool_result') {
+    return (
+      <div
+        className={
+          segment.is_error
+            ? 'tool-view__subagent-result tool-view__subagent-result--error'
+            : 'tool-view__subagent-result'
+        }
+      >
+        {segment.is_error ? '❌' : '✓'} {segment.text.slice(0, 240)}
+      </div>
+    )
+  }
+  if (segment.kind === 'tool_use') {
+    return (
+      <ToolUseView segment={segment} onOpenFile={onOpenFile} defaultOpen={false} />
+    )
+  }
+  return null
 }
 
 function ToolSearchView({ segment }: ToolViewProps) {
@@ -361,9 +550,16 @@ export function ToolUseView({ segment, onOpenFile, defaultOpen }: ToolViewProps)
     case 'Bash':
       return <BashView segment={segment} />
     case 'Edit':
-    case 'MultiEdit':
       return (
         <EditView segment={segment} onOpenFile={onOpenFile} defaultOpen={defaultOpen} />
+      )
+    case 'MultiEdit':
+      return (
+        <MultiEditView
+          segment={segment}
+          onOpenFile={onOpenFile}
+          defaultOpen={defaultOpen}
+        />
       )
     case 'Write':
       return (
@@ -373,6 +569,10 @@ export function ToolUseView({ segment, onOpenFile, defaultOpen }: ToolViewProps)
       return <ReadView segment={segment} onOpenFile={onOpenFile} />
     case 'TodoWrite':
       return <TodoWriteView segment={segment} />
+    case 'TaskCreate':
+      return <TaskCreateView segment={segment} />
+    case 'TaskUpdate':
+      return <TaskUpdateView segment={segment} />
     case 'Grep':
     case 'Glob':
       return <GrepGlobView segment={segment} />

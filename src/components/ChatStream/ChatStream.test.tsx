@@ -57,7 +57,7 @@ describe('ChatStream', () => {
     expect(onExpand).toHaveBeenCalledWith('a')
   })
 
-  it('마지막 페어 segments가 비어 있으면 Thinking 인디케이터 표시', () => {
+  it('마지막 페어 segments가 비어 있으면 인디케이터 표시', () => {
     const pairs = [pair('a', 'q', [])]
     render(
       <ChatStream
@@ -67,11 +67,18 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.getByText('Thinking')).toBeInTheDocument()
+    // verb 회전이라 정확한 라벨은 고정하지 않고 인디케이터 자체의 존재만 확인.
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
-  it('마지막 segment가 tool_use면 도구 실행 인디케이터 표시', () => {
-    const tool = { kind: 'tool_use' as const, name: 'Bash', summary: 'ls' }
+  it('마지막 segment가 tool_use면 도구명을 인디케이터로 표시', () => {
+    const tool = {
+      kind: 'tool_use' as const,
+      id: 'tu1',
+      name: 'Bash',
+      summary: 'ls',
+      input: {},
+    }
     const pairs = [pair('a', 'q', [tool])]
     render(
       <ChatStream
@@ -81,7 +88,7 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.getByText('Bash running')).toBeInTheDocument()
+    expect(screen.getByText('Bash…')).toBeInTheDocument()
   })
 
   it('pendingTool prop 있으면 ToolApprovalCard 렌더', () => {
@@ -140,6 +147,6 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.queryByText('Thinking')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })

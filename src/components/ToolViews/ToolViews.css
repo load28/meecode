@@ -203,6 +203,132 @@ button.tool-view__path-link:hover {
   word-break: break-word;
 }
 
+/* TaskCreate / TaskUpdate single-task cards */
+.tool-view__todo-detail {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-view__todo-subject {
+  color: #c9d1d9;
+  font-weight: 500;
+}
+
+.tool-view__todo-desc {
+  color: #8b949e;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.tool-view__todo-status--completed {
+  color: #2ea043;
+}
+
+.tool-view__todo-status--in_progress {
+  color: #d29922;
+}
+
+.tool-view__todo-status--deleted {
+  color: #6e7681;
+  text-decoration: line-through;
+}
+
+/* Long-running-tool heartbeat badge */
+.tool-view__progress-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(210, 153, 34, 0.15);
+  color: #d29922;
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  white-space: nowrap;
+}
+
+/* Subagent activity tree */
+.tool-view__subagent {
+  border-top: 1px solid #21262d;
+  background: #0c1015;
+}
+
+.tool-view__subagent-summary {
+  cursor: pointer;
+  padding: 6px 12px;
+  list-style: none;
+  color: #8b949e;
+  font-size: 12px;
+  user-select: none;
+}
+
+.tool-view__subagent-summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-view__subagent-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  color: #6e7681;
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
+.tool-view__subagent[open] > .tool-view__subagent-summary::before {
+  transform: rotate(90deg);
+}
+
+.tool-view__subagent-tree {
+  padding: 0 12px 10px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 2px solid #21262d;
+  margin-left: 18px;
+}
+
+.tool-view__subagent-entry {
+  padding: 4px 0;
+}
+
+.tool-view__subagent-entry--user {
+  opacity: 0.7;
+}
+
+.tool-view__subagent-text {
+  color: #c9d1d9;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-view__subagent-thinking {
+  color: #8b949e;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.tool-view__subagent-result {
+  color: #6e7681;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 4px 6px;
+  background: #11161d;
+  border-radius: 4px;
+  border-left: 2px solid #2ea043;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tool-view__subagent-result--error {
+  border-left-color: #f85149;
+  color: #ffa198;
+}
+
 /* Search-style (Grep/Glob/ToolSearch) */
 .tool-view--search .tool-view__icon,
 .tool-view--search .tool-view__name {

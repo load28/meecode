@@ -94,15 +94,43 @@ fn dispatch_event(app: &AppHandle, tab_id: &str, ev: DomainEvent) {
                 with_tab(serde_json::json!({ "session_id": session_id })),
             );
         }
-        DomainEvent::Message { kind, uuid, body } => {
+        DomainEvent::Message {
+            kind,
+            uuid,
+            body,
+            parent_tool_use_id,
+        } => {
             let _ = app.emit(
                 "session:message",
                 with_tab(serde_json::json!({
                     "kind": kind,
                     "uuid": uuid,
                     "body": body,
+                    "parent_tool_use_id": parent_tool_use_id,
                 })),
             );
+        }
+        DomainEvent::StreamEvent {
+            event,
+            parent_tool_use_id,
+        } => {
+            let _ = app.emit(
+                "session:stream_event",
+                with_tab(serde_json::json!({
+                    "event": event,
+                    "parent_tool_use_id": parent_tool_use_id,
+                })),
+            );
+        }
+        DomainEvent::ToolProgress { raw } => {
+            let _ = app.emit("session:tool_progress", with_tab(raw));
+        }
+        DomainEvent::TaskActivity { subtype, raw } => {
+            let mut v = raw;
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("subtype".to_string(), serde_json::Value::String(subtype));
+            }
+            let _ = app.emit("session:task_activity", with_tab(v));
         }
         DomainEvent::ToolRequest {
             request_id,
