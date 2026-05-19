@@ -147,6 +147,106 @@ describe('useClaudeSession', () => {
     ])
   })
 
+  it('/clear는 invoke 없이 pairs/queue/turnError를 비운다', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        pairs: [pair('a'), pair('b')],
+        currentId: 'b',
+        queue: [{ id: 'q1', text: 'queued' }],
+        turnError: 'oops',
+      }))
+    })
+    await act(async () => {
+      await result.current.sendUserMessage('/clear')
+    })
+    expect(invokeMock).not.toHaveBeenCalled()
+    expect(result.current.pairs).toEqual([])
+    expect(result.current.queue).toEqual([])
+    expect(result.current.turnError).toBeNull()
+  })
+
+  it('/exit, /quit도 /clear와 동일하게 동작', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({ ...s, pairs: [pair('x')] }))
+    })
+    await act(async () => {
+      await result.current.sendUserMessage('/exit')
+    })
+    expect(result.current.pairs).toEqual([])
+    act(() => {
+      setTab('main', (s) => ({ ...s, pairs: [pair('y')] }))
+    })
+    await act(async () => {
+      await result.current.sendUserMessage('/quit')
+    })
+    expect(result.current.pairs).toEqual([])
+    expect(invokeMock).not.toHaveBeenCalled()
+  })
+
+  it('/model <name>은 set_model 호출 후 store에 모델 반영', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await act(async () => {
+      await result.current.sendUserMessage('/model claude-sonnet-4-6')
+    })
+    expect(invokeMock).toHaveBeenCalledWith('set_model', {
+      model: 'claude-sonnet-4-6',
+      tabId: 'main',
+    })
+    expect(result.current.model).toBe('claude-sonnet-4-6')
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'send_user_message',
+      expect.anything(),
+    )
+  })
+
+  it('/permissions plan은 set_permission_mode 호출 + mode 갱신', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await act(async () => {
+      await result.current.sendUserMessage('/permissions plan')
+    })
+    expect(invokeMock).toHaveBeenCalledWith('set_permission_mode', {
+      mode: 'plan',
+      tabId: 'main',
+    })
+    expect(result.current.mode).toBe('plan')
+  })
+
+  it('/permissions acceptEdits → auto-accept 모드', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await act(async () => {
+      await result.current.sendUserMessage('/permissions acceptEdits')
+    })
+    expect(invokeMock).toHaveBeenCalledWith('set_permission_mode', {
+      mode: 'acceptEdits',
+      tabId: 'main',
+    })
+    expect(result.current.mode).toBe('auto-accept')
+  })
+
+  it('/permissions <unknown>은 turnError를 띄우고 invoke는 호출 안 함', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await act(async () => {
+      await result.current.sendUserMessage('/permissions bogus')
+    })
+    expect(invokeMock).not.toHaveBeenCalled()
+    expect(result.current.turnError).toMatch(/permissions/)
+  })
+
+  it('/init 같은 모델측 슬래시는 그대로 send_user_message로 전달', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    await act(async () => {
+      await result.current.sendUserMessage('/init')
+    })
+    expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+      text: '/init',
+      images: undefined,
+      tabId: 'main',
+    })
+  })
+
   it('reduceStreamMessage(user) → 새 페어 시작', () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {
