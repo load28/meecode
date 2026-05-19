@@ -91,11 +91,17 @@ export function ChatComposer({
   const [mentionIdx, setMentionIdx] = useState(0)
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const [historyIdx, setHistoryIdx] = useState<number | null>(null)
+  const [escHint, setEscHint] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
   const slashListRef = useRef<HTMLUListElement | null>(null)
   const mentionListRef = useRef<HTMLUListElement | null>(null)
   const lastContextIdRef = useRef<number | null>(null)
+  // Double-press ESC window — matches the CLI's useDoublePress for input
+  // clear. First ESC arms the action and shows a hint, second ESC within
+  // the window clears and saves to history.
+  const escArmedAtRef = useRef<number | null>(null)
+  const ESC_DOUBLE_PRESS_MS = 1000
 
   useEffect(() => {
     if (!pendingContext) return
@@ -146,15 +152,15 @@ export function ChatComposer({
 
   // Global ESC interrupt — fires when focus is NOT on the textarea, so
   // ESC still cancels a turn even when the user clicked elsewhere (a
-  // tool-approval card, the file panel, etc.). When the textarea has
-  // focus, its own onKeyDown handles ESC (including palette dismissal),
-  // so we skip here to avoid double-firing the interrupt.
+  // tool-approval card, the file panel, etc.). Skip when the event target
+  // is the textarea itself: that path runs through the local onKeyDown
+  // (which also handles slash/mention palette dismissal first).
   useEffect(() => {
     if (!busy || !onInterrupt) return
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (isComposingRef.current) return
-      if (document.activeElement === textareaRef.current) return
+      if (e.target === textareaRef.current) return
       e.preventDefault()
       onInterrupt()
     }
@@ -163,22 +169,42 @@ export function ChatComposer({
   }, [busy, onInterrupt])
 
   const submit = async () => {
-    if (!value && pendingImages.length === 0) return
-    const snapshot = value
+    // CLI parity: trim trailing whitespace before submit. Empty input with
+    // no attachments is a no-op (matches `onSubmit` in PromptInput.tsx).
+    const trimmed = value.trimEnd()
+    if (!trimmed && pendingImages.length === 0) return
     const images = pendingImages.map((p) => ({
       media_type: p.mediaType,
       data: p.data,
     }))
     setError(null)
     try {
-      await sendUserMessage(snapshot, images.length > 0 ? images : undefined)
+      await sendUserMessage(trimmed, images.length > 0 ? images : undefined)
       setValue('')
       setPendingImages([])
       setShowSlash(false)
       setMention(null)
+      setHistoryIdx(null)
     } catch (e) {
       setError(String(e))
     }
+  }
+
+  // Cursor positional helpers — used by Up/Down to decide between in-text
+  // cursor movement (the textarea's native behavior) and history paging.
+  // Matches the CLI's useTextInput up/downOrHistory: only fall through to
+  // history when the cursor genuinely can't move further within the text.
+  const isCursorAtFirstLine = (): boolean => {
+    const ta = textareaRef.current
+    if (!ta) return true
+    const caret = ta.selectionStart ?? 0
+    return value.indexOf('\n') === -1 || value.lastIndexOf('\n', caret - 1) === -1
+  }
+  const isCursorAtLastLine = (): boolean => {
+    const ta = textareaRef.current
+    if (!ta) return true
+    const caret = ta.selectionEnd ?? value.length
+    return value.indexOf('\n', caret) === -1
   }
 
   const ingestFile = async (file: File): Promise<PendingImage | null> => {
@@ -338,13 +364,16 @@ export function ChatComposer({
       onClearConversation()
       return
     }
+    // History navigation — only when cursor genuinely can't move further
+    // within the textarea. Mirrors CLI useTextInput.upOrHistoryUp /
+    // downOrHistoryDown so multi-line drafts behave as users expect.
     if (
       e.key === 'ArrowUp' &&
       !e.shiftKey &&
       recentUserTexts &&
       recentUserTexts.length > 0 &&
-      value === '' &&
-      historyIdx === null
+      historyIdx === null &&
+      isCursorAtFirstLine()
     ) {
       e.preventDefault()
       const lastIdx = recentUserTexts.length - 1
@@ -352,14 +381,14 @@ export function ChatComposer({
       setValue(recentUserTexts[lastIdx])
       return
     }
-    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0) {
+    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0 && isCursorAtFirstLine()) {
       e.preventDefault()
       const next = historyIdx - 1
       setHistoryIdx(next)
       setValue(recentUserTexts![next])
       return
     }
-    if (e.key === 'ArrowDown' && historyIdx !== null) {
+    if (e.key === 'ArrowDown' && historyIdx !== null && isCursorAtLastLine()) {
       e.preventDefault()
       if (historyIdx < (recentUserTexts?.length ?? 0) - 1) {
         const next = historyIdx + 1
@@ -375,17 +404,83 @@ export function ChatComposer({
       if (mention) {
         e.preventDefault()
         setMention(null)
+        escArmedAtRef.current = null
+        setEscHint(false)
         return
       }
+      // While the agent is busy, ESC always interrupts first (CLI parity:
+      // PromptInput.tsx treats key.escape during loading as the cancel
+      // shortcut). The double-press clear is only available when idle.
       if (busy && onInterrupt) {
         e.preventDefault()
         onInterrupt()
+        escArmedAtRef.current = null
+        setEscHint(false)
+        return
+      }
+      // Double-press ESC to clear (CLI's useTextInput handleEscape via
+      // useDoublePress): first press arms + shows hint, second press
+      // within the window clears the input and saves it to history.
+      if (value.length > 0) {
+        e.preventDefault()
+        const now = Date.now()
+        const armedAt = escArmedAtRef.current
+        if (armedAt !== null && now - armedAt <= ESC_DOUBLE_PRESS_MS) {
+          escArmedAtRef.current = null
+          setEscHint(false)
+          setValue('')
+          setHistoryIdx(null)
+        } else {
+          escArmedAtRef.current = now
+          setEscHint(true)
+          window.setTimeout(() => {
+            if (escArmedAtRef.current === now) {
+              escArmedAtRef.current = null
+              setEscHint(false)
+            }
+          }, ESC_DOUBLE_PRESS_MS)
+        }
         return
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey && !composing) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.altKey && !composing) {
+      // Backslash+Enter inserts a newline (CLI parity, useTextInput
+      // handleEnter): when the char immediately before the caret is `\`,
+      // consume that backslash and insert a `\n` instead of submitting.
+      const ta = textareaRef.current
+      const caret = ta?.selectionStart ?? value.length
+      if (caret > 0 && value[caret - 1] === '\\') {
+        e.preventDefault()
+        const next = value.slice(0, caret - 1) + '\n' + value.slice(caret)
+        setValue(next)
+        requestAnimationFrame(() => {
+          if (ta) {
+            ta.focus()
+            ta.setSelectionRange(caret, caret)
+          }
+        })
+        return
+      }
       e.preventDefault()
       submit()
+      return
+    }
+    // Alt/Meta+Enter inserts a newline like Shift+Enter. The browser's
+    // default Shift+Enter behavior already inserts a newline, but Alt/Meta
+    // doesn't — handle it explicitly to match the CLI.
+    if (e.key === 'Enter' && (e.altKey || e.metaKey) && !composing) {
+      e.preventDefault()
+      const ta = textareaRef.current
+      const caret = ta?.selectionStart ?? value.length
+      const next = value.slice(0, caret) + '\n' + value.slice(caret)
+      setValue(next)
+      requestAnimationFrame(() => {
+        if (ta) {
+          ta.focus()
+          ta.setSelectionRange(caret + 1, caret + 1)
+        }
+      })
+      return
     }
   }
 
@@ -425,6 +520,11 @@ export function ChatComposer({
     setMention(detectMention(v, caret))
     setMentionIdx(0)
     setHistoryIdx(null)
+    // Any further typing disarms the double-ESC clear (CLI parity).
+    if (escArmedAtRef.current !== null) {
+      escArmedAtRef.current = null
+      setEscHint(false)
+    }
   }
 
   const onSelectSlash = (cmd: string) => {
@@ -465,6 +565,11 @@ export function ChatComposer({
       {error && (
         <div role="alert" className="chat-composer__error">
           {error}
+        </div>
+      )}
+      {escHint && !busy && (
+        <div className="chat-composer__esc-hint" aria-live="polite">
+          Esc 한 번 더 누르면 입력이 지워집니다
         </div>
       )}
       {showSlash && allSlashes.length > 0 && !mention && (

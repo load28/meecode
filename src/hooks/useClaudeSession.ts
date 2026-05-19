@@ -180,9 +180,30 @@ export function useClaudeSession(
     setTab(tabId, (s) => ({ ...s, rateLimit: null }))
   }, [tabId])
 
+  // Mirrors the CLI's CancelRequestHandler.handleCancel (Priority 1: cancel
+  // running task, Priority 2: pop the queued-command tail). The composer
+  // shows the stop button whenever either condition is true; clicking or
+  // hitting ESC routes here. We also clear `pendingTool` so the tool
+  // approval queue is wiped — same behavior as the CLI's
+  // `setToolUseConfirmQueue(() => [])` inside handleCancel.
   const interrupt = useCallback(async () => {
-    await invoke('interrupt_session', { tabId })
-    setTab(tabId, (s) => ({ ...s, turnInProgress: false }))
+    const snap = getTabSnapshot(tabId)
+    if (snap.turnInProgress) {
+      await invoke('interrupt_session', { tabId })
+      setTab(tabId, (s) => ({
+        ...s,
+        turnInProgress: false,
+        pendingTool: null,
+        hookActivity: null,
+        taskActivity: null,
+      }))
+      return
+    }
+    if (snap.queue.length > 0) {
+      // Pop the tail — matches the CLI's popCommandFromQueue, which removes
+      // the most recently queued command so a stray Enter doesn't fire it.
+      setTab(tabId, (s) => ({ ...s, queue: s.queue.slice(0, -1) }))
+    }
   }, [tabId])
 
   const setModel = useCallback(

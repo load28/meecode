@@ -261,6 +261,72 @@ describe('useClaudeSession', () => {
     })
   })
 
+  it('interrupt: turn 진행 중이면 interrupt_session 호출 + pendingTool/hookActivity 정리', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        turnInProgress: true,
+        pendingTool: {
+          request_id: 'r1',
+          tool_use_id: 'tu1',
+          tool_name: 'Bash',
+          input: {},
+        } as ToolRequest,
+        hookActivity: 'pre-tool',
+      }))
+    })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(invokeMock).toHaveBeenCalledWith('interrupt_session', {
+      tabId: 'main',
+    })
+    expect(result.current.turnInProgress).toBe(false)
+    expect(result.current.pendingTool).toBeNull()
+    expect(result.current.hookActivity).toBeNull()
+  })
+
+  it('interrupt: 대기 중인 큐만 있으면 interrupt_session은 호출하지 않고 큐 tail을 pop (CLI parity)', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        turnInProgress: false,
+        queue: [
+          { id: 'q1', text: 'first' },
+          { id: 'q2', text: 'second' },
+        ],
+      }))
+    })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'interrupt_session',
+      expect.anything(),
+    )
+    expect(result.current.queue.map((q) => q.id)).toEqual(['q1'])
+  })
+
+  it('interrupt: turn 진행 중이면 큐는 그대로 두고 turn만 취소 (priority 1)', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        turnInProgress: true,
+        queue: [{ id: 'q1', text: 'still queued' }],
+      }))
+    })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(invokeMock).toHaveBeenCalledWith('interrupt_session', {
+      tabId: 'main',
+    })
+    expect(result.current.queue.map((q) => q.id)).toEqual(['q1'])
+  })
+
   it('reduceStreamMessage(user) → 새 페어 시작', () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {

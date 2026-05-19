@@ -445,7 +445,11 @@ function MainLayout({
                 cycleMode={cycleMode}
                 slashCommands={slashCommands}
                 model={model}
-                busy={turnInProgress}
+                // CLI parity: the stop affordance is active when EITHER a
+                // turn is running OR the queue is non-empty (see
+                // CancelRequestHandler.isEscapeActive). The interrupt
+                // callback below already routes by priority.
+                busy={turnInProgress || queue.length > 0}
                 projectPath={projectPath}
                 recentUserTexts={recentUserTexts}
                 onClearConversation={clearConversation}

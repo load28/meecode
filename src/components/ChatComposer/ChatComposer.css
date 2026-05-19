@@ -21,6 +21,17 @@
   border-radius: 6px;
 }
 
+.chat-composer__esc-hint {
+  align-self: center;
+  color: #d29922;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.35);
+  border-radius: 999px;
+  user-select: none;
+}
+
 /* ── Slash command palette ── */
 .chat-composer__slash {
   list-style: none;
