@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Match the in-app FolderPicker logo: solid #1f6feb tile with a single
+       white "M". 1024x1024 canvas, artwork inset to 824x824 so macOS doesn't
+       clip the rounded corners or oversize the icon in the Dock. -->
+  <rect x="100" y="100" width="824" height="824" rx="206" ry="206" fill="#1f6feb" />
+
+  <text
+    x="512"
+    y="650"
+    text-anchor="middle"
+    font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif"
+    font-weight="800"
+    font-size="560"
+    fill="#ffffff"
+    letter-spacing="-24"
+  >M</text>
+</svg>
