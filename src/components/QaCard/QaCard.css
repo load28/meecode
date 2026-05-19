@@ -40,6 +40,51 @@
   flex-direction: column;
   gap: 14px;
   position: relative;
+  overflow: hidden;
+}
+
+/* Clamped: inline maxHeight is applied from JS (ANSWER_MAX_HEIGHT_PX). The
+   bottom fade is a mask-image so it works against any background colour
+   without overlaying an opaque element on top of the content. */
+.qa-card__answer--clamped {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 64px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black calc(100% - 64px),
+    transparent 100%
+  );
+}
+
+/* Expanded: drop both the height clamp and the fade so everything is
+   visible. The toggle button flips back to "접기 ↑". */
+.qa-card__answer--expanded {
+  overflow: visible;
+}
+
+.qa-card__toggle {
+  align-self: center;
+  margin-top: -8px;
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  z-index: 1;
+  /* sits over the fade so the user always sees the affordance even when the
+     trailing pixels of the answer body are faded out */
+}
+
+.qa-card__toggle:hover {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
 }
 
 .qa-card__preview {
