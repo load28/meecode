@@ -7,9 +7,11 @@ export { renderMarkdown }
 
 interface SegmentViewProps {
   segment: AssistantSegment
+  onOpenFile?: (path: string) => void
+  defaultOpen?: boolean
 }
 
-export function SegmentView({ segment }: SegmentViewProps) {
+export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewProps) {
   if (segment.kind === 'text') {
     return (
       <MarkdownContent
@@ -31,7 +33,7 @@ export function SegmentView({ segment }: SegmentViewProps) {
   }
   if (segment.kind === 'thinking') {
     return (
-      <details className="message-bubble__thinking">
+      <details className="message-bubble__thinking" open={defaultOpen}>
         <summary className="message-bubble__thinking-summary">
           <span className="message-bubble__thinking-icon" aria-hidden="true">💭</span>
           <span>Thinking</span>
@@ -70,12 +72,15 @@ export function SegmentView({ segment }: SegmentViewProps) {
       : 'message-bubble__tool-result'
     const label = segment.is_error ? '❌ 도구 실패' : '✓ 도구 결과'
     return (
-      <details className={cls}>
+      <details className={cls} open={defaultOpen}>
         <summary className="message-bubble__tool-result-summary">
           <span className="message-bubble__tool-result-label">{label}</span>
           {segment.text && (
             <span className="message-bubble__tool-result-preview">
-              {segment.text.split('\n')[0].slice(0, 100)}
+              {/* Hand the first ~400 chars to CSS line-clamp instead of
+                  forcing a single-line cutoff; the clamp shows the first
+                  3 lines so long results stay informative when collapsed. */}
+              {segment.text.slice(0, 400)}
             </span>
           )}
         </summary>
@@ -85,5 +90,11 @@ export function SegmentView({ segment }: SegmentViewProps) {
       </details>
     )
   }
-  return <ToolUseView segment={segment} />
+  return (
+    <ToolUseView
+      segment={segment}
+      onOpenFile={onOpenFile}
+      defaultOpen={defaultOpen}
+    />
+  )
 }

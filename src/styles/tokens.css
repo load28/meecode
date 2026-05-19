@@ -1,0 +1,44 @@
+/*
+ * Design tokens. Keep values centralized so the rest of the app references
+ * --font-ui / --font-mono instead of hard-coding stacks.
+ *
+ * Stacks mirror what VS Code (and the Claude Code extension UI) uses on
+ * each platform, so the look matches the plugin the user is comparing
+ * against.
+ */
+:root {
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Segoe WPC",
+    "Roboto", "Helvetica Neue", system-ui, "Noto Sans KR",
+    "Apple SD Gothic Neo", "Malgun Gothic", "Ubuntu", "Droid Sans", sans-serif;
+
+  --font-mono:
+    ui-monospace, "SF Mono", "SFMono-Regular", "Menlo", "Monaco", "Cascadia Code",
+    "Roboto Mono", "Consolas", "Liberation Mono", "DejaVu Sans Mono",
+    "Source Code Pro", "Courier New", monospace;
+
+  --font-size-base: 13px;
+  --font-size-sm: 12px;
+  --font-size-xs: 11px;
+  --line-height-base: 1.6;
+}
+
+html,
+body,
+#root {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga", "calt";
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-feature-settings: normal;
+}

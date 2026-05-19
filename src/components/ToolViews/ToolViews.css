@@ -26,13 +26,13 @@
 }
 
 .tool-view__name {
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: #79c0ff;
 }
 
 .tool-view__path {
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   color: #c9d1d9;
   font-size: 12px;
   overflow: hidden;
@@ -58,13 +58,13 @@ button.tool-view__path-link:hover {
 .tool-view__hint {
   color: #8b949e;
   font-size: 11px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
 }
 
 .tool-view__code {
   margin: 0;
   padding: 10px 12px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: #c9d1d9;
   white-space: pre-wrap;
@@ -118,7 +118,7 @@ button.tool-view__path-link:hover {
 .tool-view__diff-new {
   margin: 0;
   padding: 8px 12px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
   max-height: 200px;
@@ -214,7 +214,7 @@ button.tool-view__path-link:hover {
 }
 
 .tool-view__pattern {
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   color: #e6edf3;
   background: #0d1117;
   border: 1px solid #30363d;

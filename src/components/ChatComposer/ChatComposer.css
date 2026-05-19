@@ -25,13 +25,16 @@
   border: 1px solid #30363d;
   border-radius: 6px;
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% + 4px);
   left: 14px;
   right: 14px;
   z-index: 10;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
-.chat-composer__slash button {
+.chat-composer__slash-item {
   width: 100%;
   text-align: left;
   background: transparent;
@@ -41,14 +44,19 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   padding: 6px 12px;
   cursor: pointer;
 }
 
-.chat-composer__slash button:hover {
+.chat-composer__slash-item.is-selected,
+.chat-composer__slash-item:focus-visible {
   background: #1f6feb;
   color: #fff;
+}
+
+.chat-composer__slash-item.is-selected .chat-composer__slash-desc {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .chat-composer__row {
@@ -67,7 +75,7 @@
   padding: 8px 10px;
   resize: vertical;
   min-height: 44px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   outline: none;
 }
 
@@ -89,7 +97,7 @@
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
 }
 
 .chat-composer__buttons button:hover {
@@ -123,7 +131,7 @@
 .chat-composer__slash-desc {
   color: #8b949e;
   font-size: 11px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .chat-composer__mention {
@@ -142,19 +150,20 @@
   overflow-y: auto;
 }
 
-.chat-composer__mention button {
+.chat-composer__mention-item {
   width: 100%;
   text-align: left;
   background: transparent;
   border: none;
   color: #c9d1d9;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 4px 12px;
   cursor: pointer;
 }
 
-.chat-composer__mention button:hover {
+.chat-composer__mention-item.is-selected,
+.chat-composer__mention-item:focus-visible {
   background: #1f6feb;
   color: #fff;
 }
@@ -210,11 +219,31 @@
 }
 
 .chat-composer__interrupt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.chat-composer__interrupt.is-active {
   background: #2b1416 !important;
   color: #ffa198 !important;
   border-color: #5d1f23 !important;
+  cursor: pointer;
 }
 
-.chat-composer__interrupt:hover {
+.chat-composer__interrupt.is-active:hover {
   background: #5d1f23 !important;
+}
+
+.chat-composer__interrupt.is-idle {
+  background: transparent !important;
+  color: #6e7681 !important;
+  border-color: #30363d !important;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-composer__interrupt-icon {
+  font-size: 12px;
 }

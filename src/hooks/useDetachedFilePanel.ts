@@ -1,0 +1,124 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { emitTo, listen } from '@tauri-apps/api/event'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
+import type { UseFileTabsResult } from './useFileTabs'
+
+const DETACHED_LABEL = 'file-panel'
+
+interface DockPayload {
+  paths: string[]
+  activePath: string | null
+}
+
+export interface UseDetachedFilePanelResult {
+  isDetached: boolean
+  detach: () => Promise<void>
+  openFile: (path: string) => void
+}
+
+// Bridges main's local `useFileTabs` with an optional satellite window that
+// owns the file viewer. Main and detached never both render the panel at
+// the same time — ownership transfers on detach / dock, and intermediate
+// `openFile` calls route to whichever side currently holds the panel.
+export function useDetachedFilePanel(
+  fileTabs: UseFileTabsResult,
+): UseDetachedFilePanelResult {
+  const [isDetached, setIsDetached] = useState(false)
+
+  // Keep the latest fileTabs hook ref-accessible so async listeners
+  // dispatched during detach setup don't capture a stale closure.
+  const fileTabsRef = useRef(fileTabs)
+  fileTabsRef.current = fileTabs
+
+  const isDetachedRef = useRef(false)
+  isDetachedRef.current = isDetached
+
+  // Dock listener lives for the whole app lifetime: even after the detached
+  // window's process is gone, this is what re-hydrates main with the tabs
+  // that came back. Registering once avoids races where the detached window
+  // emits `file:dock` before a per-detach listener wires up.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+    let mounted = true
+
+    void listen<DockPayload>('file:dock', (e) => {
+      const { paths, activePath } = e.payload
+      const tabs = fileTabsRef.current
+      tabs.closeAll()
+      paths.forEach((p) => void tabs.open(p))
+      if (activePath) tabs.setActive(activePath)
+      setIsDetached(false)
+    }).then((u) => {
+      if (!mounted) {
+        u()
+        return
+      }
+      unlisten = u
+    })
+
+    return () => {
+      mounted = false
+      unlisten?.()
+    }
+  }, [])
+
+  const detach = useCallback(async () => {
+    if (isDetachedRef.current) return
+    const snapshot = fileTabsRef.current.tabs.map((t) => t.path)
+    const active = fileTabsRef.current.activePath
+
+    // The detached window emits `file:ready` once its listeners are wired.
+    // Only after that do we send the init payload — otherwise the satellite
+    // can miss tabs that were already open.
+    let readyUnlisten: (() => void) | null = null
+    readyUnlisten = await listen('file:ready', async () => {
+      await emitTo(DETACHED_LABEL, 'file:init', {
+        paths: snapshot,
+        activePath: active,
+      })
+      readyUnlisten?.()
+      readyUnlisten = null
+    })
+
+    try {
+      const w = new WebviewWindow(DETACHED_LABEL, {
+        url: '?view=file-panel',
+        title: 'Code — MeeCode',
+        width: 900,
+        height: 700,
+        minWidth: 480,
+        minHeight: 320,
+      })
+
+      w.once('tauri://error', (err) => {
+        console.error('[detach] window create error', err)
+        readyUnlisten?.()
+        readyUnlisten = null
+        setIsDetached(false)
+      })
+    } catch (err) {
+      console.error('[detach] new WebviewWindow threw', err)
+      readyUnlisten?.()
+      return
+    }
+
+    // Hand ownership over: clear main's tabs immediately so the inline panel
+    // collapses and chat reclaims the space. The detached window will repopulate
+    // from the init payload we just queued up.
+    fileTabsRef.current.closeAll()
+    setIsDetached(true)
+  }, [])
+
+  const openFile = useCallback(
+    (path: string) => {
+      if (isDetachedRef.current) {
+        void emitTo(DETACHED_LABEL, 'file:open', { path })
+        return
+      }
+      void fileTabsRef.current.open(path)
+    },
+    [],
+  )
+
+  return { isDetached, detach, openFile }
+}

@@ -8,14 +8,23 @@ function openExternal(path: string) {
   )
 }
 
-function FilePath({ path }: { path: string }) {
+function FilePath({
+  path,
+  onOpen,
+}: {
+  path: string
+  onOpen?: (path: string) => void
+}) {
   if (!path) return null
   return (
     <button
       type="button"
       className="tool-view__path tool-view__path-link"
-      onClick={() => openExternal(path)}
-      title="외부 편집기에서 열기"
+      onClick={() => {
+        if (onOpen) onOpen(path)
+        else openExternal(path)
+      }}
+      title={onOpen ? '파일 패널에서 열기' : '외부 편집기에서 열기'}
     >
       {path}
     </button>
@@ -24,6 +33,8 @@ function FilePath({ path }: { path: string }) {
 
 interface ToolViewProps {
   segment: Extract<AssistantSegment, { kind: 'tool_use' }>
+  onOpenFile?: (path: string) => void
+  defaultOpen?: boolean
 }
 
 function pickString(input: unknown, key: string): string {
@@ -41,6 +52,7 @@ function pickArray(input: unknown, key: string): unknown[] {
 function BashView({ segment }: ToolViewProps) {
   const command = pickString(segment.input, 'command')
   const description = pickString(segment.input, 'description')
+  const body = command || segment.summary
   return (
     <div className="tool-view tool-view--bash">
       <header className="tool-view__header">
@@ -50,12 +62,14 @@ function BashView({ segment }: ToolViewProps) {
           <span className="tool-view__hint">{description}</span>
         )}
       </header>
-      <pre className="tool-view__code">{command || segment.summary}</pre>
+      {/* Skip the empty pre when streaming hasn't filled `input.command`
+          yet — otherwise the card renders a blank black box. */}
+      {body && <pre className="tool-view__code">{body}</pre>}
     </div>
   )
 }
 
-function EditView({ segment }: ToolViewProps) {
+function EditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   const filePath = pickString(segment.input, 'file_path')
   const oldStr = pickString(segment.input, 'old_string')
   const newStr = pickString(segment.input, 'new_string')
@@ -64,10 +78,10 @@ function EditView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">✎</span>
         <span className="tool-view__name">Edit</span>
-        <FilePath path={filePath} />
+        <FilePath path={filePath} onOpen={onOpenFile} />
       </header>
       {(oldStr || newStr) && (
-        <details className="tool-view__diff">
+        <details className="tool-view__diff" open={defaultOpen}>
           <summary className="tool-view__diff-summary">변경 보기</summary>
           {oldStr && (
             <pre className="tool-view__diff-old">
@@ -89,7 +103,7 @@ function EditView({ segment }: ToolViewProps) {
   )
 }
 
-function WriteView({ segment }: ToolViewProps) {
+function WriteView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   const filePath = pickString(segment.input, 'file_path')
   const content = pickString(segment.input, 'content')
   const lineCount = content ? content.split('\n').length : 0
@@ -98,13 +112,13 @@ function WriteView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">＋</span>
         <span className="tool-view__name">Write</span>
-        <FilePath path={filePath} />
+        <FilePath path={filePath} onOpen={onOpenFile} />
         {lineCount > 0 && (
           <span className="tool-view__hint">{lineCount} lines</span>
         )}
       </header>
       {content && (
-        <details className="tool-view__diff">
+        <details className="tool-view__diff" open={defaultOpen}>
           <summary className="tool-view__diff-summary">내용 보기</summary>
           <pre className="tool-view__code">{content}</pre>
         </details>
@@ -113,7 +127,7 @@ function WriteView({ segment }: ToolViewProps) {
   )
 }
 
-function ReadView({ segment }: ToolViewProps) {
+function ReadView({ segment, onOpenFile }: ToolViewProps) {
   const filePath = pickString(segment.input, 'file_path')
   const offset = (segment.input as Record<string, unknown> | null)?.offset
   const limit = (segment.input as Record<string, unknown> | null)?.limit
@@ -122,7 +136,7 @@ function ReadView({ segment }: ToolViewProps) {
       <header className="tool-view__header">
         <span className="tool-view__icon">👁</span>
         <span className="tool-view__name">Read</span>
-        <FilePath path={filePath} />
+        <FilePath path={filePath} onOpen={onOpenFile} />
         {(typeof offset === 'number' || typeof limit === 'number') && (
           <span className="tool-view__hint">
             {typeof offset === 'number' ? `+${offset}` : ''}
@@ -224,7 +238,7 @@ function SkillView({ segment }: ToolViewProps) {
   )
 }
 
-function AgentView({ segment }: ToolViewProps) {
+function AgentView({ segment, defaultOpen }: ToolViewProps) {
   const description = pickString(segment.input, 'description')
   const subagentType = pickString(segment.input, 'subagent_type')
   const prompt = pickString(segment.input, 'prompt')
@@ -237,7 +251,7 @@ function AgentView({ segment }: ToolViewProps) {
         <span className="tool-view__path">{description}</span>
       </header>
       {prompt && (
-        <details className="tool-view__diff">
+        <details className="tool-view__diff" open={defaultOpen}>
           <summary className="tool-view__diff-summary">프롬프트 보기</summary>
           <pre className="tool-view__code">{prompt}</pre>
         </details>
@@ -259,7 +273,7 @@ function ToolSearchView({ segment }: ToolViewProps) {
   )
 }
 
-function NotebookEditView({ segment }: ToolViewProps) {
+function NotebookEditView({ segment, defaultOpen }: ToolViewProps) {
   const path = pickString(segment.input, 'notebook_path')
   const cellId = pickString(segment.input, 'cell_id')
   const editMode = pickString(segment.input, 'edit_mode') || 'replace'
@@ -276,7 +290,7 @@ function NotebookEditView({ segment }: ToolViewProps) {
         </span>
       </header>
       {newSource && (
-        <details className="tool-view__diff">
+        <details className="tool-view__diff" open={defaultOpen}>
           <summary className="tool-view__diff-summary">셀 내용 보기</summary>
           <pre className="tool-view__code">{newSource}</pre>
         </details>
@@ -326,9 +340,9 @@ function SlashCommandView({ segment }: ToolViewProps) {
   )
 }
 
-function GenericToolView({ segment }: ToolViewProps) {
+function GenericToolView({ segment, defaultOpen }: ToolViewProps) {
   return (
-    <details className="tool-view tool-view--generic">
+    <details className="tool-view tool-view--generic" open={defaultOpen}>
       <summary className="tool-view__generic-summary">
         <span className="tool-view__name">{segment.name}</span>
         {segment.summary && (
@@ -342,17 +356,21 @@ function GenericToolView({ segment }: ToolViewProps) {
   )
 }
 
-export function ToolUseView({ segment }: ToolViewProps) {
+export function ToolUseView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   switch (segment.name) {
     case 'Bash':
       return <BashView segment={segment} />
     case 'Edit':
     case 'MultiEdit':
-      return <EditView segment={segment} />
+      return (
+        <EditView segment={segment} onOpenFile={onOpenFile} defaultOpen={defaultOpen} />
+      )
     case 'Write':
-      return <WriteView segment={segment} />
+      return (
+        <WriteView segment={segment} onOpenFile={onOpenFile} defaultOpen={defaultOpen} />
+      )
     case 'Read':
-      return <ReadView segment={segment} />
+      return <ReadView segment={segment} onOpenFile={onOpenFile} />
     case 'TodoWrite':
       return <TodoWriteView segment={segment} />
     case 'Grep':
@@ -364,11 +382,11 @@ export function ToolUseView({ segment }: ToolViewProps) {
     case 'Skill':
       return <SkillView segment={segment} />
     case 'Agent':
-      return <AgentView segment={segment} />
+      return <AgentView segment={segment} defaultOpen={defaultOpen} />
     case 'ToolSearch':
       return <ToolSearchView segment={segment} />
     case 'NotebookEdit':
-      return <NotebookEditView segment={segment} />
+      return <NotebookEditView segment={segment} defaultOpen={defaultOpen} />
     case 'BashOutput':
       return <BashOutputView segment={segment} />
     case 'KillBash':
@@ -377,6 +395,6 @@ export function ToolUseView({ segment }: ToolViewProps) {
     case 'SlashCommand':
       return <SlashCommandView segment={segment} />
     default:
-      return <GenericToolView segment={segment} />
+      return <GenericToolView segment={segment} defaultOpen={defaultOpen} />
   }
 }

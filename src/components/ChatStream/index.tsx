@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
 import { QaCard } from '../QaCard'
 import { ToolApprovalCard } from '../ToolApprovalCard'
+import { useStickyScroll } from '../../hooks/useStickyScroll'
 import type { QaPair, ToolRequest } from '../../types'
 import './ChatStream.css'
 
@@ -14,6 +14,7 @@ interface Props {
     toolUseId: string | null,
     updatedInput?: unknown,
   ) => void
+  onOpenFile?: (path: string) => void
 }
 
 export function ChatStream({
@@ -21,30 +22,10 @@ export function ChatStream({
   onExpand,
   pendingTool,
   onRespondTool,
+  onOpenFile,
 }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const shouldAutoScrollRef = useRef(true)
-  const userScrolledRef = useRef(false)
-
-  useEffect(() => {
-    if (!shouldAutoScrollRef.current || !scrollRef.current) return
-    const el = scrollRef.current
-    el.scrollTop = el.scrollHeight
-  }, [pairs, pendingTool])
-
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    const atBottom =
-      Math.abs(el.scrollHeight - el.scrollTop - el.clientHeight) < 50
-    if (!atBottom) {
-      userScrolledRef.current = true
-      shouldAutoScrollRef.current = false
-    } else if (userScrolledRef.current) {
-      shouldAutoScrollRef.current = true
-      userScrolledRef.current = false
-    }
-  }
+  const { ref: scrollRef, onScroll: handleScroll } =
+    useStickyScroll<HTMLDivElement>([pairs, pendingTool])
 
   if (pairs.length === 0 && !pendingTool) {
     return (
@@ -56,12 +37,14 @@ export function ChatStream({
 
   const last = pairs[pairs.length - 1]
   const lastSeg = last?.segments[last.segments.length - 1]
-  const indicator =
+  const indicatorLabel: string | null =
     !pendingTool && last
       ? last.segments.length === 0
-        ? 'Claude가 응답 대기 중…'
+        ? 'Thinking'
         : lastSeg && lastSeg.kind === 'tool_use'
-        ? 'Claude가 도구를 실행 중…'
+        ? `${lastSeg.name} running`
+        : lastSeg && lastSeg.kind === 'thinking'
+        ? 'Reasoning'
         : null
       : null
 
@@ -73,7 +56,12 @@ export function ChatStream({
             <span>{p.user_text}</span>
           </div>
         ) : (
-          <QaCard key={p.id} pair={p} onExpand={() => onExpand(p.id)} />
+          <QaCard
+            key={p.id}
+            pair={p}
+            onExpand={() => onExpand(p.id)}
+            onOpenFile={onOpenFile}
+          />
         ),
       )}
       {pendingTool && (
@@ -89,7 +77,17 @@ export function ChatStream({
           }
         />
       )}
-      {indicator && <div className="chat-stream__status">{indicator}</div>}
+      {indicatorLabel && (
+        <div className="chat-stream__status" role="status" aria-live="polite">
+          <span className="chat-stream__spinner" aria-hidden="true" />
+          <span className="chat-stream__status-label">{indicatorLabel}</span>
+          <span className="chat-stream__status-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+        </div>
+      )}
     </div>
   )
 }

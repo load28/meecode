@@ -20,7 +20,7 @@
 }
 
 .tool-approval-card__name {
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
 }
 
 .tool-approval-card__summary {
@@ -30,7 +30,7 @@
   border: 1px solid #30363d;
   border-radius: 6px;
   color: #c9d1d9;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
   max-height: 8em;
@@ -53,7 +53,7 @@
   background: #1a0d0e;
   border-radius: 4px;
   border-left: 2px solid #f85149;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
 }
 
 .tool-approval-card__buttons {

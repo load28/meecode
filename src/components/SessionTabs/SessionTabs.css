@@ -1,0 +1,114 @@
+.session-tabs {
+  display: flex;
+  align-items: stretch;
+  background: #0d1117;
+  border-bottom: 1px solid #21262d;
+  padding: 0 6px;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  height: 34px;
+  font-family: var(--font-ui);
+}
+
+.session-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0 4px 0 10px;
+  max-width: 200px;
+  min-width: 80px;
+  color: #8b949e;
+  cursor: pointer;
+  user-select: none;
+}
+
+.session-tabs__tab:hover {
+  background: #161b22;
+  color: #c9d1d9;
+}
+
+.session-tabs__tab.is-active {
+  background: #161b22;
+  border-color: #30363d;
+  border-bottom-color: #161b22;
+  color: #e6edf3;
+  z-index: 1;
+}
+
+.session-tabs__tab.is-empty .session-tabs__tab-label {
+  font-style: italic;
+  color: #6e7681;
+}
+
+.session-tabs__tab-button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font-size: 12px;
+  overflow: hidden;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.session-tabs__tab-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-tabs__close {
+  background: transparent;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-tabs__close:hover {
+  background: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+}
+
+.session-tabs__new {
+  align-self: center;
+  background: transparent;
+  border: 1px dashed #30363d;
+  color: #8b949e;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.session-tabs__new:hover {
+  background: #161b22;
+  color: #c9d1d9;
+  border-style: solid;
+}

@@ -8,6 +8,7 @@ import './QaCard.css'
 interface Props {
   pair: QaPair
   onExpand: () => void
+  onOpenFile?: (path: string) => void
 }
 
 function combineTextPlan(segments: QaPair['segments']): string {
@@ -17,7 +18,7 @@ function combineTextPlan(segments: QaPair['segments']): string {
     .join('\n\n')
 }
 
-export function QaCard({ pair, onExpand }: Props) {
+export function QaCard({ pair, onExpand, onOpenFile }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const thinkingSegments = pair.segments.filter((s) => s.kind === 'thinking')
   const imageSegments = pair.segments.filter((s) => s.kind === 'image')
@@ -67,7 +68,12 @@ export function QaCard({ pair, onExpand }: Props) {
             </div>
           )}
           <div
-            className="qa-card__preview"
+            // `message-bubble__content` opts the rendered markdown into the
+            // shared list/blockquote/spacing rules (ul/ol padding-left,
+            // line-height, etc.). Without it App.css's global `* { padding: 0 }`
+            // strips the default list indent and bullets/numbers collide
+            // with the card's left edge.
+            className="qa-card__preview message-bubble__content"
             dangerouslySetInnerHTML={{
               __html: renderMarkdown(makePreview(combineTextPlan(pair.segments))),
             }}
@@ -79,9 +85,9 @@ export function QaCard({ pair, onExpand }: Props) {
                 const matched = resultsByToolId.get(seg.id) ?? []
                 return (
                   <div key={i} className="qa-card__tool-group">
-                    <SegmentView segment={seg} />
+                    <SegmentView segment={seg} onOpenFile={onOpenFile} />
                     {matched.map((r, j) => (
-                      <SegmentView key={`r-${j}`} segment={r} />
+                      <SegmentView key={`r-${j}`} segment={r} onOpenFile={onOpenFile} />
                     ))}
                   </div>
                 )

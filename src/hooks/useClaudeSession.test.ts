@@ -1,18 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { useClaudeSession } from './useClaudeSession'
 import type { QaPair, ToolRequest } from '../types'
 
-type Handler = (event: { payload: unknown }) => void
-const listeners: Record<string, Handler[]> = {}
-
+// The store registers Tauri listeners at module load. For unit tests we
+// keep `listen()` a no-op (returns an unsubscribe stub) and drive state
+// directly through `setTab()` to verify the hook's reducer pipeline.
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn((evt: string, cb: Handler) => {
-    ;(listeners[evt] ??= []).push(cb)
-    return Promise.resolve(() => {
-      listeners[evt] = (listeners[evt] || []).filter((h) => h !== cb)
-    })
-  }),
+  listen: vi.fn(() => Promise.resolve(() => {})),
 }))
 
 const invokeMock = vi.fn().mockResolvedValue(undefined)
@@ -20,8 +15,11 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }))
 
-const fire = (evt: string, payload: unknown) =>
-  (listeners[evt] || []).forEach((cb) => cb({ payload }))
+import {
+  setTab,
+  initialTabSession,
+} from '../state/sessionStore'
+import { reduceStreamMessage } from './reduceStreamMessage'
 
 const pair = (id: string): QaPair => ({
   id,
@@ -31,7 +29,8 @@ const pair = (id: string): QaPair => ({
 })
 
 beforeEach(() => {
-  for (const k of Object.keys(listeners)) delete listeners[k]
+  // Reset the store between tests so state doesn't bleed.
+  setTab('main', () => initialTabSession())
   invokeMock.mockClear()
 })
 
@@ -43,44 +42,46 @@ describe('useClaudeSession', () => {
     expect(result.current.mode).toBe('default')
   })
 
-  it('session:history로 pairs 초기화', async () => {
+  it('store에 pairs를 넣으면 hook이 그것을 노출한다', () => {
     const { result } = renderHook(() => useClaudeSession())
-    await waitFor(() =>
-      expect(listeners['session:history']?.length).toBeGreaterThan(0),
-    )
-    act(() => fire('session:history', [pair('a'), pair('b')]))
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        pairs: [pair('a'), pair('b')],
+        currentId: 'b',
+      }))
+    })
     expect(result.current.pairs).toHaveLength(2)
     expect(result.current.pairs[0].id).toBe('a')
   })
 
-  it('session:tool_request로 pendingTool 설정 (tool_use_id 포함)', async () => {
+  it('store에 pendingTool을 넣으면 hook이 노출한다', () => {
     const { result } = renderHook(() => useClaudeSession())
-    await waitFor(() =>
-      expect(listeners['session:tool_request']?.length).toBeGreaterThan(0),
-    )
     const req: ToolRequest = {
       request_id: 'r1',
       tool_name: 'Bash',
       input: { command: 'ls' },
       tool_use_id: 'tu-1',
     }
-    act(() => fire('session:tool_request', req))
+    act(() => {
+      setTab('main', (s) => ({ ...s, pendingTool: req }))
+    })
     expect(result.current.pendingTool).toEqual(req)
   })
 
   it('respondTool은 invoke 후 pendingTool을 비운다', async () => {
     const { result } = renderHook(() => useClaudeSession())
-    await waitFor(() =>
-      expect(listeners['session:tool_request']?.length).toBeGreaterThan(0),
-    )
-    act(() =>
-      fire('session:tool_request', {
-        request_id: 'r1',
-        tool_name: 'Edit',
-        input: {},
-        tool_use_id: 'tu-9',
-      }),
-    )
+    act(() => {
+      setTab('main', (s) => ({
+        ...s,
+        pendingTool: {
+          request_id: 'r1',
+          tool_name: 'Edit',
+          input: {},
+          tool_use_id: 'tu-9',
+        } as ToolRequest,
+      }))
+    })
     await act(async () => {
       await result.current.respondTool('r1', true, 'tu-9')
     })
@@ -90,6 +91,7 @@ describe('useClaudeSession', () => {
         allow: true,
         tool_use_id: 'tu-9',
         updated_input: null,
+        tab_id: 'main',
       },
     })
     expect(result.current.pendingTool).toBeNull()
@@ -100,10 +102,14 @@ describe('useClaudeSession', () => {
     await act(async () => {
       await result.current.sendUserMessage('hello')
     })
-    expect(invokeMock).toHaveBeenCalledWith('send_user_message', { text: 'hello' })
+    expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+      text: 'hello',
+      images: undefined,
+      tabId: 'main',
+    })
   })
 
-  it('cycleMode는 클라이언트 사이드로 default→plan→auto-accept→default 순회', () => {
+  it('cycleMode는 default→plan→auto-accept→default 순회', () => {
     const { result } = renderHook(() => useClaudeSession())
     expect(result.current.mode).toBe('default')
     act(() => result.current.cycleMode())
@@ -114,40 +120,48 @@ describe('useClaudeSession', () => {
     expect(result.current.mode).toBe('default')
   })
 
-  it('session:message(assistant) → 마지막 페어에 segments 누적', async () => {
+  it('reduceStreamMessage(assistant) → 마지막 페어에 segments 누적', () => {
     const { result } = renderHook(() => useClaudeSession())
-    await waitFor(() =>
-      expect(listeners['session:message']?.length).toBeGreaterThan(0),
-    )
-    act(() => fire('session:history', [pair('a')]))
-    act(() =>
-      fire('session:message', {
-        kind: 'assistant',
-        uuid: null,
-        body: {
-          role: 'assistant',
-          content: [{ type: 'text', text: 'answer' }],
-        },
-      }),
-    )
+    act(() => {
+      setTab('main', (s) => ({ ...s, pairs: [pair('a')], currentId: 'a' }))
+    })
+    act(() => {
+      setTab('main', (s) => {
+        const next = reduceStreamMessage(
+          { pairs: s.pairs, currentId: s.currentId },
+          {
+            kind: 'assistant',
+            uuid: null,
+            body: {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'answer' }],
+            },
+          },
+        )
+        return { ...s, pairs: next.pairs, currentId: next.currentId }
+      })
+    })
     expect(result.current.pairs).toHaveLength(1)
     expect(result.current.pairs[0].segments).toEqual([
       { kind: 'text', text: 'answer' },
     ])
   })
 
-  it('session:message(user) → 새 페어 시작', async () => {
+  it('reduceStreamMessage(user) → 새 페어 시작', () => {
     const { result } = renderHook(() => useClaudeSession())
-    await waitFor(() =>
-      expect(listeners['session:message']?.length).toBeGreaterThan(0),
-    )
-    act(() =>
-      fire('session:message', {
-        kind: 'user',
-        uuid: 'u-fresh',
-        body: { role: 'user', content: 'hello' },
-      }),
-    )
+    act(() => {
+      setTab('main', (s) => {
+        const next = reduceStreamMessage(
+          { pairs: s.pairs, currentId: s.currentId },
+          {
+            kind: 'user',
+            uuid: 'u-fresh',
+            body: { role: 'user', content: 'hello' },
+          },
+        )
+        return { ...s, pairs: next.pairs, currentId: next.currentId }
+      })
+    })
     expect(result.current.pairs).toHaveLength(1)
     expect(result.current.pairs[0].user_text).toBe('hello')
     expect(result.current.pairs[0].id).toBe('u-fresh')

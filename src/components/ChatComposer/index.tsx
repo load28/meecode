@@ -3,7 +3,74 @@ import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
 import './ChatComposer.css'
 
-const BUILTIN_SLASH = ['/help', '/clear', '/model', '/cost', '/compact', '/resume']
+// Fallback list shown before session:init delivers the authoritative
+// `slash_commands` payload. Mirrors Claude Code 2.1.143's built-ins and the
+// common plugin / skill slash commands so the menu has useful entries even on
+// the first frame.
+const BUILTIN_SLASH: Array<{ name: string; description?: string }> = [
+  // Core session
+  { name: '/help', description: '도움말 보기' },
+  { name: '/clear', description: '대화 내역 비우기' },
+  { name: '/compact', description: '대화 압축' },
+  { name: '/resume', description: '세션 이어하기' },
+  { name: '/exit', description: '세션 종료' },
+  { name: '/quit', description: '세션 종료' },
+  // Account / status
+  { name: '/login', description: '로그인' },
+  { name: '/logout', description: '로그아웃' },
+  { name: '/status', description: '시스템 상태' },
+  { name: '/cost', description: '사용량/비용 보기' },
+  { name: '/usage', description: '토큰 사용량 보기' },
+  // Model & behavior
+  { name: '/model', description: '모델 선택' },
+  { name: '/think-harder', description: '더 깊이 사고' },
+  { name: '/ultraplan', description: 'Ultra plan 모드' },
+  { name: '/ultrareview', description: 'Ultra review (멀티-에이전트 검토)' },
+  { name: '/config', description: '설정 변경' },
+  { name: '/permissions', description: '도구 권한 관리' },
+  // Workspace
+  { name: '/init', description: '프로젝트 초기화' },
+  { name: '/add-dir', description: '작업 디렉토리 추가' },
+  { name: '/diff', description: '변경 사항 보기' },
+  { name: '/todos', description: 'TODO 목록 보기' },
+  { name: '/memory', description: '메모리 보기' },
+  { name: '/export', description: '대화 export' },
+  // Tooling
+  { name: '/agents', description: '에이전트 목록' },
+  { name: '/mcp', description: 'MCP 서버 관리' },
+  { name: '/ide', description: 'IDE 통합' },
+  { name: '/vim', description: 'Vim 모드 토글' },
+  { name: '/install-github-app', description: 'GitHub 앱 설치' },
+  { name: '/migrate-installer', description: '인스톨러 마이그레이션' },
+  // Workflow / loop / schedule
+  { name: '/loop', description: 'Loop 모드 시작' },
+  { name: '/schedule', description: '작업 스케줄' },
+  { name: '/review', description: '코드 리뷰' },
+  { name: '/security-review', description: '보안 리뷰' },
+  { name: '/pr_comments', description: 'PR 댓글 가져오기' },
+  // Feedback / misc
+  { name: '/bug', description: '버그 리포트' },
+  { name: '/feedback', description: '피드백 전송' },
+  { name: '/release-notes', description: '릴리즈 노트' },
+  { name: '/upgrade', description: '업그레이드' },
+  { name: '/remember', description: '메모리에 기억' },
+  // Plugin namespaces (matches actual plugin slash commands seen in VS Code)
+  { name: '/superpowers:brainstorming', description: '아이디어를 디자인으로' },
+  { name: '/superpowers:writing-plans', description: '구현 계획 작성' },
+  { name: '/superpowers:executing-plans', description: '계획 실행' },
+  { name: '/superpowers:subagent-driven-development', description: '서브에이전트 주도 개발' },
+  { name: '/superpowers:test-driven-development', description: 'TDD 워크플로우' },
+  { name: '/superpowers:debugging', description: '체계적 디버깅' },
+  { name: '/superpowers:requesting-code-review', description: '코드 리뷰 요청' },
+  { name: '/superpowers:finishing-a-development-branch', description: '브랜치 마무리' },
+  { name: '/superpowers:using-git-worktrees', description: 'Git worktree 격리' },
+  { name: '/context7:resolve-library-id', description: 'Context7 라이브러리 검색' },
+  { name: '/context7:query-docs', description: 'Context7 문서 질의' },
+  { name: '/honcho:chat', description: 'Honcho 메모리 대화' },
+  { name: '/honcho:get_context', description: 'Honcho 컨텍스트 조회' },
+  { name: '/serena:activate_project', description: 'Serena 프로젝트 활성화' },
+  { name: '/serena:find_symbol', description: 'Serena 심볼 검색' },
+]
 
 const MODE_LABEL: Record<Mode, string> = {
   default: '⏎ 기본 모드',
@@ -26,6 +93,8 @@ interface Props {
   projectPath?: string
   recentUserTexts?: string[]
   onClearConversation?: () => void
+  pendingContext?: { id: number; text: string } | null
+  onContextConsumed?: () => void
 }
 
 interface PendingImage {
@@ -52,16 +121,61 @@ export function ChatComposer({
   projectPath,
   recentUserTexts,
   onClearConversation,
+  pendingContext,
+  onContextConsumed,
 }: Props) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [showSlash, setShowSlash] = useState(false)
+  const [slashIdx, setSlashIdx] = useState(0)
   const [mention, setMention] = useState<MentionState | null>(null)
   const [mentionResults, setMentionResults] = useState<string[]>([])
+  const [mentionIdx, setMentionIdx] = useState(0)
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const [historyIdx, setHistoryIdx] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
+  const slashListRef = useRef<HTMLUListElement | null>(null)
+  const mentionListRef = useRef<HTMLUListElement | null>(null)
+  const lastContextIdRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!pendingContext) return
+    if (lastContextIdRef.current === pendingContext.id) return
+    lastContextIdRef.current = pendingContext.id
+    setValue((v) => {
+      const sep = v && !v.endsWith('\n') ? '\n' : ''
+      return v + sep + pendingContext.text
+    })
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current
+      if (ta) {
+        ta.focus()
+        ta.setSelectionRange(ta.value.length, ta.value.length)
+      }
+    })
+    onContextConsumed?.()
+  }, [pendingContext, onContextConsumed])
+
+  useEffect(() => {
+    if (!showSlash) return
+    const list = slashListRef.current
+    if (!list) return
+    const item = list.children[slashIdx] as HTMLElement | undefined
+    if (item && typeof item.scrollIntoView === 'function') {
+      item.scrollIntoView({ block: 'nearest' })
+    }
+  }, [slashIdx, showSlash])
+
+  useEffect(() => {
+    if (!mention) return
+    const list = mentionListRef.current
+    if (!list) return
+    const item = list.children[mentionIdx] as HTMLElement | undefined
+    if (item && typeof item.scrollIntoView === 'function') {
+      item.scrollIntoView({ block: 'nearest' })
+    }
+  }, [mentionIdx, mention])
 
   const submit = async () => {
     if (!value && pendingImages.length === 0) return
@@ -186,10 +300,48 @@ export function ChatComposer({
     ) {
       return
     }
-    if (mention && mentionResults.length > 0 && e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      onSelectMention(mentionResults[0])
-      return
+    // Slash command palette navigation takes priority.
+    if (showSlash && allSlashes.length > 0 && !mention) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashIdx((i) => Math.min(i + 1, allSlashes.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashIdx((i) => Math.max(i - 1, 0))
+        return
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        e.preventDefault()
+        const pick = allSlashes[Math.min(slashIdx, allSlashes.length - 1)]
+        if (pick) onSelectSlash(pick.name)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowSlash(false)
+        return
+      }
+    }
+    // Mention palette navigation.
+    if (mention && mentionResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIdx((i) => Math.min(i + 1, mentionResults.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIdx((i) => Math.max(i - 1, 0))
+        return
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        e.preventDefault()
+        const pick = mentionResults[Math.min(mentionIdx, mentionResults.length - 1)]
+        if (pick) onSelectMention(pick)
+        return
+      }
     }
     if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault()
@@ -254,16 +406,18 @@ export function ChatComposer({
 
   const allSlashes: SlashCommand[] = (() => {
     const dynamic = slashCommands ?? []
-    const builtins = BUILTIN_SLASH.map((n) => ({ name: n }))
     const seen = new Set<string>()
     const out: SlashCommand[] = []
-    for (const c of [...dynamic, ...builtins]) {
+    // Dynamic (from session:init) is authoritative — list it first.
+    for (const c of [...dynamic, ...BUILTIN_SLASH]) {
       const key = c.name.startsWith('/') ? c.name : '/' + c.name
       if (seen.has(key)) continue
       seen.add(key)
       out.push({ ...c, name: key })
     }
-    return out.filter((c) => c.name.startsWith(value))
+    const q = value.trim().toLowerCase()
+    if (!q.startsWith('/')) return []
+    return out.filter((c) => c.name.toLowerCase().startsWith(q))
   })()
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -271,7 +425,9 @@ export function ChatComposer({
     const caret = e.target.selectionStart ?? v.length
     setValue(v)
     setShowSlash(v.startsWith('/'))
+    setSlashIdx(0)
     setMention(detectMention(v, caret))
+    setMentionIdx(0)
     setHistoryIdx(null)
   }
 
@@ -306,10 +462,18 @@ export function ChatComposer({
         </div>
       )}
       {showSlash && allSlashes.length > 0 && !mention && (
-        <ul className="chat-composer__slash" role="listbox">
-          {allSlashes.slice(0, 10).map((c) => (
+        <ul ref={slashListRef} className="chat-composer__slash" role="listbox">
+          {allSlashes.map((c, i) => (
             <li key={c.name}>
-              <button type="button" onClick={() => onSelectSlash(c.name)}>
+              <button
+                type="button"
+                className={
+                  'chat-composer__slash-item' +
+                  (i === slashIdx ? ' is-selected' : '')
+                }
+                onMouseEnter={() => setSlashIdx(i)}
+                onClick={() => onSelectSlash(c.name)}
+              >
                 <span className="chat-composer__slash-name">{c.name}</span>
                 {c.description && (
                   <span className="chat-composer__slash-desc">{c.description}</span>
@@ -320,10 +484,18 @@ export function ChatComposer({
         </ul>
       )}
       {mention && mentionResults.length > 0 && (
-        <ul className="chat-composer__mention" role="listbox">
-          {mentionResults.slice(0, 12).map((p) => (
+        <ul ref={mentionListRef} className="chat-composer__mention" role="listbox">
+          {mentionResults.slice(0, 20).map((p, i) => (
             <li key={p}>
-              <button type="button" onClick={() => onSelectMention(p)}>
+              <button
+                type="button"
+                className={
+                  'chat-composer__mention-item' +
+                  (i === mentionIdx ? ' is-selected' : '')
+                }
+                onMouseEnter={() => setMentionIdx(i)}
+                onClick={() => onSelectMention(p)}
+              >
                 <span className="chat-composer__mention-path">{p}</span>
               </button>
             </li>
@@ -389,14 +561,22 @@ export function ChatComposer({
           >
             🖼
           </button>
-          {busy && onInterrupt && (
+          {onInterrupt && (
             <button
               type="button"
-              className="chat-composer__interrupt"
-              onClick={onInterrupt}
-              title="진행 중인 작업 취소 (ESC)"
+              className={
+                'chat-composer__interrupt' +
+                (busy ? ' is-active' : ' is-idle')
+              }
+              onClick={busy ? onInterrupt : undefined}
+              disabled={!busy}
+              title={busy ? '진행 중인 작업 취소 (ESC)' : '진행 중인 작업 없음'}
+              aria-label="진행 중인 작업 중단"
             >
-              ⛔ 중단
+              <span className="chat-composer__interrupt-icon" aria-hidden="true">
+                ⛔
+              </span>
+              <span className="chat-composer__interrupt-label">중단</span>
             </button>
           )}
           <button type="button" onClick={() => cycleMode()}>

@@ -159,12 +159,21 @@ pub enum ControlResponseEnvelope {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ToolPermissionResult {
-    pub behavior: PermissionBehavior,
-    #[serde(rename = "toolUseID", skip_serializing_if = "Option::is_none")]
-    pub tool_use_id: Option<String>,
-    #[serde(rename = "updatedInput", skip_serializing_if = "Option::is_none")]
-    pub updated_input: Option<Value>,
+#[serde(untagged)]
+pub enum ToolPermissionResult {
+    Allow {
+        behavior: &'static str, // "allow"
+        #[serde(rename = "updatedInput")]
+        updated_input: Value,
+        #[serde(rename = "toolUseID", skip_serializing_if = "Option::is_none")]
+        tool_use_id: Option<String>,
+    },
+    Deny {
+        behavior: &'static str, // "deny"
+        message: String,
+        #[serde(rename = "toolUseID", skip_serializing_if = "Option::is_none")]
+        tool_use_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -215,15 +224,23 @@ pub fn control_response(
     tool_use_id: Option<String>,
     updated_input: Option<Value>,
 ) -> StdinMessage {
+    let response = match behavior {
+        PermissionBehavior::Allow => ToolPermissionResult::Allow {
+            behavior: "allow",
+            updated_input: updated_input.unwrap_or_else(|| serde_json::json!({})),
+            tool_use_id,
+        },
+        PermissionBehavior::Deny => ToolPermissionResult::Deny {
+            behavior: "deny",
+            message: "User denied".to_string(),
+            tool_use_id,
+        },
+    };
     StdinMessage::ControlResponse {
         response: ControlResponseEnvelope::Success {
             subtype: "success",
             request_id,
-            response: ToolPermissionResult {
-                behavior,
-                tool_use_id,
-                updated_input,
-            },
+            response,
         },
     }
 }

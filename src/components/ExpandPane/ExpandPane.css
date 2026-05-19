@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   color: #c9d1d9;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.7;
   position: relative;
@@ -54,9 +54,23 @@
 .expand-pane__body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 28px;
+  padding: 24px 32px 32px;
   user-select: text;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.expand-pane__body > .tool-view,
+.expand-pane__body > .message-bubble__tool-result,
+.expand-pane__body > .message-bubble__thinking,
+.expand-pane__body > .message-bubble__plan {
+  margin: 0;
+}
+
+.expand-pane__body > .message-bubble__content {
+  margin: 0;
 }
 
 .expand-pane__question {

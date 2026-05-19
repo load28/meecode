@@ -1,9 +1,12 @@
 {
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main"],
+  "description": "Capability for main and detached file-panel windows",
+  "windows": ["main", "file-panel"],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
     "dialog:allow-open"
   ]
 }

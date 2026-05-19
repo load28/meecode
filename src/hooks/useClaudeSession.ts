@@ -1,64 +1,28 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useCallback, useEffect, useState } from 'react'
-import { listen } from '@tauri-apps/api/event'
+import { useCallback, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
-  makeInitialMessageState,
-  reduceStreamMessage,
-  type StreamMessageEvent,
-} from './reduceStreamMessage'
+  getTabSnapshot,
+  setTab,
+  subscribeTab,
+  type AgentInfo,
+  type McpServerInfo,
+  type QueuedMessage,
+  type UsageStats,
+} from '../state/sessionStore'
 
-interface UsageStats {
-  totalCostUsd: number
-  totalDurationMs: number
-  turnCount: number
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheCreationTokens: number
-}
-
-export interface McpServerInfo {
-  name: string
-  status?: string
-}
-
-export interface AgentInfo {
-  name: string
-  description?: string
-}
-
-interface QueuedMessage {
-  id: string
-  text: string
-  images?: Array<{ media_type: string; data: string }>
-}
-
-interface SessionState {
-  pairs: QaPair[]
-  currentId: string | null
-  pendingTool: ToolRequest | null
-  mode: Mode
-  hookActivity: string | null
-  rateLimit: string | null
-  slashCommands: SlashCommand[]
-  model: string | null
-  usage: UsageStats
-  sessionId: string | null
-  cwd: string | null
-  mcpServers: McpServerInfo[]
-  agents: AgentInfo[]
-  tools: string[]
-  queue: QueuedMessage[]
-}
+export type { AgentInfo, McpServerInfo, UsageStats }
 
 export interface UseClaudeSessionResult {
   pairs: QaPair[]
+  sessionTitle: string | null
   pendingTool: ToolRequest | null
   mode: Mode
   hookActivity: string | null
   rateLimit: string | null
+  turnError: string | null
+  turnInProgress: boolean
   slashCommands: SlashCommand[]
   model: string | null
   usage: UsageStats
@@ -87,21 +51,6 @@ export interface UseClaudeSessionResult {
   removeQueued: (id: string) => void
 }
 
-function modeFromClaude(s: string | undefined | null): Mode | null {
-  if (!s) return null
-  switch (s) {
-    case 'default':
-      return 'default'
-    case 'plan':
-      return 'plan'
-    case 'auto':
-    case 'acceptEdits':
-      return 'auto-accept'
-    default:
-      return null
-  }
-}
-
 function modeToClaude(m: Mode): string {
   switch (m) {
     case 'default':
@@ -115,237 +64,29 @@ function modeToClaude(m: Mode): string {
 
 const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
 
-export function useClaudeSession(): UseClaudeSessionResult {
-  const [state, setState] = useState<SessionState>({
-    pairs: [],
-    currentId: null,
-    pendingTool: null,
-    mode: 'default',
-    hookActivity: null,
-    rateLimit: null,
-    slashCommands: [],
-    model: null,
-    usage: {
-      totalCostUsd: 0,
-      totalDurationMs: 0,
-      turnCount: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheCreationTokens: 0,
-    },
-    sessionId: null,
-    cwd: null,
-    mcpServers: [],
-    agents: [],
-    tools: [],
-    queue: [],
-  })
-
-  useEffect(() => {
-    console.log('[meecode] useClaudeSession mount — wiring listeners')
-    const unlistens: Array<Promise<() => void>> = []
-
-    unlistens.push(
-      listen<QaPair[]>('session:history', (e) => {
-        console.log('[meecode] session:history', e.payload)
-        setState((s) => {
-          const init = makeInitialMessageState(e.payload)
-          return { ...s, pairs: init.pairs, currentId: init.currentId }
-        })
-      }),
-    )
-
-    unlistens.push(
-      listen<StreamMessageEvent>('session:message', (e) => {
-        console.log('[meecode] session:message', e.payload)
-        setState((s) => {
-          const next = reduceStreamMessage(
-            { pairs: s.pairs, currentId: s.currentId },
-            e.payload,
-          )
-          return { ...s, pairs: next.pairs, currentId: next.currentId }
-        })
-      }),
-    )
-
-    unlistens.push(
-      listen<ToolRequest>('session:tool_request', (e) => {
-        console.log('[meecode] session:tool_request', e.payload)
-        setState((s) => ({ ...s, pendingTool: e.payload }))
-      }),
-    )
-
-    unlistens.push(
-      listen<unknown>('session:turn_end', (e) =>
-        console.log('[meecode] session:turn_end', e.payload),
-      ),
-    )
-
-    unlistens.push(
-      listen<{ session_id: string }>('session:start', (e) =>
-        console.log('[meecode] session:start', e.payload),
-      ),
-    )
-
-    unlistens.push(
-      listen<string>('session:stderr', (e) =>
-        console.warn('[claude stderr]', e.payload),
-      ),
-    )
-
-    unlistens.push(
-      listen<{ hook_name: string; phase: string }>('session:hook', (e) => {
-        const label =
-          e.payload.phase === 'hook_response'
-            ? null
-            : `${e.payload.hook_name} 훅 실행 중…`
-        setState((s) => ({ ...s, hookActivity: label }))
-      }),
-    )
-
-    unlistens.push(
-      listen<Record<string, unknown>>('session:rate_limit', (e) => {
-        const msg =
-          (typeof e.payload.message === 'string' && e.payload.message) ||
-          (typeof e.payload.reason === 'string' && e.payload.reason) ||
-          'rate limit hit — 잠시 후 다시 시도하세요'
-        setState((s) => ({ ...s, rateLimit: msg }))
-      }),
-    )
-
-    unlistens.push(
-      listen('session:control_cancel', () =>
-        setState((s) => ({ ...s, pendingTool: null })),
-      ),
-    )
-
-    unlistens.push(
-      listen('session:compact', () =>
-        setState((s) => ({
-          ...s,
-          pairs: [
-            ...s.pairs,
-            {
-              id: `compact-${Date.now()}`,
-              user_text: '── 이전 대화가 자동 압축됨 ──',
-              segments: [],
-              timestamp: new Date().toISOString(),
-            },
-          ],
-          currentId: null,
-        })),
-      ),
-    )
-
-    unlistens.push(
-      listen<{
-        session_id?: string
-        slash_commands?: Array<{ name?: string; description?: string }>
-        model?: string
-        permission_mode?: string
-        cwd?: string
-        mcp_servers?: Array<{ name?: string; status?: string }>
-        agents?: Array<{ name?: string; description?: string } | string>
-        tools?: Array<string | { name?: string }>
-      }>('session:init', (e) => {
-        const cmds: SlashCommand[] = (e.payload.slash_commands ?? [])
-          .filter((c): c is { name: string; description?: string } =>
-            typeof c.name === 'string' && c.name.length > 0,
-          )
-          .map((c) => ({ name: c.name, description: c.description }))
-        const claudeMode = modeFromClaude(e.payload.permission_mode)
-        const servers: McpServerInfo[] = (e.payload.mcp_servers ?? [])
-          .filter((m): m is { name: string; status?: string } =>
-            typeof m.name === 'string' && m.name.length > 0,
-          )
-          .map((m) => ({ name: m.name, status: m.status }))
-        const agents: AgentInfo[] = (e.payload.agents ?? [])
-          .map((a) =>
-            typeof a === 'string'
-              ? { name: a }
-              : { name: a.name ?? '', description: a.description },
-          )
-          .filter((a) => a.name)
-        const tools: string[] = (e.payload.tools ?? [])
-          .map((t) => (typeof t === 'string' ? t : t.name ?? ''))
-          .filter((t) => t)
-        setState((s) => ({
-          ...s,
-          slashCommands: cmds.length ? cmds : s.slashCommands,
-          model: e.payload.model ?? s.model,
-          mode: claudeMode ?? s.mode,
-          sessionId: e.payload.session_id ?? s.sessionId,
-          cwd: e.payload.cwd ?? s.cwd,
-          mcpServers: servers.length ? servers : s.mcpServers,
-          agents: agents.length ? agents : s.agents,
-          tools: tools.length ? tools : s.tools,
-        }))
-      }),
-    )
-
-    unlistens.push(
-      listen<{
-        subtype?: string
-        rest?: {
-          total_cost_usd?: number
-          duration_ms?: number
-          is_error?: boolean
-          result?: string
-          api_error_status?: unknown
-          usage?: {
-            input_tokens?: number
-            output_tokens?: number
-            cache_read_input_tokens?: number
-            cache_creation_input_tokens?: number
-          }
-        }
-      }>('session:turn_end', (e) => {
-        const r = e.payload.rest ?? {}
-        const sub = e.payload.subtype
-        const errLabel =
-          sub && sub !== 'success'
-            ? sub.replace(/_/g, ' ')
-            : r.is_error
-            ? typeof r.result === 'string'
-              ? r.result
-              : 'turn ended with error'
-            : null
-        setState((s) => ({
-          ...s,
-          rateLimit: errLabel ?? s.rateLimit,
-          usage: {
-            totalCostUsd:
-              s.usage.totalCostUsd + (typeof r.total_cost_usd === 'number' ? r.total_cost_usd : 0),
-            totalDurationMs:
-              s.usage.totalDurationMs + (typeof r.duration_ms === 'number' ? r.duration_ms : 0),
-            turnCount: s.usage.turnCount + 1,
-            inputTokens: s.usage.inputTokens + (r.usage?.input_tokens ?? 0),
-            outputTokens: s.usage.outputTokens + (r.usage?.output_tokens ?? 0),
-            cacheReadTokens:
-              s.usage.cacheReadTokens + (r.usage?.cache_read_input_tokens ?? 0),
-            cacheCreationTokens:
-              s.usage.cacheCreationTokens + (r.usage?.cache_creation_input_tokens ?? 0),
-          },
-        }))
-      }),
-    )
-
-    return () => {
-      unlistens.forEach((p) => p.then((fn) => fn()))
-    }
-  }, [])
+export function useClaudeSession(
+  tabId: string = 'main',
+): UseClaudeSessionResult {
+  const state = useSyncExternalStore(
+    useCallback((cb: () => void) => subscribeTab(tabId, cb), [tabId]),
+    useCallback(() => getTabSnapshot(tabId), [tabId]),
+  )
 
   const flushOne = useCallback(
-    async (text: string, images?: Array<{ media_type: string; data: string }>) => {
-      const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    async (
+      text: string,
+      images?: Array<{ media_type: string; data: string }>,
+    ) => {
+      const localId = `local-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 6)}`
       const imageSegments =
         images?.map((img) => ({
           kind: 'image' as const,
           media_type: img.media_type,
           data_url: `data:${img.media_type};base64,${img.data}`,
         })) ?? []
-      setState((s) => ({
+      setTab(tabId, (s) => ({
         ...s,
         pairs: [
           ...s.pairs,
@@ -357,10 +98,15 @@ export function useClaudeSession(): UseClaudeSessionResult {
           },
         ],
         currentId: localId,
+        turnInProgress: true,
+        turnError: null,
       }))
-      await invoke('send_user_message', { text, images })
+      // Tauri 2 maps individual command args camelCase -> snake_case by
+      // default, so the frontend must send camelCase keys. The backend
+      // parameter `tab_id` receives the value sent as `tabId`.
+      await invoke('send_user_message', { text, images, tabId })
     },
-    [],
+    [tabId],
   )
 
   const sendUserMessage = useCallback(
@@ -369,39 +115,25 @@ export function useClaudeSession(): UseClaudeSessionResult {
       images?: Array<{ media_type: string; data: string }>,
     ) => {
       // If a tool approval is pending, queue the message instead of flushing.
-      let queued = false
-      setState((s) => {
-        if (s.pendingTool) {
-          queued = true
-          const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-          return { ...s, queue: [...s.queue, { id, text, images }] }
-        }
-        return s
-      })
-      if (queued) return
-      try {
-        await flushOne(text, images)
-      } catch (e) {
-        console.error('[meecode] sendUserMessage invoke rejected', e)
-        throw e
+      const snapshot = getTabSnapshot(tabId)
+      if (snapshot.pendingTool) {
+        setTab(tabId, (s) => ({
+          ...s,
+          queue: [
+            ...s.queue,
+            {
+              id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              text,
+              images,
+            },
+          ],
+        }))
+        return
       }
+      await flushOne(text, images)
     },
-    [flushOne],
+    [tabId, flushOne],
   )
-
-  // Drain queue once the gate (pendingTool) lifts.
-  useEffect(() => {
-    if (state.pendingTool || state.queue.length === 0) return
-    const next = state.queue[0]
-    setState((s) => ({ ...s, queue: s.queue.slice(1) }))
-    flushOne(next.text, next.images).catch((e) =>
-      console.error('[meecode] queued flush failed', e),
-    )
-  }, [state.pendingTool, state.queue, flushOne])
-
-  const removeQueued = useCallback((id: string) => {
-    setState((s) => ({ ...s, queue: s.queue.filter((q) => q.id !== id) }))
-  }, [])
 
   const respondTool = useCallback(
     async (
@@ -410,56 +142,98 @@ export function useClaudeSession(): UseClaudeSessionResult {
       toolUseId: string | null,
       updatedInput?: unknown,
     ) => {
+      // The `args` wrapper is a single struct argument: Tauri passes the
+      // struct to serde, whose default is snake_case field matching, so
+      // inner keys stay snake_case. Only the *outer* command params
+      // (here `args`) follow Tauri's camelCase convention.
       await invoke('send_tool_response', {
         args: {
           request_id: requestId,
           allow,
           tool_use_id: toolUseId,
           updated_input: updatedInput ?? null,
+          tab_id: tabId,
         },
       })
-      setState((s) => ({ ...s, pendingTool: null }))
+      // Flush next queued message (if any) once the tool resolves.
+      setTab(tabId, (s) => ({ ...s, pendingTool: null }))
+      const after = getTabSnapshot(tabId)
+      const next = after.queue[0]
+      if (next) {
+        setTab(tabId, (s) => ({ ...s, queue: s.queue.slice(1) }))
+        flushOne(next.text, next.images).catch((e) =>
+          console.error('[meecode] queued flush failed', e),
+        )
+      }
     },
-    [],
+    [tabId, flushOne],
   )
 
   const cycleMode = useCallback(() => {
-    setState((s) => {
-      const next = MODE_CYCLE[(MODE_CYCLE.indexOf(s.mode) + 1) % MODE_CYCLE.length]
-      invoke('set_permission_mode', { mode: modeToClaude(next) }).catch((e) =>
-        console.warn('[meecode] set_permission_mode failed', e),
-      )
-      return { ...s, mode: next }
-    })
-  }, [])
+    const next =
+      MODE_CYCLE[
+        (MODE_CYCLE.indexOf(getTabSnapshot(tabId).mode) + 1) % MODE_CYCLE.length
+      ]
+    setTab(tabId, (s) => ({ ...s, mode: next }))
+    invoke('set_permission_mode', {
+      mode: modeToClaude(next),
+      tabId,
+    }).catch((e) =>
+      console.warn('[meecode] set_permission_mode failed', e),
+    )
+  }, [tabId])
 
   const dismissRateLimit = useCallback(() => {
-    setState((s) => ({ ...s, rateLimit: null }))
-  }, [])
+    setTab(tabId, (s) => ({ ...s, rateLimit: null }))
+  }, [tabId])
 
   const interrupt = useCallback(async () => {
-    await invoke('interrupt_session')
-  }, [])
+    await invoke('interrupt_session', { tabId })
+    setTab(tabId, (s) => ({ ...s, turnInProgress: false }))
+  }, [tabId])
 
-  const setModel = useCallback(async (model: string | null) => {
-    await invoke('set_model', { model })
-    setState((s) => ({ ...s, model: model ?? s.model }))
-  }, [])
+  const setModel = useCallback(
+    async (model: string | null) => {
+      await invoke('set_model', { model, tabId })
+      setTab(tabId, (s) => ({ ...s, model: model ?? s.model }))
+    },
+    [tabId],
+  )
 
-  const setThinkingLevel = useCallback(async (level: string) => {
-    await invoke('set_thinking_level', { level })
-  }, [])
+  const setThinkingLevel = useCallback(
+    async (level: string) => {
+      await invoke('set_thinking_level', { level, tabId })
+    },
+    [tabId],
+  )
 
   const clearConversation = useCallback(() => {
-    setState((s) => ({ ...s, pairs: [], currentId: null }))
-  }, [])
+    setTab(tabId, (s) => ({ ...s, pairs: [], currentId: null }))
+  }, [tabId])
+
+  const removeQueued = useCallback(
+    (id: string) => {
+      setTab(tabId, (s) => ({
+        ...s,
+        queue: s.queue.filter((q) => q.id !== id),
+      }))
+    },
+    [tabId],
+  )
+
+  const sessionTitle =
+    state.pairs.find((p) => p.user_text && !p.user_text.startsWith('──'))
+      ?.user_text ?? null
 
   return {
     pairs: state.pairs,
+    sessionTitle,
     pendingTool: state.pendingTool,
     mode: state.mode,
     hookActivity: state.hookActivity,
     rateLimit: state.rateLimit,
+    turnError: state.turnError,
+    turnInProgress: state.turnInProgress,
     slashCommands: state.slashCommands,
     model: state.model,
     usage: state.usage,

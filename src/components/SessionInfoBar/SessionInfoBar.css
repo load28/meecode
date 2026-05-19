@@ -21,7 +21,7 @@
 }
 
 .session-info__chip {
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   color: #c9d1d9;
 }
 
@@ -41,6 +41,8 @@
   padding: 10px 12px;
   width: 360px;
   max-width: 90vw;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
   font-size: 12px;
   z-index: 20;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
@@ -67,7 +69,7 @@
 
 .session-info__row code {
   color: #c9d1d9;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   word-break: break-all;
 }

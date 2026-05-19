@@ -113,13 +113,13 @@
 
 .message-bubble__tool-name {
   color: #79c0ff;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
 .message-bubble__tool-arg {
   color: #8b949e;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -205,19 +205,25 @@
 
 .message-bubble__tool-result-preview {
   color: #8b949e;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
+  /* Clamp to ~3 lines so long results like AskUserQuestion answers
+     survive in collapsed mode without dominating the card. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .message-bubble__tool-result-body {
   margin: 0;
   padding: 8px 12px 10px 14px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: #c9d1d9;
   white-space: pre-wrap;
@@ -227,20 +233,58 @@
   overflow: auto;
 }
 
+.message-bubble__content {
+  line-height: 1.75;
+}
+
+.message-bubble__content > * {
+  margin: 0;
+}
+
+.message-bubble__content > * + * {
+  margin-top: 14px;
+}
+
 .message-bubble__content h1,
 .message-bubble__content h2,
 .message-bubble__content h3 {
   color: #e6edf3;
   border-bottom: 1px solid #21262d;
-  padding-bottom: 8px;
-  margin-top: 24px;
+  padding-bottom: 10px;
+  margin-top: 28px;
+  line-height: 1.4;
+}
+
+.message-bubble__content h1:first-child,
+.message-bubble__content h2:first-child,
+.message-bubble__content h3:first-child {
+  margin-top: 0;
+}
+
+.message-bubble__content p {
+  margin: 0;
+}
+
+.message-bubble__content ul,
+.message-bubble__content ol {
+  padding-left: 24px;
+  margin: 0;
+}
+
+.message-bubble__content li {
+  margin: 4px 0;
+  line-height: 1.7;
+}
+
+.message-bubble__content li > p {
+  margin: 4px 0;
 }
 
 .message-bubble__content code {
   background: #161b22;
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Menlo', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: #79c0ff;
 }
@@ -252,6 +296,7 @@
   padding: 16px;
   overflow-x: auto;
   position: relative;
+  line-height: 1.55;
 }
 
 .markdown-copy-btn {
@@ -290,9 +335,11 @@ pre:hover .markdown-copy-btn {
 
 .message-bubble__content blockquote {
   border-left: 4px solid #30363d;
-  margin-left: 0;
-  padding-left: 16px;
+  margin: 16px 0;
+  padding: 6px 16px;
   color: #8b949e;
+  background: rgba(110, 118, 129, 0.06);
+  border-radius: 0 4px 4px 0;
 }
 
 .message-bubble__content a {

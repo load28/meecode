@@ -2,14 +2,21 @@ use crate::claude_process::protocol::StdinMessage;
 use crate::claude_process::stdin_writer::write_line;
 use crate::claude_process::stdout_parser::{parse_reader, DomainEvent};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
 
+static NEXT_PROCESS_ID: AtomicU64 = AtomicU64::new(1);
+
 pub struct ProcessHandle {
     pub child: Child,
     pub stdin_tx: mpsc::Sender<StdinMessage>,
+    /// Unique generation counter. on_exit callbacks compare against this to
+    /// avoid clobbering a *newer* process that replaced this one before the
+    /// callback fired.
+    pub id: u64,
 }
 
 impl ProcessHandle {
@@ -24,7 +31,9 @@ pub async fn spawn_claude(
     resume_session_id: Option<&str>,
     on_event: impl Fn(DomainEvent) + Send + Sync + 'static,
     on_stderr: impl Fn(String) + Send + Sync + 'static,
+    on_exit: impl FnOnce(u64) + Send + 'static,
 ) -> Result<ProcessHandle, String> {
+    let id = NEXT_PROCESS_ID.fetch_add(1, Ordering::Relaxed);
     let mut cmd = Command::new(claude_bin);
     cmd.current_dir(project_path);
     cmd.arg("--output-format").arg("stream-json");
@@ -48,8 +57,12 @@ pub async fn spawn_claude(
 
     {
         let on_event = on_event.clone();
+        // stdout closing == claude exited. Run the user-provided cleanup
+        // callback after the parse loop finishes so the frontend can clear
+        // the in-flight indicator instead of spinning forever.
         tokio::spawn(async move {
             parse_reader(stdout, move |ev| on_event(ev)).await;
+            on_exit(id);
         });
     }
 
@@ -76,5 +89,6 @@ pub async fn spawn_claude(
     Ok(ProcessHandle {
         child,
         stdin_tx: tx,
+        id,
     })
 }

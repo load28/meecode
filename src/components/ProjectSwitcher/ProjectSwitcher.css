@@ -1,0 +1,141 @@
+.project-switcher {
+  position: relative;
+  display: inline-block;
+}
+
+.project-switcher__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.project-switcher__toggle:hover {
+  background: #1f2933;
+}
+
+.project-switcher__icon {
+  font-size: 14px;
+}
+
+.project-switcher__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.project-switcher__caret {
+  color: #8b949e;
+  font-size: 10px;
+}
+
+.project-switcher__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 380px;
+  max-width: 90vw;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-switcher__header {
+  padding: 8px 12px;
+  color: #6e7681;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #21262d;
+}
+
+.project-switcher__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.project-switcher__empty {
+  padding: 12px;
+  color: #6e7681;
+  font-size: 12px;
+  text-align: center;
+}
+
+.project-switcher__item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #c9d1d9;
+  border-bottom: 1px solid #161b22;
+}
+
+.project-switcher__item:hover {
+  background: #161b22;
+}
+
+.project-switcher__item.is-current {
+  background: #1a2733;
+}
+
+.project-switcher__item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-switcher__item-meta {
+  font-size: 11px;
+  color: #8b949e;
+  text-align: right;
+}
+
+.project-switcher__item-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #6e7681;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-switcher__add {
+  border: none;
+  border-top: 1px solid #21262d;
+  background: transparent;
+  color: #58a6ff;
+  font-size: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.project-switcher__add:hover {
+  background: #161b22;
+}

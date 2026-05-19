@@ -57,7 +57,7 @@ describe('ChatStream', () => {
     expect(onExpand).toHaveBeenCalledWith('a')
   })
 
-  it('마지막 페어 segments가 비어 있으면 "Claude가 응답 대기 중" 인디케이터 표시', () => {
+  it('마지막 페어 segments가 비어 있으면 Thinking 인디케이터 표시', () => {
     const pairs = [pair('a', 'q', [])]
     render(
       <ChatStream
@@ -67,7 +67,7 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.getByText('Claude가 응답 대기 중…')).toBeInTheDocument()
+    expect(screen.getByText('Thinking')).toBeInTheDocument()
   })
 
   it('마지막 segment가 tool_use면 도구 실행 인디케이터 표시', () => {
@@ -81,7 +81,7 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.getByText('Claude가 도구를 실행 중…')).toBeInTheDocument()
+    expect(screen.getByText('Bash running')).toBeInTheDocument()
   })
 
   it('pendingTool prop 있으면 ToolApprovalCard 렌더', () => {
@@ -140,6 +140,6 @@ describe('ChatStream', () => {
         onRespondTool={() => {}}
       />,
     )
-    expect(screen.queryByText('Claude가 응답 대기 중…')).toBeNull()
+    expect(screen.queryByText('Thinking')).toBeNull()
   })
 })

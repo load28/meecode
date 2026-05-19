@@ -31,6 +31,15 @@ const LANG_ALIAS: Record<string, string> = {
   rs: 'rust',
 }
 
+// Match the VS Code Claude Code extension defaults: GitHub-flavored markdown
+// with hard line breaks honored, no pedantic mode. Setting these explicitly
+// guards against marked version drift changing defaults underneath us.
+marked.use({
+  gfm: true,
+  breaks: true,
+  pedantic: false,
+})
+
 export function renderMarkdown(src: string): string {
   const raw = marked.parse(src, { async: false }) as string
   return DOMPurify.sanitize(raw)
@@ -73,7 +82,7 @@ export function MarkdownContent({ source, className }: Props) {
       btn.type = 'button'
       btn.className = 'markdown-copy-btn'
       btn.title = '복사'
-      btn.textContent = '⧉'
+      btn.textContent = '📋'
       const onClick = async () => {
         const code = pre.querySelector('code')
         const text = code ? code.textContent : pre.textContent
@@ -82,7 +91,7 @@ export function MarkdownContent({ source, className }: Props) {
           await navigator.clipboard.writeText(text)
           btn.textContent = '✓'
           setTimeout(() => {
-            btn.textContent = '⧉'
+            btn.textContent = '📋'
           }, 1200)
         } catch {
           btn.textContent = '✗'
