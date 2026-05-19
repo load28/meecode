@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './AskUserQuestionCard.css'
+
+// Single-select + non-"Other" picks auto-advance. The brief delay lets the
+// user see the option highlight before the card swaps to the next question,
+// so it doesn't feel like a click landed nowhere.
+const AUTO_ADVANCE_MS = 220
 
 export interface AskOption {
   label: string
@@ -47,6 +52,17 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
   const [active, setActive] = useState(0)
   const [answers, setAnswers] = useState<AnswersState>(() => blankAnswers(questions))
 
+  // Hold the auto-advance timer so a fast second click cancels the pending
+  // navigation instead of jumping past the user's correction.
+  const advanceTimer = useRef<number | null>(null)
+  const clearAdvance = () => {
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current)
+      advanceTimer.current = null
+    }
+  }
+  useEffect(() => clearAdvance, [])
+
   if (questions.length === 0) {
     return (
       <section className="ask-question-card" role="region" aria-label="질문 입력">
@@ -57,8 +73,32 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
 
   const q = questions[active]
   const state = answers[q.question] ?? { picks: new Set(), otherText: '' }
+  const isLast = active === questions.length - 1
+
+  const submitWith = (a: AnswersState) => {
+    const payloadAnswers: Record<string, string> = {}
+    for (const qq of questions) {
+      const s = a[qq.question]
+      if (s && s.picks.size > 0) {
+        payloadAnswers[qq.question] = joinAnswer(s)
+      }
+    }
+    onRespond(true, { questions, ...({ answers: payloadAnswers } as object) } as AskInput)
+  }
+
+  const submit = () => submitWith(answers)
+
+  const advance = (snapshot: AnswersState) => {
+    if (isLast) {
+      submitWith(snapshot)
+    } else {
+      setActive(active + 1)
+    }
+  }
 
   const toggle = (label: string) => {
+    clearAdvance()
+    let nextAnswers!: AnswersState
     setAnswers((prev) => {
       const next = { ...prev }
       const slot = { ...next[q.question], picks: new Set(next[q.question].picks) }
@@ -69,8 +109,20 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
         slot.picks = new Set([label])
       }
       next[q.question] = slot
+      nextAnswers = next
       return next
     })
+
+    // Auto-advance for single-select picks of concrete options. "Other"
+    // expands an inline text field — auto-advancing would steal focus before
+    // the user types, so it stays manual. Multi-select also stays manual
+    // because there's no signal that the user is done picking.
+    if (!q.multiSelect && label !== 'Other') {
+      advanceTimer.current = window.setTimeout(() => {
+        advanceTimer.current = null
+        advance(nextAnswers)
+      }, AUTO_ADVANCE_MS)
+    }
   }
 
   const setOther = (text: string) => {
@@ -80,22 +132,22 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
     }))
   }
 
-  const submit = () => {
-    const payloadAnswers: Record<string, string> = {}
-    for (const qq of questions) {
-      const s = answers[qq.question]
-      if (s && s.picks.size > 0) {
-        payloadAnswers[qq.question] = joinAnswer(s)
-      }
+  const handleOtherKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && state.otherText.trim()) {
+      e.preventDefault()
+      advance(answers)
     }
-    onRespond(true, { questions, ...({ answers: payloadAnswers } as object) } as AskInput)
   }
 
-  const skip = () => onRespond(false, null)
+  const skip = () => {
+    clearAdvance()
+    onRespond(false, null)
+  }
 
   const everyAnswered = questions.every(
     (qq) => (answers[qq.question]?.picks.size ?? 0) > 0,
   )
+  const currentAnswered = (state.picks.size ?? 0) > 0
 
   return (
     <section className="ask-question-card" role="region" aria-label="질문 응답">
@@ -111,7 +163,10 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
                 (i === active ? ' is-active' : '') +
                 (answered ? ' is-answered' : '')
               }
-              onClick={() => setActive(i)}
+              onClick={() => {
+                clearAdvance()
+                setActive(i)
+              }}
             >
               {qq.header || `Q${i + 1}`}
               {answered && <span className="ask-question-card__check">✓</span>}
@@ -166,9 +221,10 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
               <input
                 type="text"
                 className="ask-question-card__other-input"
-                placeholder="직접 입력…"
+                placeholder="직접 입력 후 Enter…"
                 value={state.otherText}
                 onChange={(e) => setOther(e.target.value)}
+                onKeyDown={handleOtherKey}
                 autoFocus
               />
             )}
@@ -189,14 +245,28 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
         >
           건너뛰기
         </button>
-        <button
-          type="button"
-          className="ask-question-card__submit"
-          onClick={submit}
-          disabled={!everyAnswered}
-        >
-          답변 전송
-        </button>
+        {isLast ? (
+          <button
+            type="button"
+            className="ask-question-card__submit"
+            onClick={submit}
+            disabled={!everyAnswered}
+          >
+            답변 전송
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="ask-question-card__submit"
+            onClick={() => {
+              clearAdvance()
+              advance(answers)
+            }}
+            disabled={!currentAnswered}
+          >
+            다음 →
+          </button>
+        )}
       </div>
     </section>
   )

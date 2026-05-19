@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { AskUserQuestionCard, type AskInput } from './index'
 
@@ -29,17 +29,61 @@ describe('AskUserQuestionCard', () => {
     expect(screen.getByRole('button', { name: '답변 전송' })).toBeDisabled()
   })
 
-  it('옵션 선택 후 전송하면 updatedInput에 answers 포함', () => {
+  it('단일선택 + 마지막 질문은 옵션 클릭 시 자동 전송', () => {
+    vi.useFakeTimers()
     const onRespond = vi.fn()
     render(<AskUserQuestionCard input={singleSelect} onRespond={onRespond} />)
     fireEvent.click(screen.getByText('Next.js'))
-    fireEvent.click(screen.getByRole('button', { name: '답변 전송' }))
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     expect(onRespond).toHaveBeenCalledTimes(1)
     const [allow, updated] = onRespond.mock.calls[0]
     expect(allow).toBe(true)
     expect((updated as { answers: Record<string, string> }).answers).toEqual({
       '어떤 프레임워크 학습?': 'Next.js',
     })
+    vi.useRealTimers()
+  })
+
+  it('여러 단일선택 질문은 자동으로 다음 질문으로 이동', () => {
+    vi.useFakeTimers()
+    const onRespond = vi.fn()
+    const input: AskInput = {
+      questions: [
+        {
+          question: 'Q1?',
+          header: 'Q1',
+          multiSelect: false,
+          options: [{ label: 'A' }, { label: 'B' }],
+        },
+        {
+          question: 'Q2?',
+          header: 'Q2',
+          multiSelect: false,
+          options: [{ label: 'X' }, { label: 'Y' }],
+        },
+      ],
+    }
+    render(<AskUserQuestionCard input={input} onRespond={onRespond} />)
+    expect(screen.getByText('Q1?')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('A'))
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(screen.getByText('Q2?')).toBeInTheDocument()
+    expect(onRespond).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('X'))
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(onRespond).toHaveBeenCalledTimes(1)
+    const [, updated] = onRespond.mock.calls[0]
+    expect((updated as { answers: Record<string, string> }).answers).toEqual({
+      'Q1?': 'A',
+      'Q2?': 'X',
+    })
+    vi.useRealTimers()
   })
 
   it('multiSelect=true는 여러 옵션을 CSV로 묶어 보냄', () => {
@@ -63,11 +107,11 @@ describe('AskUserQuestionCard', () => {
     )
   })
 
-  it('Other 선택 + 입력 시 입력 텍스트가 answer로 대체됨', () => {
+  it('Other 선택 + 입력 시 입력 텍스트가 answer로 대체됨 (자동 진행 안 함)', () => {
     const onRespond = vi.fn()
     render(<AskUserQuestionCard input={singleSelect} onRespond={onRespond} />)
     fireEvent.click(screen.getByText('Other'))
-    fireEvent.change(screen.getByPlaceholderText('직접 입력…'), {
+    fireEvent.change(screen.getByPlaceholderText('직접 입력 후 Enter…'), {
       target: { value: 'SvelteKit' },
     })
     fireEvent.click(screen.getByRole('button', { name: '답변 전송' }))
