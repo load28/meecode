@@ -14,9 +14,10 @@
   display: flex;
   gap: 12px;
   align-items: baseline;
-  padding-right: 36px;
+  padding-right: 76px;
   padding-bottom: 14px;
   border-bottom: 1px solid #161b22;
+  flex-wrap: wrap;
 }
 
 .qa-card__question-label {
@@ -33,6 +34,30 @@
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.qa-card__interrupted-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(248, 81, 73, 0.14);
+  border: 1px solid rgba(248, 81, 73, 0.32);
+  color: #ffa49b;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+}
+
+.qa-card__interrupted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(110, 118, 129, 0.12);
+  color: #8b949e;
+  font-size: 12px;
+  align-self: flex-start;
 }
 
 .qa-card__answer {

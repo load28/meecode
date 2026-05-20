@@ -139,6 +139,11 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin }: Props) {
       <header className="qa-card__question">
         <span className="qa-card__question-label">Q</span>
         <span className="qa-card__question-text">{makePreview(pair.user_text)}</span>
+        {pair.interrupted && (
+          <span className="qa-card__interrupted-badge" title="사용자에 의해 응답이 중단됨">
+            중단됨
+          </span>
+        )}
       </header>
 
       {!hasAnyContent ? (
@@ -164,6 +169,14 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin }: Props) {
             */}
             {pair.segments.map((seg, i) => {
               if (seg.kind === 'tool_result') return null
+              if (seg.kind === 'interrupted') {
+                return (
+                  <div key={i} className="qa-card__interrupted" role="note">
+                    <span aria-hidden="true">⛔</span>
+                    <span>사용자에 의해 응답이 중단됨</span>
+                  </div>
+                )
+              }
               if (seg.kind === 'thinking') {
                 return (
                   <div key={i} className="qa-card__step">

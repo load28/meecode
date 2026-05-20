@@ -239,6 +239,19 @@
   display: block;
 }
 
+.message-bubble__interrupted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8b949e;
+  background: rgba(110, 118, 129, 0.12);
+  border-radius: 4px;
+  padding: 4px 10px;
+  margin: 4px 0;
+  align-self: flex-start;
+}
+
 .message-bubble__redacted,
 .message-bubble__image-placeholder {
   font-size: 12px;

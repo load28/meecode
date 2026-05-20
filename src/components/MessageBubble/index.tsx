@@ -84,6 +84,14 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
       </details>
     )
   }
+  if (segment.kind === 'interrupted') {
+    return (
+      <div className="message-bubble__interrupted" role="note">
+        <span aria-hidden="true">⛔</span>
+        <span>사용자에 의해 응답이 중단됨</span>
+      </div>
+    )
+  }
   if (segment.kind === 'redacted_thinking') {
     return (
       <div className="message-bubble__redacted" aria-label="가려진 추론">

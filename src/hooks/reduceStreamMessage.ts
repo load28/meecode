@@ -197,6 +197,27 @@ function detectSkillEcho(
   return { skill: name, text }
 }
 
+// Claude CLI re-emits the cancelled turn as a user-role message whose body
+// is `[Request interrupted by user]` (sometimes with a trailing reason, e.g.
+// `... for tool use`). We treat that as a marker on the current pair rather
+// than as a fresh user question.
+const INTERRUPT_USER_PATTERN = /^\s*\[Request interrupted by user[^\]]*\]\s*$/
+
+function isInterruptUserText(text: string): boolean {
+  return INTERRUPT_USER_PATTERN.test(text)
+}
+
+// Slash-command echoes the CLI emits as user messages (e.g. `/model`, `/clear`
+// stdout/stderr). The same information is already reflected in the status bar
+// (model, mode) or in `turnError`, so surfacing it as a fresh Q card is pure
+// noise.
+const LOCAL_COMMAND_ECHO_PATTERN =
+  /^\s*<local-command-(?:stdout|stderr)>[\s\S]*<\/local-command-(?:stdout|stderr)>\s*$/
+
+function isLocalCommandEcho(text: string): boolean {
+  return LOCAL_COMMAND_ECHO_PATTERN.test(text)
+}
+
 type UserContent = { kind: 'real'; text: string } | { kind: 'tool_result_only' }
 
 function classifyUserContent(content: unknown): UserContent {
@@ -344,6 +365,32 @@ export function reduceStreamMessage(
       }
     }
     if (!classified.text) return state
+    // Drop the CLI's `<local-command-stdout>…</local-command-stdout>` echoes
+    // for slash commands — that state is already surfaced in the status bar
+    // (model/mode) or turnError, so a fresh Q card is just clutter.
+    if (isLocalCommandEcho(classified.text)) return state
+    // Interrupt echo from the CLI (e.g. `[Request interrupted by user]`):
+    // attach an `interrupted` segment + flag to the current pair instead of
+    // opening a new question card so the cancel stays inside the cancelled
+    // turn.
+    if (isInterruptUserText(classified.text)) {
+      if (!state.currentId) return state
+      const idx = state.pairs.findIndex((p) => p.id === state.currentId)
+      if (idx === -1) return state
+      const cur = state.pairs[idx]
+      if (cur.interrupted) return state
+      const updated: QaPair = {
+        ...cur,
+        interrupted: true,
+        segments: [
+          ...cur.segments,
+          { kind: 'interrupted', text: classified.text },
+        ],
+      }
+      const next = state.pairs.slice()
+      next[idx] = updated
+      return { pairs: next, currentId: state.currentId }
+    }
     const last = state.pairs[state.pairs.length - 1]
     if (last && last.user_text === classified.text && last.segments.length === 0) {
       // Treat as echo of the just-sent user message — keep the existing pair.

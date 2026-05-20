@@ -51,6 +51,12 @@ export type AssistantSegment =
    * reducer mint a brand-new question card.
    */
   | { kind: 'skill_body'; skill: string; text: string }
+  /**
+   * Inline marker appended to the current pair when the CLI emits an
+   * interrupt-echo user message (e.g. `[Request interrupted by user]`).
+   * Rendered as a small footer note instead of opening a new question card.
+   */
+  | { kind: 'interrupted'; text: string }
 
 export interface ToolProgressEntry {
   /** "running" | "completed" | "failed" | ... */
@@ -71,6 +77,7 @@ export interface QaPair {
   user_text: string
   segments: AssistantSegment[]
   timestamp: string
+  interrupted?: boolean
 }
 
 export interface ToolRequest {
