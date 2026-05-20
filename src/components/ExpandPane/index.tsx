@@ -24,6 +24,8 @@ interface Props {
   turnInProgress?: boolean
   taskActivity?: TaskActivity | null
   hookActivity?: string | null
+  /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
+  onAddComment?: (text: string) => void
 }
 
 function formatTime(iso: string): string {
@@ -56,6 +58,7 @@ export function ExpandPane({
   turnInProgress,
   taskActivity,
   hookActivity,
+  onAddComment,
 }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   // Re-pin to bottom whenever the active pair gains segments — but only
@@ -147,6 +150,7 @@ export function ExpandPane({
             <CommentFloat
               selection={{ text: selection.text, rect: selection.rect }}
               onClose={clearSelection}
+              onAddComment={onAddComment}
             />
           )}
           </>

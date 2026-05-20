@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChatComposer } from './index'
 
@@ -124,6 +124,107 @@ describe('ChatComposer', () => {
     expect(screen.getByText(/Esc 한 번 더/)).toBeInTheDocument()
     fireEvent.keyDown(ta, { key: 'Escape' })
     expect(ta.value).toBe('')
+  })
+
+  it('pendingSelection 도착 시 인풋에 [코멘트 #1 +M줄] 플레이스홀더 삽입', () => {
+    const { rerender } = render(
+      <ChatComposer mode="default" disabled={false} {...handlers} />,
+    )
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: '이거 설명해줘 ' } })
+    ta.selectionStart = ta.selectionEnd = ta.value.length
+    rerender(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        {...handlers}
+        pendingSelection={{ id: 1, text: 'foo\nbar\nbaz' }}
+        onSelectionConsumed={() => {}}
+      />,
+    )
+    expect(ta.value).toContain('[코멘트 #1 +3줄]')
+  })
+
+  it('전송 시 플레이스홀더가 펜스 코드 블록으로 치환', async () => {
+    const { rerender } = render(
+      <ChatComposer mode="default" disabled={false} {...handlers} />,
+    )
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: '' } })
+    ta.selectionStart = ta.selectionEnd = 0
+    rerender(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        {...handlers}
+        pendingSelection={{ id: 7, text: 'const x = 1', source: 'src/a.ts:10' }}
+        onSelectionConsumed={() => {}}
+      />,
+    )
+    fireEvent.change(ta, { target: { value: ta.value + ' 이거 뭐임?' } })
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    await act(async () => {})
+    const sent = handlers.sendUserMessage.mock.calls[0][0] as string
+    expect(sent).toContain('이거 뭐임?')
+    expect(sent).toContain('// src/a.ts:10')
+    expect(sent).toContain('const x = 1')
+    expect(sent).not.toContain('[코멘트 #')
+  })
+
+  it('source 없는 코멘트는 헤더 없이 코드블록만', async () => {
+    const { rerender } = render(
+      <ChatComposer mode="default" disabled={false} {...handlers} />,
+    )
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    rerender(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        {...handlers}
+        pendingSelection={{ id: 9, text: 'snippet' }}
+        onSelectionConsumed={() => {}}
+      />,
+    )
+    fireEvent.change(ta, { target: { value: ta.value + ' q' } })
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    await act(async () => {})
+    const sent = handlers.sendUserMessage.mock.calls[0][0] as string
+    expect(sent).toContain('snippet')
+    expect(sent).not.toMatch(/\/\/\s/)
+  })
+
+  it('여러 코멘트를 하나의 메시지로 합쳐 전송', async () => {
+    const { rerender } = render(
+      <ChatComposer mode="default" disabled={false} {...handlers} />,
+    )
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    rerender(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        {...handlers}
+        pendingSelection={{ id: 1, text: 'A' }}
+        onSelectionConsumed={() => {}}
+      />,
+    )
+    rerender(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        {...handlers}
+        pendingSelection={{ id: 2, text: 'B' }}
+        onSelectionConsumed={() => {}}
+      />,
+    )
+    expect(ta.value).toContain('[코멘트 #1 +1줄]')
+    expect(ta.value).toContain('[코멘트 #2 +1줄]')
+    fireEvent.change(ta, { target: { value: ta.value + ' 비교' } })
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    await act(async () => {})
+    const sent = handlers.sendUserMessage.mock.calls[0][0] as string
+    expect(sent).toContain('A')
+    expect(sent).toContain('B')
+    expect(sent).toContain('비교')
   })
 
   it('진행 중일 때 ESC는 onInterrupt를 호출 (busy=true)', () => {

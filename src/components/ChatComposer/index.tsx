@@ -51,8 +51,20 @@ interface Props {
   projectPath?: string
   recentUserTexts?: string[]
   onClearConversation?: () => void
-  pendingContext?: { id: number; text: string } | null
-  onContextConsumed?: () => void
+  /**
+   * Selection (from a Q&A card, expanded pane, or file panel) to attach as
+   * an inline-abbreviated placeholder. Each unique `id` is registered once,
+   * a `[코멘트 #N +M줄]` token is inserted at the caret, and the full text
+   * gets expanded back into a fenced code block on submit — mirroring how
+   * Claude Code's `[Pasted text #N +M lines]` placeholders work.
+   */
+  pendingSelection?: {
+    id: number
+    text: string
+    /** Optional `path:lineStart-lineEnd` shown as a `// ...` comment header. */
+    source?: string
+  } | null
+  onSelectionConsumed?: () => void
   claudeReady?: boolean
   onOpenSettings?: () => void
 }
@@ -81,8 +93,8 @@ export function ChatComposer({
   projectPath,
   recentUserTexts,
   onClearConversation,
-  pendingContext,
-  onContextConsumed,
+  pendingSelection,
+  onSelectionConsumed,
   claudeReady = true,
   onOpenSettings,
 }: Props) {
@@ -101,7 +113,14 @@ export function ChatComposer({
   const isComposingRef = useRef(false)
   const slashListRef = useRef<HTMLUListElement | null>(null)
   const mentionListRef = useRef<HTMLUListElement | null>(null)
-  const lastContextIdRef = useRef<number | null>(null)
+  // Registered selections by their inline number (1-based). The textarea
+  // value carries `[코멘트 #N +M줄]` tokens; on submit each token expands
+  // back into a fenced code block looked up from this map.
+  const selectionsRef = useRef<Map<number, { text: string; source?: string }>>(
+    new Map(),
+  )
+  const selectionCounterRef = useRef(0)
+  const lastSelectionIdRef = useRef<number | null>(null)
   // Double-press ESC window — matches the CLI's useDoublePress for input
   // clear. First ESC arms the action and shows a hint, second ESC within
   // the window clears and saves to history.
@@ -109,22 +128,66 @@ export function ChatComposer({
   const ESC_DOUBLE_PRESS_MS = 1000
 
   useEffect(() => {
-    if (!pendingContext) return
-    if (lastContextIdRef.current === pendingContext.id) return
-    lastContextIdRef.current = pendingContext.id
+    if (!pendingSelection) return
+    if (lastSelectionIdRef.current === pendingSelection.id) return
+    lastSelectionIdRef.current = pendingSelection.id
+
+    const num = ++selectionCounterRef.current
+    selectionsRef.current.set(num, {
+      text: pendingSelection.text,
+      source: pendingSelection.source,
+    })
+    const lines = pendingSelection.text.split('\n').length
+    const placeholder = `[코멘트 #${num} +${lines}줄]`
+
+    const ta = textareaRef.current
+    const caret =
+      ta?.selectionStart != null && document.activeElement === ta
+        ? ta.selectionStart
+        : value.length
+    let nextValue = ''
+    let nextCaret = caret
     setValue((v) => {
-      const sep = v && !v.endsWith('\n') ? '\n' : ''
-      return v + sep + pendingContext.text
+      const before = v.slice(0, caret)
+      const after = v.slice(caret)
+      const sepBefore =
+        before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n')
+          ? ' '
+          : ''
+      const sepAfter =
+        after.length > 0 && !after.startsWith(' ') && !after.startsWith('\n')
+          ? ' '
+          : ''
+      nextValue = before + sepBefore + placeholder + sepAfter + after
+      nextCaret = (before + sepBefore + placeholder + sepAfter).length
+      return nextValue
     })
     requestAnimationFrame(() => {
-      const ta = textareaRef.current
-      if (ta) {
-        ta.focus()
-        ta.setSelectionRange(ta.value.length, ta.value.length)
+      const t = textareaRef.current
+      if (t) {
+        t.focus()
+        try {
+          t.setSelectionRange(nextCaret, nextCaret)
+        } catch {
+          /* setSelectionRange can throw if the value isn't applied yet — harmless */
+        }
       }
     })
-    onContextConsumed?.()
-  }, [pendingContext, onContextConsumed])
+    onSelectionConsumed?.()
+  }, [pendingSelection, onSelectionConsumed])
+
+  // Expand `[코멘트 #N +M줄]` tokens to fenced code blocks. Tokens whose id
+  // is no longer in the registry (user deleted/edited the placeholder) are
+  // dropped silently — matches Claude Code's behavior where stale paste
+  // placeholders simply disappear instead of erroring out.
+  const expandSelections = (text: string): string => {
+    return text.replace(/\[코멘트 #(\d+) \+\d+줄\]/g, (_, n) => {
+      const sel = selectionsRef.current.get(Number(n))
+      if (!sel) return ''
+      const header = sel.source ? `// ${sel.source}\n` : ''
+      return `\n\n\`\`\`\n${header}${sel.text}\n\`\`\`\n`
+    })
+  }
 
   useEffect(() => {
     if (!showSlash) return
@@ -176,7 +239,10 @@ export function ChatComposer({
   const submit = async () => {
     // CLI parity: trim trailing whitespace before submit. Empty input with
     // no attachments is a no-op (matches `onSubmit` in PromptInput.tsx).
-    const trimmed = value.trimEnd()
+    // Selection placeholders expand into fenced code blocks here, mirroring
+    // how Claude Code substitutes pasted-text tokens at send time.
+    const expanded = expandSelections(value)
+    const trimmed = expanded.trimEnd()
     if (!trimmed && pendingImages.length === 0) return
     const images = pendingImages.map((p) => ({
       media_type: p.mediaType,
@@ -190,6 +256,8 @@ export function ChatComposer({
       setShowSlash(false)
       setMention(null)
       setHistoryIdx(null)
+      selectionsRef.current.clear()
+      selectionCounterRef.current = 0
     } catch (e) {
       setError(String(e))
     }
@@ -435,6 +503,8 @@ export function ChatComposer({
           setEscHint(false)
           setValue('')
           setHistoryIdx(null)
+          selectionsRef.current.clear()
+          selectionCounterRef.current = 0
         } else {
           escArmedAtRef.current = now
           setEscHint(true)

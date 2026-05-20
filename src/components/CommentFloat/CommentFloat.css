@@ -19,40 +19,6 @@
   background: #388bfd;
 }
 
-.comment-float__input-row {
-  display: flex;
-  gap: 6px;
-  background: #161b22;
-  border: 1px solid #1f6feb;
-  border-radius: 8px;
-  padding: 6px 8px;
-}
-
-.comment-float__input {
-  width: 280px;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 5px;
-  padding: 5px 10px;
-  color: #c9d1d9;
-  font-size: 13px;
-  outline: none;
-}
-
-.comment-float__input:focus {
-  border-color: #58a6ff;
-}
-
-.comment-float__send {
-  background: #1f6feb;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  padding: 5px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
 .comment-float__actions {
   display: inline-flex;
   gap: 4px;

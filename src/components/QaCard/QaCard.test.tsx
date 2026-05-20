@@ -116,9 +116,13 @@ describe('QaCard', () => {
     } as unknown as Selection)
 
     const { container } = render(
-      <QaCard pair={pair('a', [text('짧은 답변 텍스트')])} onExpand={() => {}} />
+      <QaCard
+        pair={pair('a', [text('짧은 답변 텍스트')])}
+        onExpand={() => {}}
+        onAddComment={() => {}}
+      />
     )
     fireEvent.mouseUp(container.querySelector('.qa-card__answer')!)
-    expect(screen.getByText('💬 코멘트')).toBeInTheDocument()
+    expect(screen.getByText('💬 코멘트로 추가')).toBeInTheDocument()
   })
 })

@@ -1,17 +1,22 @@
-import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { useEffect, useState } from 'react'
 import type { SelectionState } from '../../types'
 import './CommentFloat.css'
 
 interface Props {
   selection: SelectionState & { rect: DOMRect }
   onClose: () => void
+  /**
+   * Attach the selection to the composer as an inline-abbreviated
+   * `[코멘트 #N +M줄]` placeholder. The user follows up with a freeform
+   * question in the composer and submits the whole thing at once. This
+   * replaces the previous immediate-submit `[선택: "..."]` flow so multiple
+   * selections can be queued before sending.
+   */
+  onAddComment?: (text: string) => void
   onPin?: (text: string) => Promise<void> | void
 }
 
-export function CommentFloat({ selection, onClose, onPin }: Props) {
-  const [showInput, setShowInput] = useState(false)
-  const [input, setInput] = useState('')
+export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props) {
   const [pinned, setPinned] = useState(false)
 
   useEffect(() => {
@@ -22,11 +27,12 @@ export function CommentFloat({ selection, onClose, onPin }: Props) {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const handleSubmit = async () => {
-    if (!input.trim()) return
-    const message = `[선택: "${selection.text}"] ${input.trim()}`
-    await invoke('send_user_message', { text: message })
-    setInput('')
+  const handleAddComment = () => {
+    if (!onAddComment) return
+    onAddComment(selection.text)
+    // Drop the native browser selection so a fresh click doesn't re-trigger
+    // the float on the same range.
+    window.getSelection()?.removeAllRanges()
     onClose()
   }
 
@@ -48,40 +54,27 @@ export function CommentFloat({ selection, onClose, onPin }: Props) {
 
   return (
     <div style={style} className="comment-float">
-      {!showInput ? (
-        <div className="comment-float__actions">
-          {onPin && (
-            <button
-              className="comment-float__button comment-float__button--pin"
-              onClick={handlePin}
-              disabled={pinned}
-              title="이 선택을 프로젝트 핀으로 저장"
-            >
-              {pinned ? '📌 저장됨' : '📌 핀'}
-            </button>
-          )}
+      <div className="comment-float__actions">
+        {onPin && (
+          <button
+            className="comment-float__button comment-float__button--pin"
+            onClick={handlePin}
+            disabled={pinned}
+            title="이 선택을 프로젝트 핀으로 저장"
+          >
+            {pinned ? '📌 저장됨' : '📌 핀'}
+          </button>
+        )}
+        {onAddComment && (
           <button
             className="comment-float__button"
-            onClick={() => setShowInput(true)}
+            onClick={handleAddComment}
+            title="선택 영역을 입력창에 코멘트로 추가"
           >
-            💬 코멘트
+            💬 코멘트로 추가
           </button>
-        </div>
-      ) : (
-        <div className="comment-float__input-row">
-          <input
-            autoFocus
-            className="comment-float__input"
-            placeholder="질문을 입력하세요..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          />
-          <button className="comment-float__send" onClick={handleSubmit}>
-            전송
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
