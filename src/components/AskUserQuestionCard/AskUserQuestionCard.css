@@ -1,13 +1,20 @@
 .ask-question-card {
-  border: 1px solid #1f6feb;
-  border-left: 4px solid #1f6feb;
-  border-radius: 10px;
-  background: #0d1a2e;
-  padding: 14px;
+  /* Plugin-style: clean dark card with subtle accent, list-shaped options,
+     numeric keyboard hints. The heavy blue left rail is gone — the accent is
+     conveyed via the active option highlight instead. */
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  padding: 14px 16px;
   margin: 12px 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  outline: none;
+}
+
+.ask-question-card:focus-visible {
+  border-color: #1f6feb;
 }
 
 .ask-question-card__nav {
@@ -20,7 +27,7 @@
   background: transparent;
   border: 1px solid #30363d;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   font-size: 12px;
   color: #8b949e;
   cursor: pointer;
@@ -48,46 +55,75 @@
   font-size: 14px;
   color: #e6edf3;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.45;
+  padding: 2px 0 4px;
 }
 
 .ask-question-card__options {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .ask-question-card__option {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  background: #0d1117;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background 0.12s, border-color 0.12s;
+  position: relative;
 }
 
 .ask-question-card__option:hover {
-  border-color: #1f6feb;
+  background: #161b22;
 }
 
 .ask-question-card__option.is-selected {
-  border-color: #1f6feb;
   background: #11233f;
+  border-color: #1f6feb;
 }
 
-.ask-question-card__option input[type='radio'],
-.ask-question-card__option input[type='checkbox'] {
-  margin-top: 3px;
-  accent-color: #1f6feb;
+.ask-question-card__option-marker {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #21262d;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  margin-top: 1px;
+  user-select: none;
+}
+
+.ask-question-card__option.is-selected .ask-question-card__option-marker {
+  background: #1f6feb;
+  color: #fff;
+}
+
+.ask-question-card__option-input {
+  /* Visually hide the native control — the marker chip on the left provides
+     the affordance. The control still lives in the DOM for a11y / form
+     semantics. */
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ask-question-card__option-body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -121,12 +157,17 @@
   border-color: #1f6feb;
 }
 
+.ask-question-card__hint {
+  font-size: 11px;
+  color: #6e7681;
+  padding: 2px 2px 0;
+}
+
 .ask-question-card__footer {
   display: flex;
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 4px;
 }
 
 .ask-question-card__counter {
@@ -139,7 +180,7 @@
 .ask-question-card__submit {
   border: 1px solid #30363d;
   border-radius: 6px;
-  padding: 6px 14px;
+  padding: 5px 14px;
   font-size: 13px;
   cursor: pointer;
 }

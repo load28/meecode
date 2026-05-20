@@ -44,6 +44,7 @@ export interface UseClaudeSessionResult {
     allow: boolean,
     toolUseId: string | null,
     updatedInput?: unknown,
+    denialMessage?: string | null,
   ) => Promise<void>
   cycleMode: () => void
   dismissRateLimit: () => void
@@ -139,6 +140,7 @@ export function useClaudeSession(
       allow: boolean,
       toolUseId: string | null,
       updatedInput?: unknown,
+      denialMessage?: string | null,
     ) => {
       // The `args` wrapper is a single struct argument: Tauri passes the
       // struct to serde, whose default is snake_case field matching, so
@@ -150,6 +152,7 @@ export function useClaudeSession(
           allow,
           tool_use_id: toolUseId,
           updated_input: updatedInput ?? null,
+          denial_message: denialMessage ?? null,
           tab_id: tabId,
         },
       })

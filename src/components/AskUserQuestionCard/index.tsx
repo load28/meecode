@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import './AskUserQuestionCard.css'
 
-// Single-select + non-"Other" picks auto-advance. The brief delay lets the
-// user see the option highlight before the card swaps to the next question,
-// so it doesn't feel like a click landed nowhere.
+// Auto-advance to the *next* question on a single-select pick. We never
+// auto-submit the final question — the user must press 답변 전송 explicitly
+// so they have a chance to review the whole set before sending.
 const AUTO_ADVANCE_MS = 220
 
 export interface AskOption {
@@ -51,6 +51,7 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
   const questions = input.questions ?? []
   const [active, setActive] = useState(0)
   const [answers, setAnswers] = useState<AnswersState>(() => blankAnswers(questions))
+  const containerRef = useRef<HTMLElement | null>(null)
 
   // Hold the auto-advance timer so a fast second click cancels the pending
   // navigation instead of jumping past the user's correction.
@@ -88,12 +89,8 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
 
   const submit = () => submitWith(answers)
 
-  const advance = (snapshot: AnswersState) => {
-    if (isLast) {
-      submitWith(snapshot)
-    } else {
-      setActive(active + 1)
-    }
+  const goNext = () => {
+    if (!isLast) setActive(active + 1)
   }
 
   const toggle = (label: string) => {
@@ -113,14 +110,15 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
       return next
     })
 
-    // Auto-advance for single-select picks of concrete options. "Other"
-    // expands an inline text field — auto-advancing would steal focus before
-    // the user types, so it stays manual. Multi-select also stays manual
-    // because there's no signal that the user is done picking.
-    if (!q.multiSelect && label !== 'Other') {
+    // Auto-advance to the next question only — never the final submit.
+    // "Other" expands an inline text field, so leave focus alone. Multi-select
+    // stays manual because there's no signal that the user is done picking.
+    if (!isLast && !q.multiSelect && label !== 'Other') {
       advanceTimer.current = window.setTimeout(() => {
         advanceTimer.current = null
-        advance(nextAnswers)
+        // Use snapshot so navigation reflects the just-applied pick.
+        void nextAnswers
+        goNext()
       }, AUTO_ADVANCE_MS)
     }
   }
@@ -135,7 +133,8 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
   const handleOtherKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && state.otherText.trim()) {
       e.preventDefault()
-      advance(answers)
+      if (isLast) submit()
+      else goNext()
     }
   }
 
@@ -149,72 +148,127 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
   )
   const currentAnswered = (state.picks.size ?? 0) > 0
 
+  // Plugin-style keyboard nav: digits 1-9 pick the corresponding option,
+  // Enter advances (or submits on the final question). Listening on the card
+  // root rather than window so we don't fight other inputs.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return
+    }
+    if (e.key >= '1' && e.key <= '9') {
+      const idx = Number(e.key) - 1
+      const total = q.options.length + 1 // +1 for the trailing "Other" row
+      if (idx >= 0 && idx < total) {
+        e.preventDefault()
+        const label = idx < q.options.length ? q.options[idx].label : 'Other'
+        toggle(label)
+      }
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (isLast && everyAnswered) submit()
+      else if (!isLast && currentAnswered) goNext()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      skip()
+    }
+  }
+
   return (
-    <section className="ask-question-card" role="region" aria-label="질문 응답">
-      <header className="ask-question-card__nav">
-        {questions.map((qq, i) => {
-          const answered = (answers[qq.question]?.picks.size ?? 0) > 0
-          return (
-            <button
-              key={i}
-              type="button"
-              className={
-                'ask-question-card__tab' +
-                (i === active ? ' is-active' : '') +
-                (answered ? ' is-answered' : '')
-              }
-              onClick={() => {
-                clearAdvance()
-                setActive(i)
-              }}
-            >
-              {qq.header || `Q${i + 1}`}
-              {answered && <span className="ask-question-card__check">✓</span>}
-            </button>
-          )
-        })}
-      </header>
+    <section
+      ref={containerRef}
+      className="ask-question-card"
+      role="region"
+      aria-label="질문 응답"
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+    >
+      {questions.length > 1 && (
+        <header className="ask-question-card__nav">
+          {questions.map((qq, i) => {
+            const answered = (answers[qq.question]?.picks.size ?? 0) > 0
+            return (
+              <button
+                key={i}
+                type="button"
+                className={
+                  'ask-question-card__tab' +
+                  (i === active ? ' is-active' : '') +
+                  (answered ? ' is-answered' : '')
+                }
+                onClick={() => {
+                  clearAdvance()
+                  setActive(i)
+                }}
+              >
+                {qq.header || `Q${i + 1}`}
+                {answered && <span className="ask-question-card__check">✓</span>}
+              </button>
+            )
+          })}
+        </header>
+      )}
 
       <div className="ask-question-card__question">{q.question}</div>
 
-      <div className="ask-question-card__options">
+      <ul className="ask-question-card__options" role="listbox">
         {q.options.map((opt, i) => {
           const checked = state.picks.has(opt.label)
+          const shortcut = i + 1
           return (
-            <label
+            <li
               key={i}
+              role="option"
+              aria-selected={checked}
               className={
                 'ask-question-card__option' + (checked ? ' is-selected' : '')
               }
+              onClick={() => toggle(opt.label)}
             >
-              <input
-                type={q.multiSelect ? 'checkbox' : 'radio'}
-                name={`q-${active}`}
-                checked={checked}
-                onChange={() => toggle(opt.label)}
-              />
+              <span className="ask-question-card__option-marker" aria-hidden="true">
+                {checked ? (q.multiSelect ? '☑' : '●') : shortcut <= 9 ? shortcut : '○'}
+              </span>
               <div className="ask-question-card__option-body">
                 <div className="ask-question-card__option-label">{opt.label}</div>
                 {opt.description && (
                   <div className="ask-question-card__option-desc">{opt.description}</div>
                 )}
               </div>
-            </label>
+              <input
+                type={q.multiSelect ? 'checkbox' : 'radio'}
+                name={`q-${active}`}
+                checked={checked}
+                onChange={() => toggle(opt.label)}
+                className="ask-question-card__option-input"
+                tabIndex={-1}
+              />
+            </li>
           )
         })}
 
-        <label
+        <li
+          role="option"
+          aria-selected={state.picks.has('Other')}
           className={
             'ask-question-card__option' +
             (state.picks.has('Other') ? ' is-selected' : '')
           }
+          onClick={(e) => {
+            // Don't re-toggle when clicking inside the input itself.
+            if ((e.target as HTMLElement).tagName === 'INPUT') return
+            toggle('Other')
+          }}
         >
-          <input
-            type={q.multiSelect ? 'checkbox' : 'radio'}
-            name={`q-${active}`}
-            checked={state.picks.has('Other')}
-            onChange={() => toggle('Other')}
-          />
+          <span className="ask-question-card__option-marker" aria-hidden="true">
+            {state.picks.has('Other')
+              ? q.multiSelect
+                ? '☑'
+                : '●'
+              : q.options.length + 1 <= 9
+              ? q.options.length + 1
+              : '○'}
+          </span>
           <div className="ask-question-card__option-body">
             <div className="ask-question-card__option-label">Other</div>
             {state.picks.has('Other') && (
@@ -225,11 +279,24 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
                 value={state.otherText}
                 onChange={(e) => setOther(e.target.value)}
                 onKeyDown={handleOtherKey}
+                onClick={(e) => e.stopPropagation()}
                 autoFocus
               />
             )}
           </div>
-        </label>
+          <input
+            type={q.multiSelect ? 'checkbox' : 'radio'}
+            name={`q-${active}`}
+            checked={state.picks.has('Other')}
+            onChange={() => toggle('Other')}
+            className="ask-question-card__option-input"
+            tabIndex={-1}
+          />
+        </li>
+      </ul>
+
+      <div className="ask-question-card__hint" aria-hidden="true">
+        숫자 키로 선택 · Enter로 {isLast ? '전송' : '다음'} · Esc로 건너뛰기
       </div>
 
       <div className="ask-question-card__footer">
@@ -260,7 +327,7 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
             className="ask-question-card__submit"
             onClick={() => {
               clearAdvance()
-              advance(answers)
+              goNext()
             }}
             disabled={!currentAnswered}
           >

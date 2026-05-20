@@ -245,8 +245,11 @@ function MainLayout({
     })
   }
 
-  const handleOpenFile = (path: string) => {
-    openFile(path)
+  const handleOpenFile = (
+    path: string,
+    opts?: { pending?: import('./hooks/useFileTabs').PendingEdit | null },
+  ) => {
+    openFile(path, opts)
   }
   const handleAddSnippet = (snippet: {
     text: string
@@ -437,12 +440,12 @@ function MainLayout({
                 turnInProgress={turnInProgress}
                 onPin={handlePin}
                 onAddComment={handleAddComment}
-                onRespondTool={(reqId, allow, tuId, updatedInput) => {
+                onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)
                       ? pendingTool?.input ?? {}
                       : updatedInput
-                  respondTool(reqId, allow, tuId, effective)
+                  respondTool(reqId, allow, tuId, effective, denialMessage)
                 }}
               />
               {queue.length > 0 && (
@@ -519,6 +522,7 @@ function MainLayout({
                   onSelect={fileTabs.setActive}
                   onClose={fileTabs.close}
                   onCloseAll={fileTabs.closeAll}
+                  onSetViewMode={fileTabs.setViewMode}
                   onAddSelectionToComposer={handleAddSnippet}
                   onDetach={() => {
                     void detach()

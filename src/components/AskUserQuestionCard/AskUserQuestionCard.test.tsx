@@ -17,7 +17,7 @@ const singleSelect: AskInput = {
 }
 
 describe('AskUserQuestionCard', () => {
-  it('질문과 옵션을 라디오로 표시', () => {
+  it('질문과 옵션을 표시', () => {
     render(<AskUserQuestionCard input={singleSelect} onRespond={() => {}} />)
     expect(screen.getByText('어떤 프레임워크 학습?')).toBeInTheDocument()
     expect(screen.getByText('Next.js')).toBeInTheDocument()
@@ -29,14 +29,19 @@ describe('AskUserQuestionCard', () => {
     expect(screen.getByRole('button', { name: '답변 전송' })).toBeDisabled()
   })
 
-  it('단일선택 + 마지막 질문은 옵션 클릭 시 자동 전송', () => {
+  it('마지막 질문은 옵션 클릭 시 자동 전송되지 않고 명시적 전송 필요', () => {
     vi.useFakeTimers()
     const onRespond = vi.fn()
     render(<AskUserQuestionCard input={singleSelect} onRespond={onRespond} />)
     fireEvent.click(screen.getByText('Next.js'))
     act(() => {
-      vi.advanceTimersByTime(300)
+      vi.advanceTimersByTime(500)
     })
+    expect(onRespond).not.toHaveBeenCalled()
+    // Submit button is now active and the user must click it themselves.
+    const submitBtn = screen.getByRole('button', { name: '답변 전송' })
+    expect(submitBtn).not.toBeDisabled()
+    fireEvent.click(submitBtn)
     expect(onRespond).toHaveBeenCalledTimes(1)
     const [allow, updated] = onRespond.mock.calls[0]
     expect(allow).toBe(true)
@@ -46,7 +51,7 @@ describe('AskUserQuestionCard', () => {
     vi.useRealTimers()
   })
 
-  it('여러 단일선택 질문은 자동으로 다음 질문으로 이동', () => {
+  it('중간 단일선택 질문은 자동으로 다음 질문으로 이동하되 마지막은 전송 안 함', () => {
     vi.useFakeTimers()
     const onRespond = vi.fn()
     const input: AskInput = {
@@ -71,12 +76,16 @@ describe('AskUserQuestionCard', () => {
     act(() => {
       vi.advanceTimersByTime(300)
     })
+    // Moved to Q2 automatically.
     expect(screen.getByText('Q2?')).toBeInTheDocument()
     expect(onRespond).not.toHaveBeenCalled()
+    // Clicking the final answer should NOT submit on its own.
     fireEvent.click(screen.getByText('X'))
     act(() => {
-      vi.advanceTimersByTime(300)
+      vi.advanceTimersByTime(500)
     })
+    expect(onRespond).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '답변 전송' }))
     expect(onRespond).toHaveBeenCalledTimes(1)
     const [, updated] = onRespond.mock.calls[0]
     expect((updated as { answers: Record<string, string> }).answers).toEqual({
@@ -119,6 +128,30 @@ describe('AskUserQuestionCard', () => {
     expect((updated as { answers: Record<string, string> }).answers).toEqual({
       '어떤 프레임워크 학습?': 'SvelteKit',
     })
+  })
+
+  it('숫자 키로 옵션 선택 + Enter로 전송', () => {
+    const onRespond = vi.fn()
+    render(<AskUserQuestionCard input={singleSelect} onRespond={onRespond} />)
+    const card = screen.getByRole('region', { name: '질문 응답' })
+    fireEvent.keyDown(card, { key: '2' })
+    expect(screen.getByText('Remix').closest('.ask-question-card__option')).toHaveClass(
+      'is-selected',
+    )
+    fireEvent.keyDown(card, { key: 'Enter' })
+    expect(onRespond).toHaveBeenCalledTimes(1)
+    const [, updated] = onRespond.mock.calls[0]
+    expect((updated as { answers: Record<string, string> }).answers).toEqual({
+      '어떤 프레임워크 학습?': 'Remix',
+    })
+  })
+
+  it('Esc 키는 건너뛰기와 동일하게 처리', () => {
+    const onRespond = vi.fn()
+    render(<AskUserQuestionCard input={singleSelect} onRespond={onRespond} />)
+    const card = screen.getByRole('region', { name: '질문 응답' })
+    fireEvent.keyDown(card, { key: 'Escape' })
+    expect(onRespond).toHaveBeenCalledWith(false, null)
   })
 
   it('건너뛰기 클릭 시 onRespond(false, null)', () => {

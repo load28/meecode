@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { useFileTabs } from '../../hooks/useFileTabs'
+import { useFileTabs, type OpenOptions } from '../../hooks/useFileTabs'
 import { FilePanel } from '../FilePanel'
 import './DetachedFileWindow.css'
 
@@ -12,6 +12,7 @@ interface InitPayload {
 
 interface OpenPayload {
   path: string
+  opts?: OpenOptions
 }
 
 interface SnippetPayload {
@@ -49,7 +50,7 @@ export function DetachedFileWindow() {
 
       const openUnlisten = await listen<OpenPayload>('file:open', (e) => {
         if (!mounted) return
-        void fileTabsRef.current.open(e.payload.path)
+        void fileTabsRef.current.open(e.payload.path, e.payload.opts)
       })
       cleanups.push(openUnlisten)
 
@@ -99,6 +100,7 @@ export function DetachedFileWindow() {
         onSelect={fileTabs.setActive}
         onClose={fileTabs.close}
         onCloseAll={fileTabs.closeAll}
+        onSetViewMode={fileTabs.setViewMode}
         onAddSelectionToComposer={handleAddSnippet}
         onDock={handleDock}
       />

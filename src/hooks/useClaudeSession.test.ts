@@ -91,6 +91,7 @@ describe('useClaudeSession', () => {
         allow: true,
         tool_use_id: 'tu-9',
         updated_input: null,
+        denial_message: null,
         tab_id: 'main',
       },
     })

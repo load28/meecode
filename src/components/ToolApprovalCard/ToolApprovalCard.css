@@ -1,13 +1,26 @@
 .tool-approval-card {
-  border: 1px solid #d29922;
-  border-left: 4px solid #d29922;
-  border-radius: 10px;
-  background: #1f1a0a;
+  /* Plugin-style: subtle warning border, dark surface, no heavy bg tint —
+     the diff or summary inside provides the visual weight. */
+  border: 1px solid #30363d;
+  border-left: 3px solid #d29922;
+  border-radius: 8px;
+  background: #0d1117;
   padding: 12px 14px;
   margin: 12px 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  outline: none;
+}
+
+.tool-approval-card:focus-visible {
+  border-color: #1f6feb;
+}
+
+.tool-approval-card--with-diff {
+  /* When showing a diff, lean into a Cursor-IDE-style layout: bold file
+     path header + side-by-side diff fills the card body. */
+  border-left-color: #1f6feb;
 }
 
 .tool-approval-card__header {
@@ -17,17 +30,54 @@
   font-size: 13px;
   color: #d29922;
   font-weight: 700;
+  min-width: 0;
+}
+
+.tool-approval-card--with-diff .tool-approval-card__header {
+  color: #58a6ff;
+}
+
+.tool-approval-card__icon {
+  flex-shrink: 0;
 }
 
 .tool-approval-card__name {
   font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.tool-approval-card__path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #c9d1d9;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tool-approval-card__hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: #8b949e;
+  font-weight: 400;
+}
+
+.tool-approval-card__diff-wrap {
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #010409;
 }
 
 .tool-approval-card__summary {
   margin: 0;
   padding: 8px 10px;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: #010409;
+  border: 1px solid #21262d;
   border-radius: 6px;
   color: #c9d1d9;
   font-family: var(--font-mono);
@@ -56,34 +106,157 @@
   font-family: var(--font-mono);
 }
 
-.tool-approval-card__buttons {
+.tool-approval-card__options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tool-approval-card__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.tool-approval-card__option:hover {
+  background: #161b22;
+}
+
+.tool-approval-card__option--allow:hover,
+.tool-approval-card__option--allow-always:hover {
+  border-color: #1f6feb;
+}
+
+.tool-approval-card__option--deny:hover {
+  border-color: #f85149;
+}
+
+.tool-approval-card__option-marker {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: #21262d;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  margin-top: 1px;
+  user-select: none;
+}
+
+.tool-approval-card__option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-approval-card__option-label {
+  font-size: 13px;
+  color: #e6edf3;
+  font-weight: 500;
+}
+
+.tool-approval-card__option--deny .tool-approval-card__option-label {
+  color: #ffa49b;
+}
+
+.tool-approval-card__option-desc {
+  font-size: 12px;
+  color: #8b949e;
+  line-height: 1.45;
+}
+
+.tool-approval-card__hint-row {
+  font-size: 11px;
+  color: #6e7681;
+  padding: 0 2px;
+}
+
+.tool-approval-card__deny-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #f85149;
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(248, 81, 73, 0.04);
+}
+
+.tool-approval-card__deny-label {
+  font-size: 12px;
+  color: #ffa49b;
+  font-weight: 600;
+}
+
+.tool-approval-card__deny-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e6edf3;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.tool-approval-card__deny-input:focus {
+  outline: none;
+  border-color: #f85149;
+}
+
+.tool-approval-card__deny-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
 }
 
-.tool-approval-card__deny,
-.tool-approval-card__allow {
+.tool-approval-card__deny-cancel,
+.tool-approval-card__deny-submit {
   border: 1px solid #30363d;
   border-radius: 6px;
-  padding: 6px 14px;
+  padding: 5px 14px;
   font-size: 13px;
   cursor: pointer;
+  font-family: var(--font-ui);
 }
 
-.tool-approval-card__deny {
+.tool-approval-card__deny-cancel {
   background: transparent;
   color: #c9d1d9;
 }
-.tool-approval-card__deny:hover {
+
+.tool-approval-card__deny-cancel:hover {
   background: #30363d;
 }
 
-.tool-approval-card__allow {
-  background: #1f6feb;
+.tool-approval-card__deny-submit {
+  background: #da3633;
   color: #fff;
-  border-color: #1f6feb;
+  border-color: #da3633;
 }
-.tool-approval-card__allow:hover {
-  background: #388bfd;
+
+.tool-approval-card__deny-submit:hover:not(:disabled) {
+  background: #f85149;
+}
+
+.tool-approval-card__deny-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -246,6 +246,7 @@ pub fn control_response(
     behavior: PermissionBehavior,
     tool_use_id: Option<String>,
     updated_input: Option<Value>,
+    denial_message: Option<String>,
 ) -> StdinMessage {
     let response = match behavior {
         PermissionBehavior::Allow => ToolPermissionResult::Allow {
@@ -255,7 +256,14 @@ pub fn control_response(
         },
         PermissionBehavior::Deny => ToolPermissionResult::Deny {
             behavior: "deny",
-            message: "User denied".to_string(),
+            // Default falls back to the historical "User denied" string so
+            // callers that don't pass a custom message keep their prior
+            // behaviour. The CLI plugin lets the user explain *why* they
+            // declined; if they did, that text replaces the default and is
+            // what Claude sees as the rejection reason.
+            message: denial_message
+                .filter(|m| !m.trim().is_empty())
+                .unwrap_or_else(|| "User denied".to_string()),
             tool_use_id,
         },
     };

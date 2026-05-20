@@ -109,7 +109,13 @@ fn user_text_message_serialization() {
 
 #[test]
 fn control_response_serialization_allow() {
-    let msg = control_response("req-1".into(), PermissionBehavior::Allow, Some("tu-1".into()), None);
+    let msg = control_response(
+        "req-1".into(),
+        PermissionBehavior::Allow,
+        Some("tu-1".into()),
+        None,
+        None,
+    );
     let json = serde_json::to_string(&msg).unwrap();
     assert!(json.contains("\"type\":\"control_response\""));
     assert!(json.contains("\"subtype\":\"success\""));
@@ -120,9 +126,16 @@ fn control_response_serialization_allow() {
 
 #[test]
 fn control_response_serialization_deny_without_tool_use_id() {
-    let msg = control_response("req-2".into(), PermissionBehavior::Deny, None, None);
+    let msg = control_response(
+        "req-2".into(),
+        PermissionBehavior::Deny,
+        None,
+        None,
+        None,
+    );
     let json = serde_json::to_string(&msg).unwrap();
     assert!(json.contains("\"behavior\":\"deny\""));
+    assert!(json.contains("\"message\":\"User denied\""));
     assert!(!json.contains("toolUseID"), "toolUseID should be omitted when None: {json}");
     // Sanity check the message still has the expected wrapper.
     let _: StdinMessage = msg;
@@ -136,8 +149,36 @@ fn control_response_serialization_with_updated_input() {
         PermissionBehavior::Allow,
         Some("tu-3".into()),
         Some(updated),
+        None,
     );
     let json = serde_json::to_string(&msg).unwrap();
     assert!(json.contains("\"updatedInput\""));
     assert!(json.contains("\"answers\":{\"Q1\":\"Yes\"}"));
+}
+
+#[test]
+fn control_response_serialization_deny_with_custom_message() {
+    let msg = control_response(
+        "req-4".into(),
+        PermissionBehavior::Deny,
+        Some("tu-4".into()),
+        None,
+        Some("쓰기 전에 백업부터 만들어줘".into()),
+    );
+    let json = serde_json::to_string(&msg).unwrap();
+    assert!(json.contains("\"behavior\":\"deny\""));
+    assert!(json.contains("쓰기 전에 백업부터 만들어줘"));
+}
+
+#[test]
+fn control_response_blank_denial_message_falls_back_to_default() {
+    let msg = control_response(
+        "req-5".into(),
+        PermissionBehavior::Deny,
+        None,
+        None,
+        Some("   ".into()),
+    );
+    let json = serde_json::to_string(&msg).unwrap();
+    assert!(json.contains("\"message\":\"User denied\""));
 }

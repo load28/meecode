@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AssistantSegment, QaPair } from '../../types'
+import type { PendingEdit } from '../../hooks/useFileTabs'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
-import { FilePath } from '../ToolViews'
+import { FilePath, type OpenFileFn } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
@@ -10,10 +11,67 @@ import './QaCard.css'
 interface Props {
   pair: QaPair
   onExpand: () => void
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   onPin?: (input: { segmentKind: string; text: string; qaId: string }) => Promise<unknown>
   /** Attach the active selection to the composer as a `[코멘트 #N]` token. */
   onAddComment?: (text: string) => void
+}
+
+function pickString(input: unknown, key: string): string {
+  if (!input || typeof input !== 'object') return ''
+  const v = (input as Record<string, unknown>)[key]
+  return typeof v === 'string' ? v : ''
+}
+
+function pickArray(input: unknown, key: string): unknown[] {
+  if (!input || typeof input !== 'object') return []
+  const v = (input as Record<string, unknown>)[key]
+  return Array.isArray(v) ? v : []
+}
+
+/** Reconstruct a PendingEdit payload from an Edit/Write/MultiEdit tool_use
+ *  segment so file-path clicks can open the file with a diff view attached. */
+function pendingFromSegment(
+  seg: Extract<AssistantSegment, { kind: 'tool_use' }>,
+): PendingEdit | null {
+  switch (seg.name) {
+    case 'Edit':
+      return {
+        kind: 'edit',
+        oldText: pickString(seg.input, 'old_string'),
+        newText: pickString(seg.input, 'new_string'),
+      }
+    case 'Write':
+      return {
+        kind: 'write',
+        oldText: '',
+        newText: pickString(seg.input, 'content'),
+      }
+    case 'MultiEdit': {
+      const edits = pickArray(seg.input, 'edits') as Array<{
+        old_string?: string
+        new_string?: string
+      }>
+      return {
+        kind: 'multiedit',
+        oldText: edits
+          .map((e) => (typeof e.old_string === 'string' ? e.old_string : ''))
+          .join('\n'),
+        newText: edits
+          .map((e) => (typeof e.new_string === 'string' ? e.new_string : ''))
+          .join('\n'),
+        label: `${edits.length}개 변경`,
+      }
+    }
+    case 'NotebookEdit':
+      return {
+        kind: 'notebookedit',
+        oldText: '',
+        newText: pickString(seg.input, 'new_source'),
+      }
+    default:
+      return null
+  }
 }
 
 /** Tools whose `summary` (computed in `summarizeToolInput`) is a file path —
@@ -189,6 +247,14 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
               }
               if (seg.kind === 'tool_use') {
                 const isFilePath = FILE_PATH_TOOLS.has(seg.name) && seg.summary
+                // For Edit/Write/MultiEdit, ferry the proposed change along
+                // with the open call so the FilePanel can default to a diff
+                // view (Cursor-IDE style) instead of just showing the
+                // current on-disk contents.
+                const pending = isFilePath ? pendingFromSegment(seg) : null
+                const handleOpen = (p: string) => {
+                  onOpenFile?.(p, pending ? { pending } : undefined)
+                }
                 return (
                   <div key={i} className="qa-card__step">
                     <span className="qa-card__step-dot" aria-hidden="true" />
@@ -196,7 +262,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
                     {isFilePath ? (
                       <FilePath
                         path={seg.summary}
-                        onOpen={onOpenFile}
+                        onOpen={onOpenFile ? handleOpen : undefined}
                         className="qa-card__step-arg qa-card__step-arg--link"
                       />
                     ) : (

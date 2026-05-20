@@ -1,6 +1,6 @@
 import type { AssistantSegment } from '../../types'
 import { useSmoothedText } from '../../hooks/useSmoothedText'
-import { ToolUseView } from '../ToolViews'
+import { ToolUseView, type OpenFileFn } from '../ToolViews'
 import { MarkdownContent, renderMarkdown } from './MarkdownContent'
 import './MessageBubble.css'
 
@@ -8,7 +8,7 @@ export { renderMarkdown }
 
 interface SegmentViewProps {
   segment: AssistantSegment
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   defaultOpen?: boolean
 }
 

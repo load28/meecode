@@ -14,7 +14,13 @@ fn user_message_ends_with_newline_and_includes_text() {
 
 #[test]
 fn control_response_allow_serializes_with_tool_use_id() {
-    let msg = control_response("req-9".into(), PermissionBehavior::Allow, Some("tu-9".into()), None);
+    let msg = control_response(
+        "req-9".into(),
+        PermissionBehavior::Allow,
+        Some("tu-9".into()),
+        None,
+        None,
+    );
     let line = serialize_to_line(&msg);
     assert!(line.contains("\"type\":\"control_response\""));
     assert!(line.contains("\"subtype\":\"success\""));
@@ -26,7 +32,7 @@ fn control_response_allow_serializes_with_tool_use_id() {
 
 #[test]
 fn control_response_deny_omits_tool_use_id() {
-    let msg = control_response("req-7".into(), PermissionBehavior::Deny, None, None);
+    let msg = control_response("req-7".into(), PermissionBehavior::Deny, None, None, None);
     let line = serialize_to_line(&msg);
     assert!(line.contains("\"behavior\":\"deny\""));
     assert!(!line.contains("toolUseID"), "toolUseID should be omitted: {line}");

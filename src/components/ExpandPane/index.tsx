@@ -3,7 +3,7 @@ import { useStickyScroll } from '../../hooks/useStickyScroll'
 import { CommentFloat } from '../CommentFloat'
 import { SegmentView } from '../MessageBubble'
 import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
-import { FilePath } from '../ToolViews'
+import { FilePath, type OpenFileFn } from '../ToolViews'
 import type { AssistantSegment, QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
 import './ExpandPane.css'
@@ -12,7 +12,7 @@ interface Props {
   pair: QaPair | null
   isOpen: boolean
   onToggle: () => void
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   /**
    * Streaming status — when the agent loop is active, ExpandPane shows a
    * bottom progress strip (✴ + verb + dots) mirroring ChatStream's footer.

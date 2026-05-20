@@ -261,3 +261,49 @@
 .file-panel__comment button:hover {
   background: #388bfd;
 }
+
+.file-panel__tab-marker {
+  display: inline-block;
+  margin-left: 4px;
+  color: #58a6ff;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.file-panel__mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.file-panel__mode-btn {
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.file-panel__mode-btn:hover {
+  background: #161b22;
+  color: #c9d1d9;
+}
+
+.file-panel__mode-btn.is-active {
+  background: #1f6feb;
+  color: #fff;
+}
+
+.file-panel__diff {
+  flex: 1;
+  overflow: auto;
+  background: #0d1117;
+  min-height: 0;
+}
+

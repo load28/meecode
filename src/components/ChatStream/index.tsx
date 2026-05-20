@@ -4,6 +4,7 @@ import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
 import type { QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
+import type { OpenFileFn } from '../ToolViews'
 import './ChatStream.css'
 
 interface Props {
@@ -15,8 +16,9 @@ interface Props {
     allow: boolean,
     toolUseId: string | null,
     updatedInput?: unknown,
+    denialMessage?: string | null,
   ) => void
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   taskActivity?: TaskActivity | null
   /** Hook activity label from useClaudeSession. Surfaced as a badge below the stream. */
   hookActivity?: string | null
@@ -85,12 +87,13 @@ export function ChatStream({
       {pendingTool && (
         <ToolApprovalCard
           request={pendingTool}
-          onRespond={(allow, updatedInput) =>
+          onRespond={(allow, updatedInput, denialMessage) =>
             onRespondTool(
               pendingTool.request_id,
               allow,
               pendingTool.tool_use_id,
               updatedInput,
+              denialMessage,
             )
           }
         />

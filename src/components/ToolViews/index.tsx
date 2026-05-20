@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
+import type { PendingEdit } from '../../hooks/useFileTabs'
 import { DiffView } from '../DiffView'
 import './ToolViews.css'
 
@@ -9,13 +10,19 @@ function openExternal(path: string) {
   )
 }
 
+export interface OpenFileOptions {
+  pending?: PendingEdit | null
+}
+
+export type OpenFileFn = (path: string, opts?: OpenFileOptions) => void
+
 export function FilePath({
   path,
   onOpen,
   className = 'tool-view__path tool-view__path-link',
 }: {
   path: string
-  onOpen?: (path: string) => void
+  onOpen?: OpenFileFn
   className?: string
 }) {
   if (!path) return null
@@ -36,8 +43,19 @@ export function FilePath({
 
 interface ToolViewProps {
   segment: Extract<AssistantSegment, { kind: 'tool_use' }>
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   defaultOpen?: boolean
+}
+
+/** Bind a segment's diff payload to onOpenFile so a click on the file path
+ *  opens the file with a "Diff | Original" toggle already populated. */
+function withPending(
+  onOpen: OpenFileFn | undefined,
+  pending: PendingEdit | null,
+): OpenFileFn | undefined {
+  if (!onOpen) return undefined
+  if (!pending) return onOpen
+  return (path) => onOpen(path, { pending })
 }
 
 function ProgressBadge({
@@ -96,12 +114,17 @@ function EditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   const filePath = pickString(segment.input, 'file_path')
   const oldStr = pickString(segment.input, 'old_string')
   const newStr = pickString(segment.input, 'new_string')
+  const openWithDiff = withPending(onOpenFile, {
+    kind: 'edit',
+    oldText: oldStr,
+    newText: newStr,
+  })
   return (
     <div className="tool-view tool-view--edit">
       <header className="tool-view__header">
         <span className="tool-view__icon">✎</span>
         <span className="tool-view__name">Edit</span>
-        <FilePath path={filePath} onOpen={onOpenFile} />
+        <FilePath path={filePath} onOpen={openWithDiff} />
       </header>
       {(oldStr || newStr) && (
         <DiffView
@@ -121,12 +144,22 @@ function MultiEditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
     old_string?: string
     new_string?: string
   }>
+  const openWithDiff = withPending(onOpenFile, {
+    kind: 'multiedit',
+    oldText: edits
+      .map((e) => (typeof e.old_string === 'string' ? e.old_string : ''))
+      .join('\n'),
+    newText: edits
+      .map((e) => (typeof e.new_string === 'string' ? e.new_string : ''))
+      .join('\n'),
+    label: `${edits.length}개 변경`,
+  })
   return (
     <div className="tool-view tool-view--edit">
       <header className="tool-view__header">
         <span className="tool-view__icon">✎</span>
         <span className="tool-view__name">MultiEdit</span>
-        <FilePath path={filePath} onOpen={onOpenFile} />
+        <FilePath path={filePath} onOpen={openWithDiff} />
         {edits.length > 0 && (
           <span className="tool-view__hint">{edits.length}개 변경</span>
         )}
@@ -148,12 +181,17 @@ function WriteView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   const filePath = pickString(segment.input, 'file_path')
   const content = pickString(segment.input, 'content')
   const lineCount = content ? content.split('\n').length : 0
+  const openWithDiff = withPending(onOpenFile, {
+    kind: 'write',
+    oldText: '',
+    newText: content,
+  })
   return (
     <div className="tool-view tool-view--write">
       <header className="tool-view__header">
         <span className="tool-view__icon">＋</span>
         <span className="tool-view__name">Write</span>
-        <FilePath path={filePath} onOpen={onOpenFile} />
+        <FilePath path={filePath} onOpen={openWithDiff} />
         {lineCount > 0 && (
           <span className="tool-view__hint">{lineCount} lines</span>
         )}
