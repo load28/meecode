@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Prism from 'prismjs'
-import type { FileTab } from '../../hooks/useFileTabs'
+import type { FileTab, FileViewMode } from '../../hooks/useFileTabs'
+import { DiffView } from '../DiffView'
 import './FilePanel.css'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   onSelect: (path: string) => void
   onClose: (path: string) => void
   onCloseAll: () => void
+  onSetViewMode?: (path: string, mode: FileViewMode) => void
   onAddSelectionToComposer: (snippet: {
     text: string
     path: string
@@ -60,6 +62,7 @@ export function FilePanel({
   onSelect,
   onClose,
   onCloseAll,
+  onSetViewMode,
   onAddSelectionToComposer,
   onDetach,
   onDock,
@@ -169,6 +172,15 @@ export function FilePanel({
               title={t.path}
             >
               <span className="file-panel__tab-name">{basename(t.path)}</span>
+              {t.pending && (
+                <span
+                  className="file-panel__tab-marker"
+                  aria-label="변경 사항 있음"
+                  title="변경 사항 있음"
+                >
+                  ●
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -219,6 +231,38 @@ export function FilePanel({
               {active.language} · {formatBytes(active.size)}
               {active.truncated && ' · ⚠ 일부만 표시'}
             </span>
+            {active.pending && onSetViewMode && (
+              <div
+                className="file-panel__mode-toggle"
+                role="tablist"
+                aria-label="보기 모드"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active.viewMode === 'diff'}
+                  className={
+                    'file-panel__mode-btn' +
+                    (active.viewMode === 'diff' ? ' is-active' : '')
+                  }
+                  onClick={() => onSetViewMode(active.path, 'diff')}
+                >
+                  Diff
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active.viewMode === 'normal'}
+                  className={
+                    'file-panel__mode-btn' +
+                    (active.viewMode === 'normal' ? ' is-active' : '')
+                  }
+                  onClick={() => onSetViewMode(active.path, 'normal')}
+                >
+                  Original
+                </button>
+              </div>
+            )}
           </header>
           {active.loading && (
             <div className="file-panel__loading">불러오는 중…</div>
@@ -227,47 +271,60 @@ export function FilePanel({
             <div className="file-panel__error">⚠ {active.error}</div>
           )}
           {!active.loading && !active.error && (
-            <div
-              ref={codeRef}
-              className="file-panel__code"
-              onMouseUp={handleMouseUp}
-            >
-              <div className="file-panel__gutter" aria-hidden="true">
-                {Array.from({ length: lineCount }, (_, i) => (
-                  <span key={i}>{i + 1}</span>
-                ))}
-              </div>
-              <pre className={`language-${langForPrism(active.language)}`}>
-                <code
-                  className={`language-${langForPrism(active.language)}`}
-                  dangerouslySetInnerHTML={{ __html: highlighted }}
-                />
-              </pre>
-              {selection && (
+            <>
+              {active.viewMode === 'diff' && active.pending ? (
+                <div className="file-panel__diff">
+                  <DiffView
+                    oldText={active.pending.oldText}
+                    newText={active.pending.newText}
+                    sideBySide
+                    collapsibleLabel={null}
+                  />
+                </div>
+              ) : (
                 <div
-                  className="file-panel__comment"
-                  style={{ top: selection.rect.top, left: selection.rect.left }}
-                  // Don't bubble mouseup or it clears the selection itself.
-                  onMouseDown={(e) => e.preventDefault()}
+                  ref={codeRef}
+                  className="file-panel__code"
+                  onMouseUp={handleMouseUp}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAddSelectionToComposer({
-                        text: selection.text,
-                        path: active.path,
-                        startLine: selection.startLine,
-                        endLine: selection.endLine,
-                      })
-                      window.getSelection()?.removeAllRanges()
-                      setSelection(null)
-                    }}
-                  >
-                    💬 코멘트로 추가
-                  </button>
+                  <div className="file-panel__gutter" aria-hidden="true">
+                    {Array.from({ length: lineCount }, (_, i) => (
+                      <span key={i}>{i + 1}</span>
+                    ))}
+                  </div>
+                  <pre className={`language-${langForPrism(active.language)}`}>
+                    <code
+                      className={`language-${langForPrism(active.language)}`}
+                      dangerouslySetInnerHTML={{ __html: highlighted }}
+                    />
+                  </pre>
+                  {selection && (
+                    <div
+                      className="file-panel__comment"
+                      style={{ top: selection.rect.top, left: selection.rect.left }}
+                      // Don't bubble mouseup or it clears the selection itself.
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onAddSelectionToComposer({
+                            text: selection.text,
+                            path: active.path,
+                            startLine: selection.startLine,
+                            endLine: selection.endLine,
+                          })
+                          window.getSelection()?.removeAllRanges()
+                          setSelection(null)
+                        }}
+                      >
+                        💬 코멘트로 추가
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       )}

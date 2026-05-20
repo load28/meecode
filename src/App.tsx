@@ -245,8 +245,11 @@ function MainLayout({
     })
   }
 
-  const handleOpenFile = (path: string) => {
-    openFile(path)
+  const handleOpenFile = (
+    path: string,
+    opts?: { pending?: import('./hooks/useFileTabs').PendingEdit | null },
+  ) => {
+    openFile(path, opts)
   }
   const handleAddSnippet = (snippet: {
     text: string
@@ -519,6 +522,7 @@ function MainLayout({
                   onSelect={fileTabs.setActive}
                   onClose={fileTabs.close}
                   onCloseAll={fileTabs.closeAll}
+                  onSetViewMode={fileTabs.setViewMode}
                   onAddSelectionToComposer={handleAddSnippet}
                   onDetach={() => {
                     void detach()

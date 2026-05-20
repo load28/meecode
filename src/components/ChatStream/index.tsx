@@ -4,6 +4,7 @@ import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
 import type { QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
+import type { OpenFileFn } from '../ToolViews'
 import './ChatStream.css'
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
     toolUseId: string | null,
     updatedInput?: unknown,
   ) => void
-  onOpenFile?: (path: string) => void
+  onOpenFile?: OpenFileFn
   taskActivity?: TaskActivity | null
   /** Hook activity label from useClaudeSession. Surfaced as a badge below the stream. */
   hookActivity?: string | null

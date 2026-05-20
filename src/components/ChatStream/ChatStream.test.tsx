@@ -145,7 +145,7 @@ describe('ChatStream', () => {
         turnInProgress
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: '허용' }))
+    fireEvent.click(screen.getByText('예 (한 번 허용)'))
     expect(onRespondTool).toHaveBeenCalledWith('r1', true, 'tu-7', undefined)
   })
 

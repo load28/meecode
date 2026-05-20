@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
-import type { UseFileTabsResult } from './useFileTabs'
+import type { OpenOptions, UseFileTabsResult } from './useFileTabs'
 
 const DETACHED_LABEL = 'file-panel'
 
@@ -13,7 +13,7 @@ interface DockPayload {
 export interface UseDetachedFilePanelResult {
   isDetached: boolean
   detach: () => Promise<void>
-  openFile: (path: string) => void
+  openFile: (path: string, opts?: OpenOptions) => void
 }
 
 // Bridges main's local `useFileTabs` with an optional satellite window that
@@ -110,12 +110,12 @@ export function useDetachedFilePanel(
   }, [])
 
   const openFile = useCallback(
-    (path: string) => {
+    (path: string, opts?: OpenOptions) => {
       if (isDetachedRef.current) {
-        void emitTo(DETACHED_LABEL, 'file:open', { path })
+        void emitTo(DETACHED_LABEL, 'file:open', { path, opts })
         return
       }
-      void fileTabsRef.current.open(path)
+      void fileTabsRef.current.open(path, opts)
     },
     [],
   )

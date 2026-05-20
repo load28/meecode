@@ -100,7 +100,31 @@ describe('QaCard', () => {
     render(<QaCard pair={p} onExpand={() => {}} onOpenFile={onOpenFile} />)
     const link = screen.getByRole('button', { name: /\/abs\/path\/file\.tsx/ })
     fireEvent.click(link)
-    expect(onOpenFile).toHaveBeenCalledWith('/abs/path/file.tsx')
+    // Read is not a diff-bearing tool, so no `pending` option is attached.
+    expect(onOpenFile).toHaveBeenCalledWith('/abs/path/file.tsx', undefined)
+  })
+
+  it('Edit 도구는 클릭 시 onOpenFile에 pending diff 정보 전달', () => {
+    const onOpenFile = vi.fn()
+    const p = pair('a', [
+      {
+        kind: 'tool_use',
+        id: 'tu-e',
+        name: 'Edit',
+        summary: '/abs/path/file.tsx',
+        input: {
+          file_path: '/abs/path/file.tsx',
+          old_string: 'before',
+          new_string: 'after',
+        },
+      },
+    ])
+    render(<QaCard pair={p} onExpand={() => {}} onOpenFile={onOpenFile} />)
+    const link = screen.getByRole('button', { name: /\/abs\/path\/file\.tsx/ })
+    fireEvent.click(link)
+    expect(onOpenFile).toHaveBeenCalledWith('/abs/path/file.tsx', {
+      pending: { kind: 'edit', oldText: 'before', newText: 'after' },
+    })
   })
 
   it('답변에서 텍스트 선택 시 코멘트 플로팅 표시', () => {
