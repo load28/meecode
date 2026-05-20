@@ -282,22 +282,14 @@ describe('useClaudeSession', () => {
     expect(invokeMock).toHaveBeenCalledWith('interrupt_session', {
       tabId: 'main',
     })
-    expect(result.current.turnInProgress).toBe(false)
     expect(result.current.pendingTool).toBeNull()
     expect(result.current.hookActivity).toBeNull()
   })
 
-  it('interrupt: 대기 중인 큐만 있으면 interrupt_session은 호출하지 않고 큐 tail을 pop (CLI parity)', async () => {
+  it('interrupt: turn 없으면 no-op (CLI canCancelRunningTask=false)', async () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {
-      setTab('main', (s) => ({
-        ...s,
-        turnInProgress: false,
-        queue: [
-          { id: 'q1', text: 'first' },
-          { id: 'q2', text: 'second' },
-        ],
-      }))
+      setTab('main', (s) => ({ ...s, turnInProgress: false }))
     })
     await act(async () => {
       await result.current.interrupt()
@@ -306,25 +298,68 @@ describe('useClaudeSession', () => {
       'interrupt_session',
       expect.anything(),
     )
-    expect(result.current.queue.map((q) => q.id)).toEqual(['q1'])
   })
 
-  it('interrupt: turn 진행 중이면 큐는 그대로 두고 turn만 취소 (priority 1)', async () => {
+  it('작업 중 sendUserMessage는 큐잉 (queryGuard.tryStart()===null 패리티)', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    act(() => {
+      setTab('main', (s) => ({ ...s, turnInProgress: true }))
+    })
+    await act(async () => {
+      await result.current.sendUserMessage('hi while busy')
+    })
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'send_user_message',
+      expect.objectContaining({ text: 'hi while busy' }),
+    )
+    expect(result.current.queue.map((q) => q.text)).toEqual(['hi while busy'])
+  })
+
+  it('pendingTool 동안에도 sendUserMessage는 큐잉 (tool-approval 윈도우)', async () => {
     const { result } = renderHook(() => useClaudeSession())
     act(() => {
       setTab('main', (s) => ({
         ...s,
-        turnInProgress: true,
-        queue: [{ id: 'q1', text: 'still queued' }],
+        pendingTool: {
+          request_id: 'r1',
+          tool_use_id: 'tu1',
+          tool_name: 'Bash',
+          input: {},
+        } as ToolRequest,
       }))
     })
     await act(async () => {
-      await result.current.interrupt()
+      await result.current.sendUserMessage('hold this')
     })
-    expect(invokeMock).toHaveBeenCalledWith('interrupt_session', {
+    expect(result.current.queue.map((q) => q.text)).toEqual(['hold this'])
+  })
+
+  it('idle 전환 시 큐를 자동 드레인 (useQueueProcessor 동등)', async () => {
+    const { result } = renderHook(() => useClaudeSession())
+    // Seed turn-in-progress + queued item. The auto-drain effect should
+    // NOT fire while turnInProgress is true.
+    await act(async () => {
+      setTab('main', (s) => ({
+        ...s,
+        turnInProgress: true,
+        queue: [{ id: 'q1', text: 'queued-while-busy' }],
+      }))
+    })
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'send_user_message',
+      expect.objectContaining({ text: 'queued-while-busy' }),
+    )
+    // Simulate session:turn_end going through the store.
+    await act(async () => {
+      setTab('main', (s) => ({ ...s, turnInProgress: false }))
+    })
+    // Auto-drain effect picks the head and flushOne sends it through.
+    expect(invokeMock).toHaveBeenCalledWith('send_user_message', {
+      text: 'queued-while-busy',
+      images: undefined,
       tabId: 'main',
     })
-    expect(result.current.queue.map((q) => q.id)).toEqual(['q1'])
+    expect(result.current.queue).toEqual([])
   })
 
   it('reduceStreamMessage(user) → 새 페어 시작', () => {

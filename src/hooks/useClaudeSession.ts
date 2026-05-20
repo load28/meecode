@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
@@ -107,9 +107,14 @@ export function useClaudeSession(
       images?: Array<{ media_type: string; data: string }>,
     ) => {
       if (await dispatchClientSlash(text, images, { tabId })) return
-      // If a tool approval is pending, queue the message instead of flushing.
+      // CLI parity (REPL.onQueryImpl → queryGuard.tryStart() === null →
+      // enqueue): when any query is already active, queue the message
+      // instead of sending. The processor effect below drains it as soon
+      // as the agent goes idle. `turnInProgress` is the queryGuard
+      // analogue; `pendingTool` covers the tool-approval window where the
+      // turn is technically active but the CLI is parked on user input.
       const snapshot = getTabSnapshot(tabId)
-      if (snapshot.pendingTool) {
+      if (snapshot.turnInProgress || snapshot.pendingTool) {
         setTab(tabId, (s) => ({
           ...s,
           queue: [
@@ -148,18 +153,11 @@ export function useClaudeSession(
           tab_id: tabId,
         },
       })
-      // Flush next queued message (if any) once the tool resolves.
+      // Clear pendingTool — the queue-processor effect picks up the next
+      // queued message automatically once turnInProgress is also false.
       setTab(tabId, (s) => ({ ...s, pendingTool: null }))
-      const after = getTabSnapshot(tabId)
-      const next = after.queue[0]
-      if (next) {
-        setTab(tabId, (s) => ({ ...s, queue: s.queue.slice(1) }))
-        flushOne(next.text, next.images).catch((e) =>
-          console.error('[meecode] queued flush failed', e),
-        )
-      }
     },
-    [tabId, flushOne],
+    [tabId],
   )
 
   const cycleMode = useCallback(() => {
@@ -180,30 +178,23 @@ export function useClaudeSession(
     setTab(tabId, (s) => ({ ...s, rateLimit: null }))
   }, [tabId])
 
-  // Mirrors the CLI's CancelRequestHandler.handleCancel (Priority 1: cancel
-  // running task, Priority 2: pop the queued-command tail). The composer
-  // shows the stop button whenever either condition is true; clicking or
-  // hitting ESC routes here. We also clear `pendingTool` so the tool
-  // approval queue is wiped — same behavior as the CLI's
-  // `setToolUseConfirmQueue(() => [])` inside handleCancel.
+  // Mirrors the CLI's CancelRequestHandler.handleCancel — Priority 1:
+  // cancel the running task. The CLI's `setToolUseConfirmQueue(() => [])`
+  // inside handleCancel maps to clearing `pendingTool` here. After cancel,
+  // the queue-processor effect drains any pending queued messages — same
+  // shape as the CLI where useQueueProcessor watches queryGuard idle. The
+  // queue is intentionally left intact: user-removable via the queue UI.
   const interrupt = useCallback(async () => {
     const snap = getTabSnapshot(tabId)
-    if (snap.turnInProgress) {
-      await invoke('interrupt_session', { tabId })
-      setTab(tabId, (s) => ({
-        ...s,
-        turnInProgress: false,
-        pendingTool: null,
-        hookActivity: null,
-        taskActivity: null,
-      }))
-      return
-    }
-    if (snap.queue.length > 0) {
-      // Pop the tail — matches the CLI's popCommandFromQueue, which removes
-      // the most recently queued command so a stray Enter doesn't fire it.
-      setTab(tabId, (s) => ({ ...s, queue: s.queue.slice(0, -1) }))
-    }
+    if (!snap.turnInProgress) return
+    await invoke('interrupt_session', { tabId })
+    setTab(tabId, (s) => ({
+      ...s,
+      turnInProgress: false,
+      pendingTool: null,
+      hookActivity: null,
+      taskActivity: null,
+    }))
   }, [tabId])
 
   const setModel = useCallback(
@@ -234,6 +225,29 @@ export function useClaudeSession(
     },
     [tabId],
   )
+
+  // CLI parity (useQueueProcessor in src/hooks/useQueueProcessor.ts):
+  // when the agent transitions to idle AND no tool approval is pending,
+  // dequeue the head of the queue and flush it. The CLI's processor uses
+  // an external store + useSyncExternalStore; we already get a re-render
+  // whenever `state` changes, so a plain effect over the relevant fields
+  // is equivalent. `isFlushingRef` debounces against a render storm
+  // where flushOne triggers a setTab(turnInProgress=true) on the same
+  // tick before the queue removal commits.
+  const isFlushingRef = useRef(false)
+  useEffect(() => {
+    if (isFlushingRef.current) return
+    if (state.turnInProgress || state.pendingTool) return
+    if (state.queue.length === 0) return
+    const next = state.queue[0]
+    isFlushingRef.current = true
+    setTab(tabId, (s) => ({ ...s, queue: s.queue.slice(1) }))
+    flushOne(next.text, next.images)
+      .catch((e) => console.error('[meecode] queued flush failed', e))
+      .finally(() => {
+        isFlushingRef.current = false
+      })
+  }, [state.turnInProgress, state.pendingTool, state.queue, tabId, flushOne])
 
   const sessionTitle =
     state.pairs.find((p) => p.user_text && !p.user_text.startsWith('──'))
