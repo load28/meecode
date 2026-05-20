@@ -12,6 +12,8 @@ interface Props {
   onExpand: () => void
   onOpenFile?: (path: string) => void
   onPin?: (input: { segmentKind: string; text: string; qaId: string }) => Promise<unknown>
+  /** Attach the active selection to the composer as a `[코멘트 #N]` token. */
+  onAddComment?: (text: string) => void
 }
 
 /** Tools whose `summary` (computed in `summarizeToolInput`) is a file path —
@@ -57,7 +59,7 @@ function buildPairText(pair: QaPair): string {
   return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
 }
 
-export function QaCard({ pair, onExpand, onOpenFile, onPin }: Props) {
+export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
@@ -226,6 +228,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin }: Props) {
               <CommentFloat
                 selection={{ text: selection.text, rect: selection.rect }}
                 onClose={clearSelection}
+                onAddComment={onAddComment}
                 onPin={handleSelectionPin}
               />
             )}

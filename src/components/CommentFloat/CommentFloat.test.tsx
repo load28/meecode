@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { invoke } from '@tauri-apps/api/core'
 import { CommentFloat } from './index'
 
 const mockRect = {
@@ -17,66 +16,79 @@ describe('CommentFloat', () => {
     vi.clearAllMocks()
   })
 
-  it('💬 코멘트 버튼을 초기에 렌더링', () => {
-    render(<CommentFloat selection={mockSelection} onClose={() => {}} />)
-    expect(screen.getByText('💬 코멘트')).toBeInTheDocument()
+  it('onAddComment 제공 시 코멘트 추가 버튼 렌더링', () => {
+    render(
+      <CommentFloat
+        selection={mockSelection}
+        onClose={() => {}}
+        onAddComment={() => {}}
+      />,
+    )
+    expect(screen.getByText('💬 코멘트로 추가')).toBeInTheDocument()
   })
 
-  it('버튼 클릭 시 버튼 사라지고 인풋창 표시', async () => {
+  it('버튼 클릭 시 onAddComment(선택텍스트) 호출 후 onClose', async () => {
     const user = userEvent.setup()
-    render(<CommentFloat selection={mockSelection} onClose={() => {}} />)
-
-    await user.click(screen.getByText('💬 코멘트'))
-
-    expect(screen.queryByText('💬 코멘트')).not.toBeInTheDocument()
-    expect(screen.getByPlaceholderText('질문을 입력하세요...')).toBeInTheDocument()
-  })
-
-  it('엔터 제출 시 [선택: "..."] 포맷으로 send_user_message 호출', async () => {
-    const user = userEvent.setup()
+    const onAddComment = vi.fn()
     const onClose = vi.fn()
-    render(<CommentFloat selection={mockSelection} onClose={onClose} />)
+    render(
+      <CommentFloat
+        selection={mockSelection}
+        onClose={onClose}
+        onAddComment={onAddComment}
+      />,
+    )
 
-    await user.click(screen.getByText('💬 코멘트'))
-    await user.type(screen.getByPlaceholderText('질문을 입력하세요...'), 'async 없으면?')
-    await user.keyboard('{Enter}')
+    await user.click(screen.getByText('💬 코멘트로 추가'))
 
-    expect(invoke).toHaveBeenCalledWith('send_user_message', {
-      text: '[선택: "await를 사용"] async 없으면?',
-    })
+    expect(onAddComment).toHaveBeenCalledWith('await를 사용')
     expect(onClose).toHaveBeenCalledOnce()
-  })
-
-  it('전송 버튼 클릭으로도 제출 가능', async () => {
-    const user = userEvent.setup()
-    const onClose = vi.fn()
-    render(<CommentFloat selection={mockSelection} onClose={onClose} />)
-
-    await user.click(screen.getByText('💬 코멘트'))
-    await user.type(screen.getByPlaceholderText('질문을 입력하세요...'), '질문 내용')
-    await user.click(screen.getByText('전송'))
-
-    expect(invoke).toHaveBeenCalledWith('send_user_message', {
-      text: '[선택: "await를 사용"] 질문 내용',
-    })
   })
 
   it('ESC 키로 닫기', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(<CommentFloat selection={mockSelection} onClose={onClose} />)
+    render(
+      <CommentFloat
+        selection={mockSelection}
+        onClose={onClose}
+        onAddComment={() => {}}
+      />,
+    )
 
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('빈 입력은 제출하지 않음', async () => {
+  it('onPin 미제공 시 핀 버튼 숨김', () => {
+    render(
+      <CommentFloat
+        selection={mockSelection}
+        onClose={() => {}}
+        onAddComment={() => {}}
+      />,
+    )
+    expect(screen.queryByText(/핀/)).not.toBeInTheDocument()
+  })
+
+  it('onPin 제공 시 핀 버튼 표시 및 클릭 시 호출', async () => {
     const user = userEvent.setup()
+    const onPin = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CommentFloat
+        selection={mockSelection}
+        onClose={() => {}}
+        onAddComment={() => {}}
+        onPin={onPin}
+      />,
+    )
+
+    await user.click(screen.getByText('📌 핀'))
+    expect(onPin).toHaveBeenCalledWith('await를 사용')
+  })
+
+  it('onAddComment 미제공 시 코멘트 버튼 숨김', () => {
     render(<CommentFloat selection={mockSelection} onClose={() => {}} />)
-
-    await user.click(screen.getByText('💬 코멘트'))
-    await user.keyboard('{Enter}')
-
-    expect(invoke).not.toHaveBeenCalled()
+    expect(screen.queryByText('💬 코멘트로 추가')).not.toBeInTheDocument()
   })
 })

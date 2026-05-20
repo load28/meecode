@@ -210,9 +210,14 @@ function MainLayout({
   const { isDetached, detach, openFile } = useDetachedFilePanel(fileTabs)
   const knowledge = useProjectKnowledge(projectPath)
   const [showKnowledge, setShowKnowledge] = useState(false)
-  const [pendingContext, setPendingContext] = useState<{
+  // Selection captured from a Q&A card, the expand pane, or a file panel,
+  // forwarded to the composer where it becomes an inline `[코멘트 #N]`
+  // placeholder. `source` is set when the selection came from the file
+  // panel (so the expanded block can carry a `// path:lines` header).
+  const [pendingSelection, setPendingSelection] = useState<{
     id: number
     text: string
+    source?: string
   } | null>(null)
 
   // Auto-open the knowledge panel when an organize job is running or a diff
@@ -253,9 +258,15 @@ function MainLayout({
       snippet.startLine === snippet.endLine
         ? `:${snippet.startLine}`
         : `:${snippet.startLine}-${snippet.endLine}`
-    const block =
-      `\n\`\`\`\n// ${snippet.path}${range}\n${snippet.text}\n\`\`\`\n`
-    setPendingContext({ id: Date.now(), text: block })
+    setPendingSelection({
+      id: Date.now(),
+      text: snippet.text,
+      source: `${snippet.path}${range}`,
+    })
+  }
+
+  const handleAddComment = (text: string) => {
+    setPendingSelection({ id: Date.now(), text })
   }
 
   // The detached window can't reach our composer state directly, so it
@@ -425,6 +436,7 @@ function MainLayout({
                 hookActivity={hookActivity}
                 turnInProgress={turnInProgress}
                 onPin={handlePin}
+                onAddComment={handleAddComment}
                 onRespondTool={(reqId, allow, tuId, updatedInput) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)
@@ -468,8 +480,8 @@ function MainLayout({
                 projectPath={projectPath}
                 recentUserTexts={recentUserTexts}
                 onClearConversation={clearConversation}
-                pendingContext={pendingContext}
-                onContextConsumed={() => setPendingContext(null)}
+                pendingSelection={pendingSelection}
+                onSelectionConsumed={() => setPendingSelection(null)}
                 onInterrupt={() => {
                   interrupt().catch(() => {})
                 }}
@@ -492,6 +504,7 @@ function MainLayout({
                   turnInProgress={turnInProgress}
                   taskActivity={taskActivity}
                   hookActivity={hookActivity}
+                  onAddComment={handleAddComment}
                 />
               </Panel>
             </>

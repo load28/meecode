@@ -31,6 +31,8 @@ interface Props {
     text: string
     qaId: string
   }) => Promise<unknown>
+  /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
+  onAddComment?: (text: string) => void
 }
 
 export function ChatStream({
@@ -43,6 +45,7 @@ export function ChatStream({
   hookActivity,
   turnInProgress = false,
   onPin,
+  onAddComment,
 }: Props) {
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
@@ -75,6 +78,7 @@ export function ChatStream({
             onExpand={() => onExpand(p.id)}
             onOpenFile={onOpenFile}
             onPin={onPin}
+            onAddComment={onAddComment}
           />
         ),
       )}

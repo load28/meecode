@@ -263,7 +263,7 @@ export function FilePanel({
                       setSelection(null)
                     }}
                   >
-                    💬 입력창에 컨텍스트로 추가
+                    💬 코멘트로 추가
                   </button>
                 </div>
               )}
