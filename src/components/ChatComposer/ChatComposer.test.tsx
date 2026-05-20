@@ -84,4 +84,64 @@ describe('ChatComposer', () => {
     expect(screen.getByText('/help')).toBeInTheDocument()
     expect(screen.getByText('/clear')).toBeInTheDocument()
   })
+
+  it('백슬래시+Enter는 줄바꿈을 삽입하고 제출하지 않음 (CLI parity)', () => {
+    render(<ChatComposer mode="default" disabled={false} {...handlers} />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'first\\' } })
+    // selectionStart defaults to end after change in jsdom.
+    ta.selectionStart = ta.selectionEnd = ta.value.length
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    expect(handlers.sendUserMessage).not.toHaveBeenCalled()
+    expect(ta.value).toBe('first\n')
+  })
+
+  it('Alt+Enter는 줄바꿈을 삽입하고 제출하지 않음', () => {
+    render(<ChatComposer mode="default" disabled={false} {...handlers} />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hello' } })
+    ta.selectionStart = ta.selectionEnd = ta.value.length
+    fireEvent.keyDown(ta, { key: 'Enter', altKey: true })
+    expect(handlers.sendUserMessage).not.toHaveBeenCalled()
+    expect(ta.value).toBe('hello\n')
+  })
+
+  it('전송 시 끝 공백을 trimEnd 처리', async () => {
+    render(<ChatComposer mode="default" disabled={false} {...handlers} />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'hello   \n  ' } })
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    expect(handlers.sendUserMessage).toHaveBeenCalledWith('hello', undefined)
+  })
+
+  it('ESC 두 번 누르면 입력이 지워짐 (double-press clear)', () => {
+    render(<ChatComposer mode="default" disabled={false} {...handlers} />)
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'draft' } })
+    fireEvent.keyDown(ta, { key: 'Escape' })
+    // First press: hint shown, value preserved.
+    expect(ta.value).toBe('draft')
+    expect(screen.getByText(/Esc 한 번 더/)).toBeInTheDocument()
+    fireEvent.keyDown(ta, { key: 'Escape' })
+    expect(ta.value).toBe('')
+  })
+
+  it('진행 중일 때 ESC는 onInterrupt를 호출 (busy=true)', () => {
+    const onInterrupt = vi.fn()
+    render(
+      <ChatComposer
+        mode="default"
+        disabled={false}
+        busy={true}
+        onInterrupt={onInterrupt}
+        {...handlers}
+      />,
+    )
+    const ta = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: 'something' } })
+    fireEvent.keyDown(ta, { key: 'Escape' })
+    expect(onInterrupt).toHaveBeenCalledTimes(1)
+    // Value must be preserved when interrupting (not the double-ESC clear path).
+    expect(ta.value).toBe('something')
+  })
 })
