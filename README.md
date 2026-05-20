@@ -2,6 +2,10 @@
 
 Claude Code CLI를 위한 데스크탑 GUI. CLI의 능력을 그대로 두고, 더 잘 읽고 더 잘 따라갈 수 있는 화면을 얹는다.
 
+<p align="center">
+  <video src="https://github.com/load28/meecode/raw/main/docs/demo.mov" controls width="720"></video>
+</p>
+
 ---
 
 ## 왜 만들었나
