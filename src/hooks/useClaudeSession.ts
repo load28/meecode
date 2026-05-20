@@ -12,6 +12,7 @@ import {
   type TaskActivity,
   type UsageStats,
 } from '../state/sessionStore'
+import { dispatchClientSlash, modeToClaude } from './clientSlash'
 
 export type { AgentInfo, McpServerInfo, TaskActivity, UsageStats }
 
@@ -53,48 +54,7 @@ export interface UseClaudeSessionResult {
   removeQueued: (id: string) => void
 }
 
-function modeToClaude(m: Mode): string {
-  switch (m) {
-    case 'default':
-      return 'default'
-    case 'plan':
-      return 'plan'
-    case 'auto-accept':
-      return 'acceptEdits'
-  }
-}
-
 const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
-
-// Slash commands that the Claude CLI flags as "interactive-only" in
-// `--input-format stream-json` mode — sending them as user text gets
-// them forwarded to the model verbatim instead of executed. We dispatch
-// these client-side, reusing the control_request handlers we already
-// expose (`set_model`, `set_permission_mode`) and the local pair store
-// for `/clear`-style resets.
-function parseSlash(text: string): { cmd: string; args: string } | null {
-  if (!text) return null
-  const firstLine = text.split(/\r?\n/, 1)[0].trim()
-  if (!firstLine.startsWith('/')) return null
-  const m = firstLine.match(/^(\/[A-Za-z][A-Za-z0-9:_-]*)(?:\s+([\s\S]*))?$/)
-  if (!m) return null
-  return { cmd: m[1].toLowerCase(), args: (m[2] ?? '').trim() }
-}
-
-function parsePermissionsArg(s: string): Mode | null {
-  const a = s.toLowerCase()
-  if (a === 'plan' || a === 'plan-mode') return 'plan'
-  if (a === 'default' || a === 'ask') return 'default'
-  if (
-    a === 'acceptedits' ||
-    a === 'accept-edits' ||
-    a === 'accept' ||
-    a === 'auto' ||
-    a === 'auto-accept'
-  )
-    return 'auto-accept'
-  return null
-}
 
 export function useClaudeSession(
   tabId: string = 'main',
@@ -141,78 +101,12 @@ export function useClaudeSession(
     [tabId],
   )
 
-  const dispatchClientSlash = useCallback(
-    async (
-      text: string,
-      images?: Array<{ media_type: string; data: string }>,
-    ): Promise<boolean> => {
-      if (images && images.length > 0) return false
-      const parsed = parseSlash(text)
-      if (!parsed) return false
-      switch (parsed.cmd) {
-        case '/clear':
-        case '/exit':
-        case '/quit': {
-          setTab(tabId, (s) => ({
-            ...s,
-            pairs: [],
-            currentId: null,
-            queue: [],
-            turnError: null,
-            turnInProgress: false,
-          }))
-          return true
-        }
-        case '/model': {
-          const m = parsed.args || null
-          try {
-            await invoke('set_model', { model: m, tabId })
-            if (m) setTab(tabId, (s) => ({ ...s, model: m }))
-          } catch (e) {
-            setTab(tabId, (s) => ({
-              ...s,
-              turnError: `/model 실패: ${String(e)}`,
-            }))
-          }
-          return true
-        }
-        case '/permissions': {
-          const target = parsePermissionsArg(parsed.args)
-          if (!target) {
-            setTab(tabId, (s) => ({
-              ...s,
-              turnError:
-                '/permissions <default|plan|acceptEdits> 형식으로 입력하세요',
-            }))
-            return true
-          }
-          setTab(tabId, (s) => ({ ...s, mode: target }))
-          try {
-            await invoke('set_permission_mode', {
-              mode: modeToClaude(target),
-              tabId,
-            })
-          } catch (e) {
-            setTab(tabId, (s) => ({
-              ...s,
-              turnError: `/permissions 실패: ${String(e)}`,
-            }))
-          }
-          return true
-        }
-        default:
-          return false
-      }
-    },
-    [tabId],
-  )
-
   const sendUserMessage = useCallback(
     async (
       text: string,
       images?: Array<{ media_type: string; data: string }>,
     ) => {
-      if (await dispatchClientSlash(text, images)) return
+      if (await dispatchClientSlash(text, images, { tabId })) return
       // If a tool approval is pending, queue the message instead of flushing.
       const snapshot = getTabSnapshot(tabId)
       if (snapshot.pendingTool) {
@@ -231,7 +125,7 @@ export function useClaudeSession(
       }
       await flushOne(text, images)
     },
-    [tabId, flushOne, dispatchClientSlash],
+    [tabId, flushOne],
   )
 
   const respondTool = useCallback(

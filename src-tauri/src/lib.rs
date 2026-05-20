@@ -3,6 +3,8 @@ pub mod claude_process;
 pub mod commands;
 pub mod config;
 pub mod history;
+pub mod organize;
+pub mod pins;
 
 use commands::AppState;
 use tauri::{Emitter, Manager};
@@ -71,6 +73,15 @@ pub fn run() {
             commands::validate_claude_path,
             commands::set_claude_path,
             commands::get_claude_status,
+            commands::pin_snippet,
+            commands::list_project_pins,
+            commands::delete_project_pin,
+            commands::list_project_wiki,
+            commands::read_project_wiki,
+            commands::apply_wiki_diff,
+            commands::delete_project_wiki,
+            commands::organize_notes,
+            commands::cancel_organize,
         ])
         .run(tauri::generate_context!())
         .expect("error running meecode");

@@ -11,6 +11,7 @@ interface Props {
   pair: QaPair
   onExpand: () => void
   onOpenFile?: (path: string) => void
+  onPin?: (input: { segmentKind: string; text: string; qaId: string }) => Promise<unknown>
 }
 
 /** Tools whose `summary` (computed in `summarizeToolInput`) is a file path —
@@ -33,7 +34,30 @@ function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): st
   return 'Thinking'
 }
 
-export function QaCard({ pair, onExpand, onOpenFile }: Props) {
+function buildPairText(pair: QaPair): string {
+  const assistant = pair.segments
+    .map((s) => {
+      switch (s.kind) {
+        case 'text':
+        case 'plan':
+        case 'thinking':
+          return s.text
+        case 'tool_use':
+          return `[tool ${s.name}] ${s.summary}`
+        case 'tool_result':
+          return s.is_error
+            ? `[tool error]\n${s.text}`
+            : `[tool result]\n${s.text}`
+        default:
+          return ''
+      }
+    })
+    .filter(Boolean)
+    .join('\n\n')
+  return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
+}
+
+export function QaCard({ pair, onExpand, onOpenFile, onPin }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
@@ -44,6 +68,7 @@ export function QaCard({ pair, onExpand, onOpenFile }: Props) {
   // clean with no extra chrome.
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
+  const [cardPinned, setCardPinned] = useState(false)
   const answerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -70,17 +95,47 @@ export function QaCard({ pair, onExpand, onOpenFile }: Props) {
     ? 'qa-card__answer qa-card__answer--clamped'
     : 'qa-card__answer'
 
+  const handleCardPin = async () => {
+    if (!onPin || cardPinned) return
+    setCardPinned(true)
+    await onPin({
+      segmentKind: 'qa_pair',
+      text: buildPairText(pair),
+      qaId: pair.id,
+    })
+  }
+
+  const handleSelectionPin = onPin
+    ? async (text: string) => {
+        await onPin({ segmentKind: 'selection', text, qaId: pair.id })
+      }
+    : undefined
+
   return (
     <article className="qa-card">
-      <button
-        type="button"
-        className="qa-card__expand-btn"
-        aria-label="대화 전체보기"
-        title="대화 전체보기"
-        onClick={onExpand}
-      >
-        ⤢
-      </button>
+      <div className="qa-card__actions">
+        {onPin && (
+          <button
+            type="button"
+            className={`qa-card__pin-btn${cardPinned ? ' is-pinned' : ''}`}
+            aria-label="이 대화를 핀에 추가"
+            title={cardPinned ? '핀에 저장됨' : '이 Q&A를 핀에 저장'}
+            onClick={handleCardPin}
+            disabled={cardPinned}
+          >
+            📌
+          </button>
+        )}
+        <button
+          type="button"
+          className="qa-card__expand-btn"
+          aria-label="대화 전체보기"
+          title="대화 전체보기"
+          onClick={onExpand}
+        >
+          ⤢
+        </button>
+      </div>
       <header className="qa-card__question">
         <span className="qa-card__question-label">Q</span>
         <span className="qa-card__question-text">{makePreview(pair.user_text)}</span>
@@ -108,58 +163,59 @@ export function QaCard({ pair, onExpand, onOpenFile }: Props) {
               Full segment renderings still live in ExpandPane via "전체보기".
             */}
             {pair.segments.map((seg, i) => {
-            if (seg.kind === 'tool_result') return null
-            if (seg.kind === 'thinking') {
-              return (
-                <div key={i} className="qa-card__step">
-                  <span className="qa-card__step-dot" aria-hidden="true" />
-                  <span className="qa-card__step-label">{thinkingLabel(seg)}</span>
-                </div>
-              )
-            }
-            if (seg.kind === 'tool_use') {
-              const isFilePath = FILE_PATH_TOOLS.has(seg.name) && seg.summary
-              return (
-                <div key={i} className="qa-card__step">
-                  <span className="qa-card__step-dot" aria-hidden="true" />
-                  <span className="qa-card__step-tool">{seg.name}</span>
-                  {isFilePath ? (
-                    <FilePath
-                      path={seg.summary}
-                      onOpen={onOpenFile}
-                      className="qa-card__step-arg qa-card__step-arg--link"
-                    />
-                  ) : (
-                    seg.summary && (
-                      <span className="qa-card__step-arg">{seg.summary}</span>
-                    )
-                  )}
-                </div>
-              )
-            }
-            if (seg.kind === 'text' || seg.kind === 'plan') {
-              return (
-                <div
-                  key={i}
-                  // `message-bubble__content` opts the rendered markdown into
-                  // the shared list/blockquote/spacing rules; without it the
-                  // global `* { padding: 0 }` strips list indents.
-                  className="qa-card__preview message-bubble__content"
-                  dangerouslySetInnerHTML={{
-                    __html: renderMarkdown(makePreview(seg.text)),
-                  }}
-                />
-              )
-            }
-            // image, redacted_thinking — unchanged
-            return <SegmentView key={i} segment={seg} onOpenFile={onOpenFile} />
-          })}
-          {selection.text && selection.rect && (
-            <CommentFloat
-              selection={{ text: selection.text, rect: selection.rect }}
-              onClose={clearSelection}
-            />
-          )}
+              if (seg.kind === 'tool_result') return null
+              if (seg.kind === 'thinking') {
+                return (
+                  <div key={i} className="qa-card__step">
+                    <span className="qa-card__step-dot" aria-hidden="true" />
+                    <span className="qa-card__step-label">{thinkingLabel(seg)}</span>
+                  </div>
+                )
+              }
+              if (seg.kind === 'tool_use') {
+                const isFilePath = FILE_PATH_TOOLS.has(seg.name) && seg.summary
+                return (
+                  <div key={i} className="qa-card__step">
+                    <span className="qa-card__step-dot" aria-hidden="true" />
+                    <span className="qa-card__step-tool">{seg.name}</span>
+                    {isFilePath ? (
+                      <FilePath
+                        path={seg.summary}
+                        onOpen={onOpenFile}
+                        className="qa-card__step-arg qa-card__step-arg--link"
+                      />
+                    ) : (
+                      seg.summary && (
+                        <span className="qa-card__step-arg">{seg.summary}</span>
+                      )
+                    )}
+                  </div>
+                )
+              }
+              if (seg.kind === 'text' || seg.kind === 'plan') {
+                return (
+                  <div
+                    key={i}
+                    // `message-bubble__content` opts the rendered markdown into
+                    // the shared list/blockquote/spacing rules; without it the
+                    // global `* { padding: 0 }` strips list indents.
+                    className="qa-card__preview message-bubble__content"
+                    dangerouslySetInnerHTML={{
+                      __html: renderMarkdown(makePreview(seg.text)),
+                    }}
+                  />
+                )
+              }
+              // image, redacted_thinking — unchanged
+              return <SegmentView key={i} segment={seg} onOpenFile={onOpenFile} />
+            })}
+            {selection.text && selection.rect && (
+              <CommentFloat
+                selection={{ text: selection.text, rect: selection.rect }}
+                onClose={clearSelection}
+                onPin={handleSelectionPin}
+              />
+            )}
           </div>
           {(overflowing || expanded) && (
             <button

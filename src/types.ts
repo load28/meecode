@@ -93,3 +93,26 @@ export interface PermissionSuggestion {
 }
 
 export type Mode = 'default' | 'plan' | 'auto-accept'
+
+export interface Pin {
+  id: string
+  session_id: string | null
+  qa_id: string | null
+  segment_kind: string
+  text: string
+  picked_at_ms: number
+  marker: string
+}
+
+export interface WikiFileMeta {
+  name: string
+  size_bytes: number
+}
+
+export interface WikiDiffEntry {
+  name: string
+  old_content: string
+  new_content: string
+}
+
+export type OrganizeStatus = 'idle' | 'running' | 'diff-ready' | 'error'

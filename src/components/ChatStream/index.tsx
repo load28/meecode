@@ -26,6 +26,11 @@ interface Props {
    * gerund spinner would linger forever after the final assistant text.
    */
   turnInProgress?: boolean
+  onPin?: (input: {
+    segmentKind: string
+    text: string
+    qaId: string
+  }) => Promise<unknown>
 }
 
 export function ChatStream({
@@ -37,6 +42,7 @@ export function ChatStream({
   taskActivity,
   hookActivity,
   turnInProgress = false,
+  onPin,
 }: Props) {
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
@@ -68,6 +74,7 @@ export function ChatStream({
             pair={p}
             onExpand={() => onExpand(p.id)}
             onOpenFile={onOpenFile}
+            onPin={onPin}
           />
         ),
       )}
