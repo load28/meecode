@@ -548,6 +548,7 @@ function MainLayout({
                       onClose={fileTabs.close}
                       onCloseAll={fileTabs.closeAll}
                       onSetViewMode={fileTabs.setViewMode}
+                      onSetMarkdownView={fileTabs.setMarkdownView}
                       onAddSelectionToComposer={handleAddSnippet}
                       onDetach={() => {
                         void detach()
