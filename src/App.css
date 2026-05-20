@@ -263,6 +263,26 @@ body,
   border-color: #1f6feb;
 }
 
+.app__settings-btn {
+  margin-left: 6px;
+  background: transparent;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  width: 28px;
+  height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app__settings-btn:hover {
+  border-color: #1f6feb;
+  color: #58a6ff;
+}
+
 .app__usage {
   margin-left: 12px;
   color: #6e7681;

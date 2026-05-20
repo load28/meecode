@@ -14,7 +14,9 @@ import { useFileTabs } from './hooks/useFileTabs'
 import { useDetachedFilePanel } from './hooks/useDetachedFilePanel'
 import { listen } from '@tauri-apps/api/event'
 import { useClaudeSession } from './hooks/useClaudeSession'
+import { useClaudeStatus } from './hooks/useClaudeStatus'
 import { useExpandPanel } from './hooks/useExpandPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 import './App.css'
 
 interface RecentProject {
@@ -120,6 +122,8 @@ interface MainLayoutProps {
   onSwitchProject: (path: string) => void
   onSwitchSession: (sessionId: string | null) => void
   onSessionTitleChange: (title: string | null) => void
+  claudeReady: boolean
+  onOpenSettings: () => void
 }
 
 function MainLayout({
@@ -130,6 +134,8 @@ function MainLayout({
   onSwitchProject,
   onSwitchSession,
   onSessionTitleChange,
+  claudeReady,
+  onOpenSettings,
 }: MainLayoutProps) {
   const {
     pairs,
@@ -320,6 +326,15 @@ function MainLayout({
           <option value="claude-sonnet-4-6">Sonnet 4.6</option>
           <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
         </select>
+        <button
+          type="button"
+          className="app__settings-btn"
+          onClick={onOpenSettings}
+          title="설정"
+          aria-label="설정"
+        >
+          ⚙
+        </button>
       </div>
       <div className="app__banners">
         {hookActivity && (
@@ -408,6 +423,8 @@ function MainLayout({
                 onInterrupt={() => {
                   interrupt().catch(() => {})
                 }}
+                claudeReady={claudeReady}
+                onOpenSettings={onOpenSettings}
               />
             </div>
           </Panel>
@@ -478,6 +495,8 @@ function App() {
     },
   ])
   const [activeId, setActiveId] = useState<string>('main')
+  const { status: claudeStatus, refresh: refreshClaudeStatus } = useClaudeStatus()
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0]
 
@@ -629,6 +648,8 @@ function App() {
                 onSessionTitleChange={(title) =>
                   handleSessionTitleChange(t.id, title)
                 }
+                claudeReady={claudeStatus.ready}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             ) : (
               <FolderPicker onStart={handleStart} />
@@ -636,6 +657,12 @@ function App() {
           </div>
         )
       })}
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        status={claudeStatus}
+        onChanged={refreshClaudeStatus}
+      />
     </div>
   )
 }

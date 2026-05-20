@@ -62,6 +62,8 @@ interface Props {
   onClearConversation?: () => void
   pendingContext?: { id: number; text: string } | null
   onContextConsumed?: () => void
+  claudeReady?: boolean
+  onOpenSettings?: () => void
 }
 
 interface PendingImage {
@@ -90,7 +92,10 @@ export function ChatComposer({
   onClearConversation,
   pendingContext,
   onContextConsumed,
+  claudeReady = true,
+  onOpenSettings,
 }: Props) {
+  const composerDisabled = disabled || !claudeReady
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [showSlash, setShowSlash] = useState(false)
@@ -508,7 +513,7 @@ export function ChatComposer({
           ref={textareaRef}
           className="chat-composer__textarea"
           value={value}
-          disabled={disabled}
+          disabled={composerDisabled}
           onChange={onChange}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
@@ -521,7 +526,9 @@ export function ChatComposer({
             isComposingRef.current = false
           }}
           placeholder={
-            disabled
+            !claudeReady
+              ? 'Claude CLI 경로를 먼저 설정해주세요…'
+              : disabled
               ? '도구 승인을 먼저 처리하세요…'
               : '메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈 · @로 파일 · 이미지 paste/drop 지원)'
           }
@@ -571,6 +578,20 @@ export function ChatComposer({
         <span>{MODE_LABEL[mode]}</span>
         {model && <span className="chat-composer__model">· {model}</span>}
       </div>
+      {!claudeReady && (
+        <div className="chat-composer__claude-warning" role="status">
+          <span>Claude CLI 경로가 설정되어 있지 않거나 무효합니다.</span>
+          {onOpenSettings && (
+            <button
+              type="button"
+              className="chat-composer__claude-warning-btn"
+              onClick={onOpenSettings}
+            >
+              설정 열기
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

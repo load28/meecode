@@ -247,3 +247,31 @@
 .chat-composer__interrupt-icon {
   font-size: 12px;
 }
+
+.chat-composer__claude-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ffa49b;
+}
+
+.chat-composer__claude-warning-btn {
+  background: rgba(248, 81, 73, 0.18);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  color: #ffd9d5;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chat-composer__claude-warning-btn:hover {
+  background: rgba(248, 81, 73, 0.28);
+}

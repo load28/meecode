@@ -254,7 +254,10 @@ pub async fn start_session(
         let cfg = state.config.lock().map_err(|e| e.to_string())?;
         cfg.claude_path
             .clone()
-            .unwrap_or_else(|| "claude".to_string())
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| {
+                "claude_path not configured — please set it in Settings.".to_string()
+            })?
     };
 
     let resume = {
@@ -719,4 +722,77 @@ pub fn set_config(config: Config, state: State<AppState>) -> Result<(), String> 
     config.save()?;
     *state.config.lock().map_err(|e| e.to_string())? = config;
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+pub struct ValidationOk {
+    pub path: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct ClaudeStatus {
+    pub path: Option<String>,
+    pub ready: bool,
+    pub error: Option<crate::claude_discovery::ValidationError>,
+}
+
+#[tauri::command]
+pub async fn discover_claude_path() -> Result<Option<String>, String> {
+    Ok(crate::claude_discovery::discover_claude().await)
+}
+
+#[tauri::command]
+pub async fn validate_claude_path(
+    path: String,
+) -> Result<ValidationOk, crate::claude_discovery::ValidationError> {
+    crate::claude_discovery::validate_claude(&path)
+        .await
+        .map(|p| ValidationOk { path: p })
+}
+
+#[tauri::command]
+pub fn set_claude_path(app: AppHandle, path: Option<String>) -> Result<(), String> {
+    let normalized = path
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let cfg = {
+        let state = app.state::<AppState>();
+        let mut guard = state.config.lock().map_err(|e| e.to_string())?;
+        guard.claude_path = normalized.clone();
+        guard.clone()
+    };
+    cfg.save()?;
+    let _ = app.emit(
+        "claude_path:changed",
+        serde_json::json!({ "path": normalized }),
+    );
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_claude_status(app: AppHandle) -> Result<ClaudeStatus, String> {
+    let cfg_path: Option<String> = {
+        let state = app.state::<AppState>();
+        let guard = state.config.lock().map_err(|e| e.to_string())?;
+        guard.claude_path.clone()
+    };
+    let Some(path) = cfg_path.filter(|s| !s.trim().is_empty()) else {
+        return Ok(ClaudeStatus {
+            path: None,
+            ready: false,
+            error: None,
+        });
+    };
+    match crate::claude_discovery::validate_claude(&path).await {
+        Ok(p) => Ok(ClaudeStatus {
+            path: Some(p),
+            ready: true,
+            error: None,
+        }),
+        Err(e) => Ok(ClaudeStatus {
+            path: Some(path),
+            ready: false,
+            error: Some(e),
+        }),
+    }
 }
