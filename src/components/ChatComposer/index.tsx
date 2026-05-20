@@ -13,12 +13,7 @@ import './ChatComposer.css'
 const CLIENT_SIDE_SLASH: ReadonlyArray<{ name: string; description?: string }> =
   CLIENT_SLASH_COMMANDS
 
-// Pre-`session:init` fallback for the CLI-dispatched built-ins. These
-// run via the CLI's own slash-command dispatcher when forwarded as user
-// text in stream-json mode (verified: `/init`, `/compact`, `/context`,
-// `/review`, `/security-review`). Once `session:init` arrives, the
-// authoritative list from the running session takes over — which also
-// includes plugin/skill commands like `superpowers:execute-plan`.
+// Pre-`session:init` fallback for the CLI-dispatched built-ins.
 const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
   { name: '/init', description: '프로젝트 초기화 (CLAUDE.md 생성)' },
   { name: '/compact', description: '대화 압축' },
@@ -28,9 +23,17 @@ const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
 ]
 
 const MODE_LABEL: Record<Mode, string> = {
-  default: '⏎ 기본 모드',
-  plan: '📋 Plan 모드',
-  'auto-accept': '⚡ Auto-accept 모드',
+  default: '⏎ 기본',
+  plan: '📋 Plan',
+  'auto-accept': '⚡ Auto',
+}
+
+const MODEL_DISPLAY_NAME = (model: string | null | undefined): string => {
+  if (!model) return '기본'
+  if (model.includes('opus')) return 'Opus 4.7'
+  if (model.includes('sonnet')) return 'Sonnet 4.6'
+  if (model.includes('haiku')) return 'Haiku 4.5'
+  return model
 }
 
 interface Props {
@@ -55,8 +58,8 @@ interface Props {
 interface PendingImage {
   id: string
   mediaType: string
-  data: string // base64 (no prefix)
-  previewUrl: string // data: URL
+  data: string
+  previewUrl: string
 }
 
 interface MentionState {
@@ -88,11 +91,17 @@ export function ChatComposer({
   const [mentionIdx, setMentionIdx] = useState(0)
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const [historyIdx, setHistoryIdx] = useState<number | null>(null)
+  const [escHint, setEscHint] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
   const slashListRef = useRef<HTMLUListElement | null>(null)
   const mentionListRef = useRef<HTMLUListElement | null>(null)
   const lastContextIdRef = useRef<number | null>(null)
+  // Double-press ESC window — matches the CLI's useDoublePress for input
+  // clear. First ESC arms the action and shows a hint, second ESC within
+  // the window clears and saves to history.
+  const escArmedAtRef = useRef<number | null>(null)
+  const ESC_DOUBLE_PRESS_MS = 1000
 
   useEffect(() => {
     if (!pendingContext) return
@@ -132,23 +141,70 @@ export function ChatComposer({
     }
   }, [mentionIdx, mention])
 
+  // Auto-grow the textarea up to a max height.
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    const next = Math.min(ta.scrollHeight, 280)
+    ta.style.height = next + 'px'
+  }, [value])
+
+  // Global ESC interrupt — fires when focus is NOT on the textarea, so
+  // ESC still cancels a turn even when the user clicked elsewhere (a
+  // tool-approval card, the file panel, etc.). Skip when the event target
+  // is the textarea itself: that path runs through the local onKeyDown
+  // (which also handles slash/mention palette dismissal first).
+  useEffect(() => {
+    if (!busy || !onInterrupt) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (isComposingRef.current) return
+      if (e.target === textareaRef.current) return
+      e.preventDefault()
+      onInterrupt()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [busy, onInterrupt])
+
   const submit = async () => {
-    if (!value && pendingImages.length === 0) return
-    const snapshot = value
+    // CLI parity: trim trailing whitespace before submit. Empty input with
+    // no attachments is a no-op (matches `onSubmit` in PromptInput.tsx).
+    const trimmed = value.trimEnd()
+    if (!trimmed && pendingImages.length === 0) return
     const images = pendingImages.map((p) => ({
       media_type: p.mediaType,
       data: p.data,
     }))
     setError(null)
     try {
-      await sendUserMessage(snapshot, images.length > 0 ? images : undefined)
+      await sendUserMessage(trimmed, images.length > 0 ? images : undefined)
       setValue('')
       setPendingImages([])
       setShowSlash(false)
       setMention(null)
+      setHistoryIdx(null)
     } catch (e) {
       setError(String(e))
     }
+  }
+
+  // Cursor positional helpers — used by Up/Down to decide between in-text
+  // cursor movement (the textarea's native behavior) and history paging.
+  // Matches the CLI's useTextInput up/downOrHistory: only fall through to
+  // history when the cursor genuinely can't move further within the text.
+  const isCursorAtFirstLine = (): boolean => {
+    const ta = textareaRef.current
+    if (!ta) return true
+    const caret = ta.selectionStart ?? 0
+    return value.indexOf('\n') === -1 || value.lastIndexOf('\n', caret - 1) === -1
+  }
+  const isCursorAtLastLine = (): boolean => {
+    const ta = textareaRef.current
+    if (!ta) return true
+    const caret = ta.selectionEnd ?? value.length
+    return value.indexOf('\n', caret) === -1
   }
 
   const ingestFile = async (file: File): Promise<PendingImage | null> => {
@@ -248,14 +304,15 @@ export function ChatComposer({
   }, [mention, projectPath])
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (
+    // IME guard — only block Enter-like keys during composition. ESC must
+    // still pass through so we can cancel composition + interrupt.
+    const composing =
       isComposingRef.current ||
       e.keyCode === 229 ||
       (e.nativeEvent as KeyboardEvent).isComposing
-    ) {
+    if (composing && e.key !== 'Escape') {
       return
     }
-    // Slash command palette navigation takes priority.
     if (showSlash && allSlashes.length > 0 && !mention) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -279,7 +336,6 @@ export function ChatComposer({
         return
       }
     }
-    // Mention palette navigation.
     if (mention && mentionResults.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -308,13 +364,16 @@ export function ChatComposer({
       onClearConversation()
       return
     }
+    // History navigation — only when cursor genuinely can't move further
+    // within the textarea. Mirrors CLI useTextInput.upOrHistoryUp /
+    // downOrHistoryDown so multi-line drafts behave as users expect.
     if (
       e.key === 'ArrowUp' &&
       !e.shiftKey &&
       recentUserTexts &&
       recentUserTexts.length > 0 &&
-      value === '' &&
-      historyIdx === null
+      historyIdx === null &&
+      isCursorAtFirstLine()
     ) {
       e.preventDefault()
       const lastIdx = recentUserTexts.length - 1
@@ -322,14 +381,14 @@ export function ChatComposer({
       setValue(recentUserTexts[lastIdx])
       return
     }
-    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0) {
+    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0 && isCursorAtFirstLine()) {
       e.preventDefault()
       const next = historyIdx - 1
       setHistoryIdx(next)
       setValue(recentUserTexts![next])
       return
     }
-    if (e.key === 'ArrowDown' && historyIdx !== null) {
+    if (e.key === 'ArrowDown' && historyIdx !== null && isCursorAtLastLine()) {
       e.preventDefault()
       if (historyIdx < (recentUserTexts?.length ?? 0) - 1) {
         const next = historyIdx + 1
@@ -345,17 +404,83 @@ export function ChatComposer({
       if (mention) {
         e.preventDefault()
         setMention(null)
+        escArmedAtRef.current = null
+        setEscHint(false)
         return
       }
+      // While the agent is busy, ESC always interrupts first (CLI parity:
+      // PromptInput.tsx treats key.escape during loading as the cancel
+      // shortcut). The double-press clear is only available when idle.
       if (busy && onInterrupt) {
         e.preventDefault()
         onInterrupt()
+        escArmedAtRef.current = null
+        setEscHint(false)
+        return
+      }
+      // Double-press ESC to clear (CLI's useTextInput handleEscape via
+      // useDoublePress): first press arms + shows hint, second press
+      // within the window clears the input and saves it to history.
+      if (value.length > 0) {
+        e.preventDefault()
+        const now = Date.now()
+        const armedAt = escArmedAtRef.current
+        if (armedAt !== null && now - armedAt <= ESC_DOUBLE_PRESS_MS) {
+          escArmedAtRef.current = null
+          setEscHint(false)
+          setValue('')
+          setHistoryIdx(null)
+        } else {
+          escArmedAtRef.current = now
+          setEscHint(true)
+          window.setTimeout(() => {
+            if (escArmedAtRef.current === now) {
+              escArmedAtRef.current = null
+              setEscHint(false)
+            }
+          }, ESC_DOUBLE_PRESS_MS)
+        }
         return
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.altKey && !composing) {
+      // Backslash+Enter inserts a newline (CLI parity, useTextInput
+      // handleEnter): when the char immediately before the caret is `\`,
+      // consume that backslash and insert a `\n` instead of submitting.
+      const ta = textareaRef.current
+      const caret = ta?.selectionStart ?? value.length
+      if (caret > 0 && value[caret - 1] === '\\') {
+        e.preventDefault()
+        const next = value.slice(0, caret - 1) + '\n' + value.slice(caret)
+        setValue(next)
+        requestAnimationFrame(() => {
+          if (ta) {
+            ta.focus()
+            ta.setSelectionRange(caret, caret)
+          }
+        })
+        return
+      }
       e.preventDefault()
       submit()
+      return
+    }
+    // Alt/Meta+Enter inserts a newline like Shift+Enter. The browser's
+    // default Shift+Enter behavior already inserts a newline, but Alt/Meta
+    // doesn't — handle it explicitly to match the CLI.
+    if (e.key === 'Enter' && (e.altKey || e.metaKey) && !composing) {
+      e.preventDefault()
+      const ta = textareaRef.current
+      const caret = ta?.selectionStart ?? value.length
+      const next = value.slice(0, caret) + '\n' + value.slice(caret)
+      setValue(next)
+      requestAnimationFrame(() => {
+        if (ta) {
+          ta.focus()
+          ta.setSelectionRange(caret + 1, caret + 1)
+        }
+      })
+      return
     }
   }
 
@@ -363,25 +488,17 @@ export function ChatComposer({
     const dynamic = slashCommands ?? []
     const seen = new Set<string>()
     const out: SlashCommand[] = []
-    // Client-wired commands always present, with our own descriptions.
     for (const c of CLIENT_SIDE_SLASH) {
       if (seen.has(c.name)) continue
       seen.add(c.name)
       out.push(c)
     }
-    // Dynamic list from session:init is the authoritative source of what
-    // the running CLI actually dispatches (plugin skills, user skills,
-    // built-ins). It supersedes the fallback once it arrives. The CLI
-    // doesn't serialize descriptions, so `decorateServerSlash` fills
-    // them in for the well-known built-ins; plugin/skill commands keep
-    // their bare names.
     for (const c of dynamic) {
       const key = c.name.startsWith('/') ? c.name : '/' + c.name
       if (seen.has(key)) continue
       seen.add(key)
       out.push(decorateServerSlash({ ...c, name: key }))
     }
-    // Pre-init fallback so the menu has useful entries on the first frame.
     if (dynamic.length === 0) {
       for (const c of FALLBACK_SLASH) {
         if (seen.has(c.name)) continue
@@ -403,6 +520,11 @@ export function ChatComposer({
     setMention(detectMention(v, caret))
     setMentionIdx(0)
     setHistoryIdx(null)
+    // Any further typing disarms the double-ESC clear (CLI parity).
+    if (escArmedAtRef.current !== null) {
+      escArmedAtRef.current = null
+      setEscHint(false)
+    }
   }
 
   const onSelectSlash = (cmd: string) => {
@@ -428,11 +550,26 @@ export function ChatComposer({
     }
   }
 
+  const hasContent = value.trim().length > 0 || pendingImages.length > 0
+  const sendDisabled = busy ? false : disabled || !hasContent
+  const onSendClick = () => {
+    if (busy && onInterrupt) {
+      onInterrupt()
+      return
+    }
+    submit()
+  }
+
   return (
     <div className="chat-composer">
       {error && (
         <div role="alert" className="chat-composer__error">
           {error}
+        </div>
+      )}
+      {escHint && !busy && (
+        <div className="chat-composer__esc-hint" aria-live="polite">
+          Esc 한 번 더 누르면 입력이 지워집니다
         </div>
       )}
       {showSlash && allSlashes.length > 0 && !mention && (
@@ -476,30 +613,34 @@ export function ChatComposer({
           ))}
         </ul>
       )}
-      {pendingImages.length > 0 && (
-        <div className="chat-composer__attachments">
-          {pendingImages.map((img) => (
-            <div key={img.id} className="chat-composer__attachment">
-              <img src={img.previewUrl} alt="첨부 이미지" />
-              <button
-                type="button"
-                className="chat-composer__attachment-remove"
-                onClick={() => removeImage(img.id)}
-                aria-label="이미지 제거"
-                title="제거"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="chat-composer__row">
+      <div
+        className={
+          'chat-composer__card' + (disabled && !busy ? ' is-disabled' : '')
+        }
+      >
+        {pendingImages.length > 0 && (
+          <div className="chat-composer__attachments">
+            {pendingImages.map((img) => (
+              <div key={img.id} className="chat-composer__attachment">
+                <img src={img.previewUrl} alt="첨부 이미지" />
+                <button
+                  type="button"
+                  className="chat-composer__attachment-remove"
+                  onClick={() => removeImage(img.id)}
+                  aria-label="이미지 제거"
+                  title="제거"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           ref={textareaRef}
           className="chat-composer__textarea"
           value={value}
-          disabled={disabled}
+          disabled={disabled && !busy}
           onChange={onChange}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
@@ -512,13 +653,13 @@ export function ChatComposer({
             isComposingRef.current = false
           }}
           placeholder={
-            disabled
+            disabled && !busy
               ? '도구 승인을 먼저 처리하세요…'
-              : '메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈 · @로 파일 · 이미지 paste/drop 지원)'
+              : 'Claude에게 메시지 보내기…'
           }
-          rows={2}
+          rows={1}
         />
-        <div className="chat-composer__buttons">
+        <div className="chat-composer__toolbar">
           <input
             ref={fileInputRef}
             type="file"
@@ -529,38 +670,47 @@ export function ChatComposer({
           />
           <button
             type="button"
+            className="chat-composer__icon-btn"
             onClick={openFilePicker}
             title="이미지 첨부"
             aria-label="이미지 첨부"
+            disabled={disabled && !busy}
           >
-            🖼
+            📎
           </button>
-          {onInterrupt && (
-            <button
-              type="button"
-              className={
-                'chat-composer__interrupt' +
-                (busy ? ' is-active' : ' is-idle')
-              }
-              onClick={busy ? onInterrupt : undefined}
-              disabled={!busy}
-              title={busy ? '진행 중인 작업 취소 (ESC)' : '진행 중인 작업 없음'}
-              aria-label="진행 중인 작업 중단"
-            >
-              <span className="chat-composer__interrupt-icon" aria-hidden="true">
-                ⛔
-              </span>
-              <span className="chat-composer__interrupt-label">중단</span>
-            </button>
-          )}
-          <button type="button" onClick={() => cycleMode()}>
-            Shift+Tab
+          <button
+            type="button"
+            className="chat-composer__chip"
+            data-mode={mode}
+            onClick={() => cycleMode()}
+            title="모드 전환 (Shift+Tab)"
+          >
+            <span>{MODE_LABEL[mode]}</span>
+            <span className="chat-composer__chip-shortcut">⇧⇥</span>
+          </button>
+          <span className="chat-composer__chip chat-composer__chip-model" title="현재 모델">
+            {MODEL_DISPLAY_NAME(model)}
+          </span>
+          <div className="chat-composer__toolbar-spacer" />
+          <button
+            type="button"
+            className={'chat-composer__send' + (busy ? ' is-stop' : '')}
+            onClick={onSendClick}
+            disabled={sendDisabled}
+            title={
+              busy
+                ? '진행 중인 작업 중단 (ESC)'
+                : hasContent
+                ? '전송 (Enter)'
+                : '메시지를 입력하세요'
+            }
+            aria-label={busy ? '진행 중인 작업 중단' : '메시지 전송'}
+          >
+            <span className="chat-composer__send-icon" aria-hidden="true">
+              {busy ? '■' : '↑'}
+            </span>
           </button>
         </div>
-      </div>
-      <div className="chat-composer__status" data-mode={mode}>
-        <span>{MODE_LABEL[mode]}</span>
-        {model && <span className="chat-composer__model">· {model}</span>}
       </div>
     </div>
   )

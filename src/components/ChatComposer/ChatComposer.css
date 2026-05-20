@@ -1,29 +1,45 @@
+/* VSCode Claude 플러그인 스타일에 맞춘 컴포저 레이아웃.
+ * - 입력창은 단일 라운드 카드로 통합
+ * - 하단 툴바에 첨부/모드/모델/전송·중단 일체화
+ * - 진행 중일 때 전송 버튼이 중단 버튼으로 변신
+ */
 .chat-composer {
-  border-top: 1px solid #21262d;
-  background: #0d1117;
-  padding: 10px 14px;
+  padding: 8px 14px 12px;
+  background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   position: relative;
 }
 
 .chat-composer__error {
   color: #f85149;
   font-size: 12px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   background: #2b1416;
   border: 1px solid #5d1f23;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
+.chat-composer__esc-hint {
+  align-self: center;
+  color: #d29922;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(210, 153, 34, 0.08);
+  border: 1px solid rgba(210, 153, 34, 0.35);
+  border-radius: 999px;
+  user-select: none;
+}
+
+/* ── Slash command palette ── */
 .chat-composer__slash {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
   position: absolute;
   bottom: calc(100% + 4px);
   left: 14px;
@@ -31,7 +47,7 @@
   z-index: 10;
   max-height: 320px;
   overflow-y: auto;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .chat-composer__slash-item {
@@ -39,7 +55,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  color: #c9d1d9;
+  color: #cccccc;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -51,103 +67,40 @@
 
 .chat-composer__slash-item.is-selected,
 .chat-composer__slash-item:focus-visible {
-  background: #1f6feb;
-  color: #fff;
+  background: #094771;
+  color: #ffffff;
 }
 
 .chat-composer__slash-item.is-selected .chat-composer__slash-desc {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.chat-composer__row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.chat-composer__textarea {
-  flex: 1;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  color: #e6edf3;
-  font-size: 14px;
-  padding: 8px 10px;
-  resize: vertical;
-  min-height: 44px;
-  font-family: var(--font-ui);
-  outline: none;
-}
-
-.chat-composer__textarea:focus {
-  border-color: #58a6ff;
-}
-
-.chat-composer__buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.chat-composer__buttons button {
-  background: #21262d;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  border-radius: 5px;
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-  font-family: var(--font-mono);
-}
-
-.chat-composer__buttons button:hover {
-  background: #30363d;
-}
-
-.chat-composer__status {
-  font-size: 11px;
-  color: #8b949e;
-  padding: 2px 4px;
-  user-select: none;
-}
-
-.chat-composer__status[data-mode="plan"] {
-  color: #d29922;
-}
-
-.chat-composer__status[data-mode="auto-accept"] {
-  color: #3fb950;
-}
-
-.chat-composer__model {
-  margin-left: 6px;
-  color: #6e7681;
-}
-
 .chat-composer__slash-name {
-  color: #79c0ff;
+  color: #4ec9b0;
 }
 
 .chat-composer__slash-desc {
-  color: #8b949e;
+  color: #858585;
   font-size: 11px;
   font-family: var(--font-ui);
 }
 
+/* ── @ mention palette ── */
 .chat-composer__mention {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
   position: absolute;
-  bottom: 100%;
+  bottom: calc(100% + 4px);
   left: 14px;
   right: 14px;
   z-index: 10;
   max-height: 240px;
   overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .chat-composer__mention-item {
@@ -155,7 +108,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  color: #c9d1d9;
+  color: #cccccc;
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 4px 12px;
@@ -164,8 +117,8 @@
 
 .chat-composer__mention-item.is-selected,
 .chat-composer__mention-item:focus-visible {
-  background: #1f6feb;
-  color: #fff;
+  background: #094771;
+  color: #ffffff;
 }
 
 .chat-composer__mention-path {
@@ -175,10 +128,30 @@
   text-overflow: ellipsis;
 }
 
+/* ── 단일 카드 컨테이너 ── */
+.chat-composer__card {
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chat-composer__card:focus-within {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.4);
+}
+
+.chat-composer__card.is-disabled {
+  opacity: 0.65;
+}
+
+/* 첨부 이미지 썸네일 (카드 위쪽) */
 .chat-composer__attachments {
   display: flex;
   gap: 8px;
-  padding-bottom: 4px;
+  padding: 8px 10px 0;
   flex-wrap: wrap;
 }
 
@@ -187,7 +160,7 @@
   width: 56px;
   height: 56px;
   border-radius: 6px;
-  border: 1px solid #30363d;
+  border: 1px solid #3c3c3c;
   background: #0d1117;
   overflow: hidden;
 }
@@ -218,32 +191,158 @@
   background: rgba(248, 81, 73, 0.9);
 }
 
-.chat-composer__interrupt {
+/* ── Textarea ── */
+.chat-composer__textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 10px 12px 4px;
+  resize: none;
+  min-height: 44px;
+  max-height: 280px;
+  font-family: var(--font-ui);
+  outline: none;
+}
+
+.chat-composer__textarea::placeholder {
+  color: #6e7681;
+}
+
+/* ── 하단 툴바 ── */
+.chat-composer__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 6px;
+}
+
+.chat-composer__toolbar-spacer {
+  flex: 1;
+}
+
+/* 둥근 아이콘 버튼 (첨부) */
+.chat-composer__icon-btn {
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
-}
-
-.chat-composer__interrupt.is-active {
-  background: #2b1416 !important;
-  color: #ffa198 !important;
-  border-color: #5d1f23 !important;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #9d9d9d;
   cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
 }
 
-.chat-composer__interrupt.is-active:hover {
-  background: #5d1f23 !important;
+.chat-composer__icon-btn:hover:not(:disabled) {
+  background: #2a2d2e;
+  color: #ffffff;
 }
 
-.chat-composer__interrupt.is-idle {
-  background: transparent !important;
-  color: #6e7681 !important;
-  border-color: #30363d !important;
-  opacity: 0.5;
+.chat-composer__icon-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.chat-composer__interrupt-icon {
-  font-size: 12px;
+/* Mode / Model 칩 */
+.chat-composer__chip {
+  background: transparent;
+  border: 1px solid #3c3c3c;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: #cccccc;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.chat-composer__chip:hover:not(:disabled) {
+  background: #2a2d2e;
+  border-color: #4a4a4a;
+}
+
+.chat-composer__chip[data-mode="plan"] {
+  color: #d29922;
+  border-color: rgba(210, 153, 34, 0.5);
+}
+
+.chat-composer__chip[data-mode="auto-accept"] {
+  color: #3fb950;
+  border-color: rgba(63, 185, 80, 0.5);
+}
+
+.chat-composer__chip-model {
+  color: #858585;
+  cursor: default;
+}
+
+.chat-composer__chip-shortcut {
+  color: #6e7681;
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+/* 전송/중단 일체화 버튼 */
+.chat-composer__send {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0e639c;
+  border: 1px solid #0e639c;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.chat-composer__send:hover:not(:disabled) {
+  background: #1177bb;
+  border-color: #1177bb;
+}
+
+.chat-composer__send:disabled {
+  background: #2a2d2e;
+  border-color: #3c3c3c;
+  color: #6e7681;
+  cursor: not-allowed;
+}
+
+.chat-composer__send.is-stop {
+  background: #a1260d;
+  border-color: #a1260d;
+}
+
+.chat-composer__send.is-stop:hover:not(:disabled) {
+  background: #c4310f;
+  border-color: #c4310f;
+}
+
+.chat-composer__send-icon {
+  display: inline-block;
+  line-height: 1;
+}
+
+/* 카드 외부 짧은 안내 (선택사항: 작은 키 힌트) */
+.chat-composer__hint {
+  font-size: 10.5px;
+  color: #6e7681;
+  padding: 2px 6px 0;
+  user-select: none;
+  display: flex;
+  gap: 8px;
 }
