@@ -77,7 +77,7 @@ describe('ExpandPane', () => {
     expect(screen.getByText('ls')).toBeInTheDocument()
     // tool_result는 인라인 숨김
     expect(screen.queryByText('file.txt')).toBeNull()
-    expect(screen.queryByText('✓ 도구 결과')).toBeNull()
+    expect(screen.queryByText('도구 결과')).toBeNull()
     // 최종 markdown 답변은 풀로 렌더 (preview truncation 없음)
     const body = container.querySelector('.expand-pane__body') as HTMLElement
     expect(body).toBeTruthy()

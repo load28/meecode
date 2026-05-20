@@ -7,6 +7,7 @@ import type {
 } from '../../hooks/useFileTabs'
 import { DiffView } from '../DiffView'
 import { MarkdownContent } from '../MessageBubble/MarkdownContent'
+import { Icon } from '../Icon'
 import './FilePanel.css'
 
 interface Props {
@@ -241,7 +242,13 @@ export function FilePanel({
             <span className="file-panel__path">{active.path}</span>
             <span className="file-panel__meta">
               {active.language} · {formatBytes(active.size)}
-              {active.truncated && ' · ⚠ 일부만 표시'}
+              {active.truncated && (
+                <>
+                  {' · '}
+                  <Icon name="alert" />
+                  {' 일부만 표시'}
+                </>
+              )}
             </span>
             {active.pending && onSetViewMode && (
               <div
@@ -312,7 +319,10 @@ export function FilePanel({
             <div className="file-panel__loading">불러오는 중…</div>
           )}
           {active.error && (
-            <div className="file-panel__error">⚠ {active.error}</div>
+            <div className="file-panel__error">
+              <Icon name="alert" />
+              <span>{active.error}</span>
+            </div>
           )}
           {!active.loading && !active.error && (
             <>
@@ -369,7 +379,8 @@ export function FilePanel({
                           setSelection(null)
                         }}
                       >
-                        💬 코멘트로 추가
+                        <Icon name="comment" />
+                        <span>코멘트로 추가</span>
                       </button>
                     </div>
                   )}

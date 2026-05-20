@@ -13,6 +13,9 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .message-bubble__plan .message-bubble__content {
@@ -158,6 +161,8 @@
 
 .message-bubble__thinking-icon {
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .message-bubble__thinking-text {
@@ -262,6 +267,9 @@
   padding: 6px 12px;
   margin: 4px 0;
   font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .message-bubble__tool-result {
@@ -309,6 +317,9 @@
   font-weight: 600;
   font-size: 11px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .message-bubble__tool-result.is-error .message-bubble__tool-result-label {

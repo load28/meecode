@@ -187,6 +187,9 @@
 
 .file-panel__error {
   color: #ffa198;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .file-panel__code {
@@ -256,6 +259,9 @@
   font-size: 12px;
   cursor: pointer;
   font-family: var(--font-ui);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .file-panel__comment button:hover {

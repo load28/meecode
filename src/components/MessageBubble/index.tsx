@@ -2,6 +2,7 @@ import type { AssistantSegment } from '../../types'
 import { useSmoothedText } from '../../hooks/useSmoothedText'
 import { ToolUseView, type OpenFileFn } from '../ToolViews'
 import { MarkdownContent, renderMarkdown } from './MarkdownContent'
+import { Icon } from '../Icon'
 import './MessageBubble.css'
 
 export { renderMarkdown }
@@ -19,7 +20,10 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
   if (segment.kind === 'plan') {
     return (
       <div className="message-bubble__plan">
-        <div className="message-bubble__plan-label">📋 Plan</div>
+        <div className="message-bubble__plan-label">
+          <Icon name="clipboard" />
+          <span>Plan</span>
+        </div>
         <MarkdownContent
           className="message-bubble__content"
           source={segment.text}
@@ -40,7 +44,7 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
     const header = (
       <div className="message-bubble__thinking-summary">
         <span className="message-bubble__thinking-icon" aria-hidden="true">
-          💭
+          <Icon name="thought" />
         </span>
         <span>{label}</span>
         {segment.partial && (
@@ -73,7 +77,7 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
     return (
       <details className="message-bubble__skill-body">
         <summary className="message-bubble__skill-body-summary">
-          <span aria-hidden="true">📚</span>
+          <Icon name="book" />
           <span>Skill 본문</span>
           <span className="message-bubble__skill-body-name">{segment.skill}</span>
         </summary>
@@ -87,7 +91,7 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
   if (segment.kind === 'interrupted') {
     return (
       <div className="message-bubble__interrupted" role="note">
-        <span aria-hidden="true">⛔</span>
+        <Icon name="block" />
         <span>사용자에 의해 응답이 중단됨</span>
       </div>
     )
@@ -95,7 +99,8 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
   if (segment.kind === 'redacted_thinking') {
     return (
       <div className="message-bubble__redacted" aria-label="가려진 추론">
-        🔒 가려진 추론 (안전상 본문이 노출되지 않음)
+        <Icon name="lock" />
+        <span>가려진 추론 (안전상 본문이 노출되지 않음)</span>
       </div>
     )
   }
@@ -109,7 +114,8 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
     }
     return (
       <div className="message-bubble__image-placeholder" aria-label="이미지">
-        🖼 이미지 ({segment.media_type})
+        <Icon name="image" />
+        <span>이미지 ({segment.media_type})</span>
       </div>
     )
   }
@@ -117,11 +123,14 @@ export function SegmentView({ segment, onOpenFile, defaultOpen }: SegmentViewPro
     const cls = segment.is_error
       ? 'message-bubble__tool-result is-error'
       : 'message-bubble__tool-result'
-    const label = segment.is_error ? '❌ 도구 실패' : '✓ 도구 결과'
+    const label = segment.is_error ? '도구 실패' : '도구 결과'
     return (
       <details className={cls} open={defaultOpen}>
         <summary className="message-bubble__tool-result-summary">
-          <span className="message-bubble__tool-result-label">{label}</span>
+          <span className="message-bubble__tool-result-label">
+            <Icon name={segment.is_error ? 'x-circle' : 'check-circle'} />
+            <span>{label}</span>
+          </span>
           {segment.text && (
             <span className="message-bubble__tool-result-preview">
               {/* Hand the first ~400 chars to CSS line-clamp instead of

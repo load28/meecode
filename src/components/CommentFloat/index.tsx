@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SelectionState } from '../../types'
+import { Icon } from '../Icon'
 import './CommentFloat.css'
 
 interface Props {
@@ -62,7 +63,8 @@ export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props)
             disabled={pinned}
             title="이 선택을 프로젝트 핀으로 저장"
           >
-            {pinned ? '📌 저장됨' : '📌 핀'}
+            <Icon name="pin" />
+            <span>{pinned ? '저장됨' : '핀'}</span>
           </button>
         )}
         {onAddComment && (
@@ -71,7 +73,8 @@ export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props)
             onClick={handleAddComment}
             title="선택 영역을 입력창에 코멘트로 추가"
           >
-            💬 코멘트로 추가
+            <Icon name="comment" />
+            <span>코멘트로 추가</span>
           </button>
         )}
       </div>

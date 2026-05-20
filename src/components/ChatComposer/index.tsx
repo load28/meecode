@@ -5,6 +5,7 @@ import {
   CLIENT_SLASH_COMMANDS,
   decorateServerSlash,
 } from '../../hooks/clientSlash'
+import { Icon, type IconName } from '../Icon'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -23,9 +24,15 @@ const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
 ]
 
 const MODE_LABEL: Record<Mode, string> = {
-  default: '⏎ 기본',
-  plan: '📋 Plan',
-  'auto-accept': '⚡ Auto',
+  default: '기본',
+  plan: 'Plan',
+  'auto-accept': 'Auto',
+}
+
+const MODE_ICON: Record<Mode, IconName | null> = {
+  default: null,
+  plan: 'clipboard',
+  'auto-accept': 'zap',
 }
 
 const MODEL_DISPLAY_NAME = (model: string | null | undefined): string => {
@@ -753,7 +760,7 @@ export function ChatComposer({
             aria-label="이미지 첨부"
             disabled={disabled && !busy}
           >
-            📎
+            <Icon name="paperclip" />
           </button>
           <button
             type="button"
@@ -762,6 +769,7 @@ export function ChatComposer({
             onClick={() => cycleMode()}
             title="모드 전환 (Shift+Tab)"
           >
+            {MODE_ICON[mode] && <Icon name={MODE_ICON[mode] as IconName} />}
             <span>{MODE_LABEL[mode]}</span>
             <span className="chat-composer__chip-shortcut">⇧⇥</span>
           </button>

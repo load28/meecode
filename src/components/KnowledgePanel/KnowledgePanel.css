@@ -21,6 +21,9 @@
   font-weight: 600;
   color: #c9d1d9;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .knowledge-panel__close {
@@ -156,6 +159,8 @@
   cursor: pointer;
   font-size: 12px;
   padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .knowledge-panel__pin-toggle:hover,
@@ -241,6 +246,8 @@
   cursor: pointer;
   padding: 2px 4px;
   font-size: 11px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .knowledge-panel__wiki-del:hover {
@@ -347,12 +354,18 @@
   padding: 8px 10px;
   border-radius: 6px;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .knowledge-panel__diff-summary {
   font-size: 13px;
   color: #79c0ff;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .knowledge-panel__diffs {

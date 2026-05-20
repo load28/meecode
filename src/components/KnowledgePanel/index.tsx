@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Pin, WikiFileMeta } from '../../types'
 import { useProjectKnowledge } from '../../hooks/useProjectKnowledge'
 import { renderMarkdown } from '../MessageBubble'
+import { Icon } from '../Icon'
 import './KnowledgePanel.css'
 
 type Tab = 'pins' | 'wiki' | 'organize'
@@ -46,7 +47,10 @@ export function KnowledgePanel({ projectPath, onClose }: Props) {
   return (
     <div className="knowledge-panel">
       <header className="knowledge-panel__header">
-        <h2 className="knowledge-panel__title">📚 프로젝트 노트</h2>
+        <h2 className="knowledge-panel__title">
+          <Icon name="book" />
+          <span>프로젝트 노트</span>
+        </h2>
         <button
           type="button"
           className="knowledge-panel__close"
@@ -62,21 +66,24 @@ export function KnowledgePanel({ projectPath, onClose }: Props) {
           className={`knowledge-panel__tab${tab === 'pins' ? ' is-active' : ''}`}
           onClick={() => setTab('pins')}
         >
-          📌 핀 ({knowledge.pins.length})
+          <Icon name="pin" />
+          <span>핀 ({knowledge.pins.length})</span>
         </button>
         <button
           type="button"
           className={`knowledge-panel__tab${tab === 'wiki' ? ' is-active' : ''}`}
           onClick={() => setTab('wiki')}
         >
-          📖 위키 ({knowledge.wiki.length})
+          <Icon name="book-open" />
+          <span>위키 ({knowledge.wiki.length})</span>
         </button>
         <button
           type="button"
           className={`knowledge-panel__tab${tab === 'organize' ? ' is-active' : ''}`}
           onClick={() => setTab('organize')}
         >
-          ✨ 정리
+          <Icon name="sparkles" />
+          <span>정리</span>
           {knowledge.status === 'running' && (
             <span className="knowledge-panel__tab-badge">●</span>
           )}
@@ -131,7 +138,7 @@ function PinsTab({ pins, expandedId, onToggleExpand, onDelete }: PinsTabProps) {
       <div className="knowledge-panel__empty">
         <p>아직 핀이 없습니다.</p>
         <p className="knowledge-panel__empty-hint">
-          대화 메시지 옆 📌 버튼이나, 본문을 드래그한 뒤 나오는 핀 버튼으로
+          대화 메시지 옆 핀 버튼이나, 본문을 드래그한 뒤 나오는 핀 버튼으로
           스크랩할 수 있어요.
         </p>
       </div>
@@ -166,7 +173,7 @@ function PinsTab({ pins, expandedId, onToggleExpand, onDelete }: PinsTabProps) {
                 onClick={() => void onDelete(pin.id)}
                 aria-label="핀 삭제"
               >
-                🗑
+                <Icon name="trash" />
               </button>
             </div>
             {expanded ? (
@@ -254,7 +261,7 @@ function WikiTab({ wiki, readWiki, onDelete }: WikiTabProps) {
               }}
               aria-label="위키 삭제"
             >
-              🗑
+              <Icon name="trash" />
             </button>
           </li>
         ))}
@@ -366,7 +373,8 @@ function OrganizeTab({
                   : '선택한 핀과 기존 위키를 클로드한테 정리시키기'
               }
             >
-              ✨ 정리 시작 ({selectedIds.size}/{pins.length} 핀)
+              <Icon name="sparkles" />
+              <span>정리 시작 ({selectedIds.size}/{pins.length} 핀)</span>
             </button>
             <p className="knowledge-panel__hint">
               백그라운드에서 클로드 세션을 띄워 선택한 핀을 위키로 통합합니다.
@@ -464,7 +472,10 @@ function OrganizeTab({
         )}
         {status === 'error' && (
           <>
-            <div className="knowledge-panel__error">⚠ {error}</div>
+            <div className="knowledge-panel__error">
+              <Icon name="alert" />
+              <span>{error}</span>
+            </div>
             <button
               type="button"
               className="knowledge-panel__secondary-btn"
@@ -477,9 +488,14 @@ function OrganizeTab({
         {status === 'diff-ready' && (
           <>
             <div className="knowledge-panel__diff-summary">
-              {diff && diff.length > 0
-                ? `📝 ${diff.length}개 파일 변경 제안`
-                : error || '응답에서 변경 사항을 찾지 못했습니다.'}
+              {diff && diff.length > 0 ? (
+                <>
+                  <Icon name="note" />
+                  <span>{diff.length}개 파일 변경 제안</span>
+                </>
+              ) : (
+                error || '응답에서 변경 사항을 찾지 못했습니다.'
+              )}
             </div>
             <button
               type="button"

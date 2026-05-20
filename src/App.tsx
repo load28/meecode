@@ -19,6 +19,7 @@ import { useClaudeSession } from './hooks/useClaudeSession'
 import { useClaudeStatus } from './hooks/useClaudeStatus'
 import { useExpandPanel } from './hooks/useExpandPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import { Icon } from './components/Icon'
 import './App.css'
 
 interface RecentProject {
@@ -83,7 +84,14 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
           onClick={handleSelect}
           disabled={loading}
         >
-          {loading ? '시작 중...' : '📂 프로젝트 폴더 선택'}
+          {loading ? (
+            '시작 중...'
+          ) : (
+            <>
+              <Icon name="folder-open" />
+              <span>프로젝트 폴더 선택</span>
+            </>
+          )}
         </button>
         {error && <p className="folder-picker__error">{error}</p>}
         {recent.length > 0 && (
@@ -341,7 +349,8 @@ function MainLayout({
           onClick={onToggleKnowledge}
           title={`프로젝트 노트 (${knowledge.pins.length} 핀)`}
         >
-          📚 노트 ({knowledge.pins.length})
+          <Icon name="book" />
+          <span>노트 ({knowledge.pins.length})</span>
           {knowledge.status === 'running' && (
             <span className="app__knowledge-pulse" aria-hidden>●</span>
           )}
@@ -398,16 +407,22 @@ function MainLayout({
           title="설정"
           aria-label="설정"
         >
-          ⚙
+          <Icon name="gear" />
         </button>
       </div>
       <div className="app__banners">
         {hookActivity && (
-          <div className="app__hook-banner">⚙ {hookActivity}</div>
+          <div className="app__hook-banner">
+            <Icon name="gear" />
+            <span>{hookActivity}</span>
+          </div>
         )}
         {rateLimit && (
           <div className="app__rate-limit-banner" role="alert">
-            <span>⚠ {rateLimit}</span>
+            <span>
+              <Icon name="alert" />
+              <span>{rateLimit}</span>
+            </span>
             <button
               type="button"
               className="app__rate-limit-dismiss"
@@ -419,7 +434,10 @@ function MainLayout({
         )}
         {turnError && (
           <div className="app__turn-error-banner" role="status">
-            <span>⚠ {turnError}</span>
+            <span>
+              <Icon name="alert" />
+              <span>{turnError}</span>
+            </span>
           </div>
         )}
       </div>
@@ -476,11 +494,14 @@ function MainLayout({
                   {queue.length > 0 && (
                     <div className="app__queue">
                       <div className="app__queue-label">
-                        ⏳ 큐에 대기 중 ({queue.length})
+                        <Icon name="hourglass" />
+                        <span>큐에 대기 중 ({queue.length})</span>
                       </div>
                       {queue.map((q) => (
                         <div key={q.id} className="app__queue-item">
-                          <span className="app__queue-text">{q.text || '🖼'}</span>
+                          <span className="app__queue-text">
+                            {q.text || <Icon name="image" />}
+                          </span>
                           <button
                             type="button"
                             className="app__queue-remove"

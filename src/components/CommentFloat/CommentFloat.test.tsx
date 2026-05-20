@@ -24,7 +24,7 @@ describe('CommentFloat', () => {
         onAddComment={() => {}}
       />,
     )
-    expect(screen.getByText('💬 코멘트로 추가')).toBeInTheDocument()
+    expect(screen.getByText('코멘트로 추가')).toBeInTheDocument()
   })
 
   it('버튼 클릭 시 onAddComment(선택텍스트) 호출 후 onClose', async () => {
@@ -39,7 +39,7 @@ describe('CommentFloat', () => {
       />,
     )
 
-    await user.click(screen.getByText('💬 코멘트로 추가'))
+    await user.click(screen.getByText('코멘트로 추가'))
 
     expect(onAddComment).toHaveBeenCalledWith('await를 사용')
     expect(onClose).toHaveBeenCalledOnce()
@@ -83,12 +83,12 @@ describe('CommentFloat', () => {
       />,
     )
 
-    await user.click(screen.getByText('📌 핀'))
+    await user.click(screen.getByText('핀'))
     expect(onPin).toHaveBeenCalledWith('await를 사용')
   })
 
   it('onAddComment 미제공 시 코멘트 버튼 숨김', () => {
     render(<CommentFloat selection={mockSelection} onClose={() => {}} />)
-    expect(screen.queryByText('💬 코멘트로 추가')).not.toBeInTheDocument()
+    expect(screen.queryByText('코멘트로 추가')).not.toBeInTheDocument()
   })
 })

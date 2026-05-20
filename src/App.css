@@ -93,6 +93,10 @@ body,
   cursor: pointer;
   width: 100%;
   transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .folder-picker__btn:hover:not(:disabled) {
@@ -222,10 +226,8 @@ body,
   user-select: none;
 }
 
-.app__queue-label::before {
-  content: '◷';
+.app__queue-label .icon {
   color: #d29922;
-  font-size: 11px;
 }
 
 .app__queue-item {
@@ -350,6 +352,13 @@ body,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.app__rate-limit-banner > span,
+.app__turn-error-banner > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .app__rate-limit-dismiss {

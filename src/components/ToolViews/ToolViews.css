@@ -23,6 +23,8 @@
 .tool-view__icon {
   font-size: 14px;
   color: #79c0ff;
+  display: inline-flex;
+  align-items: center;
 }
 
 .tool-view__name {

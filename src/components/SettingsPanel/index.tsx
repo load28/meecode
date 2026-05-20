@@ -6,6 +6,7 @@ import {
   type ClaudeStatus,
   type ValidationError,
 } from '../../hooks/useClaudeStatus'
+import { Icon } from '../Icon'
 import './SettingsPanel.css'
 
 interface Props {
@@ -165,10 +166,20 @@ export function SettingsPanel({ open: visible, onClose, status, onChanged }: Pro
 
 function StatusBadge({ status }: { status: ClaudeStatus }) {
   if (status.ready) {
-    return <span className="settings-badge settings-badge--ok">✅ 작동 중</span>
+    return (
+      <span className="settings-badge settings-badge--ok">
+        <Icon name="check-circle" />
+        <span>작동 중</span>
+      </span>
+    )
   }
   if (status.path) {
-    return <span className="settings-badge settings-badge--err">❌ 무효</span>
+    return (
+      <span className="settings-badge settings-badge--err">
+        <Icon name="x-circle" />
+        <span>무효</span>
+      </span>
+    )
   }
-  return <span className="settings-badge settings-badge--unset">⚪ 미설정</span>
+  return <span className="settings-badge settings-badge--unset">미설정</span>
 }

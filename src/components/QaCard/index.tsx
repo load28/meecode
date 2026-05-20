@@ -6,6 +6,7 @@ import { FilePath, type OpenFileFn } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
+import { Icon } from '../Icon'
 import './QaCard.css'
 
 interface Props {
@@ -183,7 +184,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
             onClick={handleCardPin}
             disabled={cardPinned}
           >
-            📌
+            <Icon name="pin" />
           </button>
         )}
         <button
@@ -232,7 +233,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
               if (seg.kind === 'interrupted') {
                 return (
                   <div key={i} className="qa-card__interrupted" role="note">
-                    <span aria-hidden="true">⛔</span>
+                    <Icon name="block" />
                     <span>사용자에 의해 응답이 중단됨</span>
                   </div>
                 )

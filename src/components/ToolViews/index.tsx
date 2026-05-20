@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
 import { DiffView } from '../DiffView'
+import { Icon } from '../Icon'
 import './ToolViews.css'
 
 function openExternal(path: string) {
@@ -122,7 +123,7 @@ function EditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--edit">
       <header className="tool-view__header">
-        <span className="tool-view__icon">✎</span>
+        <span className="tool-view__icon"><Icon name="pencil" /></span>
         <span className="tool-view__name">Edit</span>
         <FilePath path={filePath} onOpen={openWithDiff} />
       </header>
@@ -157,7 +158,7 @@ function MultiEditView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--edit">
       <header className="tool-view__header">
-        <span className="tool-view__icon">✎</span>
+        <span className="tool-view__icon"><Icon name="pencil" /></span>
         <span className="tool-view__name">MultiEdit</span>
         <FilePath path={filePath} onOpen={openWithDiff} />
         {edits.length > 0 && (
@@ -189,7 +190,7 @@ function WriteView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--write">
       <header className="tool-view__header">
-        <span className="tool-view__icon">＋</span>
+        <span className="tool-view__icon"><Icon name="note" /></span>
         <span className="tool-view__name">Write</span>
         <FilePath path={filePath} onOpen={openWithDiff} />
         {lineCount > 0 && (
@@ -215,7 +216,7 @@ function ReadView({ segment, onOpenFile }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--read">
       <header className="tool-view__header">
-        <span className="tool-view__icon">👁</span>
+        <span className="tool-view__icon"><Icon name="eye" /></span>
         <span className="tool-view__name">Read</span>
         <FilePath path={filePath} onOpen={onOpenFile} />
         {(typeof offset === 'number' || typeof limit === 'number') && (
@@ -240,7 +241,7 @@ function TodoWriteView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--todo">
       <header className="tool-view__header">
-        <span className="tool-view__icon">☑</span>
+        <span className="tool-view__icon"><Icon name="check-square" /></span>
         <span className="tool-view__name">TodoWrite</span>
         <span className="tool-view__hint">{todos.length}개</span>
       </header>
@@ -273,7 +274,7 @@ function TaskCreateView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--todo">
       <header className="tool-view__header">
-        <span className="tool-view__icon">＋</span>
+        <span className="tool-view__icon"><Icon name="check-square" /></span>
         <span className="tool-view__name">Task 추가</span>
         {activeForm && <span className="tool-view__hint">{activeForm}</span>}
       </header>
@@ -331,7 +332,7 @@ function GrepGlobView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--search">
       <header className="tool-view__header">
-        <span className="tool-view__icon">🔎</span>
+        <span className="tool-view__icon"><Icon name="search" /></span>
         <span className="tool-view__name">{segment.name}</span>
         <span className="tool-view__pattern">{pattern}</span>
         {(path || glob) && (
@@ -353,7 +354,7 @@ function WebView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--web">
       <header className="tool-view__header">
-        <span className="tool-view__icon">🌐</span>
+        <span className="tool-view__icon"><Icon name="globe" /></span>
         <span className="tool-view__name">{segment.name}</span>
         <span className="tool-view__path">{url || query}</span>
       </header>
@@ -368,7 +369,7 @@ function SkillView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--skill">
       <header className="tool-view__header">
-        <span className="tool-view__icon">🎯</span>
+        <span className="tool-view__icon"><Icon name="target" /></span>
         <span className="tool-view__name">Skill</span>
         <span className="tool-view__path">{skill}</span>
         {args && <span className="tool-view__hint">{args}</span>}
@@ -385,7 +386,7 @@ function AgentView({ segment, onOpenFile, defaultOpen }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--agent">
       <header className="tool-view__header">
-        <span className="tool-view__icon">🤖</span>
+        <span className="tool-view__icon"><Icon name="cpu" /></span>
         <span className="tool-view__name">Agent</span>
         {subagentType && <span className="tool-view__hint">{subagentType}</span>}
         <span className="tool-view__path">{description}</span>
@@ -464,7 +465,7 @@ function SubagentSegment({
   if (segment.kind === 'thinking') {
     return (
       <div className="tool-view__subagent-thinking">
-        💭 {segment.text}
+        <Icon name="thought" /> {segment.text}
       </div>
     )
   }
@@ -477,7 +478,8 @@ function SubagentSegment({
             : 'tool-view__subagent-result'
         }
       >
-        {segment.is_error ? '❌' : '✓'} {segment.text.slice(0, 240)}
+        <Icon name={segment.is_error ? 'x-circle' : 'check-circle'} />{' '}
+        {segment.text.slice(0, 240)}
       </div>
     )
   }
@@ -494,7 +496,7 @@ function ToolSearchView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--search">
       <header className="tool-view__header">
-        <span className="tool-view__icon">🔧</span>
+        <span className="tool-view__icon"><Icon name="tools" /></span>
         <span className="tool-view__name">ToolSearch</span>
         <span className="tool-view__pattern">{query}</span>
       </header>
@@ -510,7 +512,7 @@ function NotebookEditView({ segment, defaultOpen }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--edit">
       <header className="tool-view__header">
-        <span className="tool-view__icon">📓</span>
+        <span className="tool-view__icon"><Icon name="book-open" /></span>
         <span className="tool-view__name">NotebookEdit</span>
         <span className="tool-view__path">{path}</span>
         <span className="tool-view__hint">
@@ -534,7 +536,7 @@ function BashOutputView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--bash">
       <header className="tool-view__header">
-        <span className="tool-view__icon">⏳</span>
+        <span className="tool-view__icon"><Icon name="hourglass" /></span>
         <span className="tool-view__name">BashOutput</span>
         <span className="tool-view__path">{bashId}</span>
         {filter && <span className="tool-view__hint">filter: {filter}</span>}
@@ -548,7 +550,7 @@ function KillBashView({ segment }: ToolViewProps) {
   return (
     <div className="tool-view tool-view--bash">
       <header className="tool-view__header">
-        <span className="tool-view__icon">⛔</span>
+        <span className="tool-view__icon"><Icon name="block" /></span>
         <span className="tool-view__name">KillBash</span>
         <span className="tool-view__path">{bashId}</span>
       </header>

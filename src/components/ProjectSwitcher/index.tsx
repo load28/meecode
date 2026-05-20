@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import { Icon } from '../Icon'
 import './ProjectSwitcher.css'
 
 interface ProjectInfo {
@@ -77,7 +78,7 @@ export function ProjectSwitcher({ currentPath, onSwitch }: Props) {
         onClick={() => setOpen((v) => !v)}
         title={currentPath}
       >
-        <span className="project-switcher__icon">📁</span>
+        <span className="project-switcher__icon"><Icon name="folder" /></span>
         <span className="project-switcher__name">{current}</span>
         <span className="project-switcher__caret">▾</span>
       </button>
@@ -121,7 +122,8 @@ export function ProjectSwitcher({ currentPath, onSwitch }: Props) {
             className="project-switcher__add"
             onClick={pickFolder}
           >
-            📂 다른 폴더 선택…
+            <Icon name="folder-open" />
+            <span>다른 폴더 선택…</span>
           </button>
         </div>
       )}

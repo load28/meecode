@@ -26,7 +26,7 @@ describe('SegmentView', () => {
   it('plan 세그먼트를 라벨과 함께 렌더', () => {
     const seg: AssistantSegment = { kind: 'plan', text: '# Plan body' }
     const { container } = render(<SegmentView segment={seg} />)
-    expect(screen.getByText('📋 Plan')).toBeInTheDocument()
+    expect(screen.getByText('Plan')).toBeInTheDocument()
     expect(container.querySelector('.message-bubble__plan')).toBeInTheDocument()
   })
 

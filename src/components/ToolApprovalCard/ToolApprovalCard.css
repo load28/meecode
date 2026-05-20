@@ -39,6 +39,8 @@
 
 .tool-approval-card__icon {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 }
 
 .tool-approval-card__name {
@@ -94,6 +96,9 @@
   background: #1a1408;
   border-radius: 4px;
   border-left: 2px solid #d29922;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tool-approval-card__blocked {
@@ -104,6 +109,9 @@
   border-radius: 4px;
   border-left: 2px solid #f85149;
   font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tool-approval-card__options {

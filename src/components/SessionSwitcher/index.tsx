@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { Icon } from '../Icon'
 import './SessionSwitcher.css'
 
 interface SessionInfo {
@@ -77,7 +78,7 @@ export function SessionSwitcher({
         onClick={() => setOpen((v) => !v)}
         title="세션 목록"
       >
-        <span className="session-switcher__icon">🗂</span>
+        <span className="session-switcher__icon"><Icon name="comment" /></span>
         <span className="session-switcher__label">세션</span>
         <span className="session-switcher__caret">▾</span>
       </button>

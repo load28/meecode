@@ -80,8 +80,8 @@ describe('QaCard', () => {
       { kind: 'tool_result', tool_use_id: 'tu2', text: 'cmd not found', is_error: true },
     ])
     render(<QaCard pair={p} onExpand={() => {}} />)
-    expect(screen.queryByText('✓ 도구 결과')).toBeNull()
-    expect(screen.queryByText('❌ 도구 실패')).toBeNull()
+    expect(screen.queryByText('도구 결과')).toBeNull()
+    expect(screen.queryByText('도구 실패')).toBeNull()
     expect(screen.queryByText('file.txt')).toBeNull()
     expect(screen.queryByText('cmd not found')).toBeNull()
   })
@@ -147,6 +147,6 @@ describe('QaCard', () => {
       />
     )
     fireEvent.mouseUp(container.querySelector('.qa-card__answer')!)
-    expect(screen.getByText('💬 코멘트로 추가')).toBeInTheDocument()
+    expect(screen.getByText('코멘트로 추가')).toBeInTheDocument()
   })
 })

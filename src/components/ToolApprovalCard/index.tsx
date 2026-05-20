@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ToolRequest } from '../../types'
 import { AskUserQuestionCard, type AskInput } from '../AskUserQuestionCard'
 import { DiffView } from '../DiffView'
+import { Icon } from '../Icon'
 import './ToolApprovalCard.css'
 
 interface Props {
@@ -262,7 +263,7 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
     >
       <header className="tool-approval-card__header">
         <span className="tool-approval-card__icon" aria-hidden="true">
-          {preview ? '✎' : '⚙'}
+          <Icon name={preview ? 'pencil' : 'gear'} />
         </span>
         <span className="tool-approval-card__name">
           {request.title || request.tool_name}
@@ -291,10 +292,16 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
       )}
 
       {request.decision_reason && (
-        <div className="tool-approval-card__reason">🛈 {request.decision_reason}</div>
+        <div className="tool-approval-card__reason">
+          <Icon name="info" />
+          <span>{request.decision_reason}</span>
+        </div>
       )}
       {request.blocked_path && (
-        <div className="tool-approval-card__blocked">⛔ {request.blocked_path}</div>
+        <div className="tool-approval-card__blocked">
+          <Icon name="block" />
+          <span>{request.blocked_path}</span>
+        </div>
       )}
 
       {denyMode ? (

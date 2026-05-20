@@ -66,6 +66,9 @@
   padding: 2px 8px;
   border-radius: 999px;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .settings-badge--ok {
