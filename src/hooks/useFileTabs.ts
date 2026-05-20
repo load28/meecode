@@ -13,6 +13,7 @@ export interface PendingEdit {
 }
 
 export type FileViewMode = 'normal' | 'diff'
+export type MarkdownView = 'rendered' | 'source'
 
 export interface FileTab {
   path: string
@@ -25,6 +26,11 @@ export interface FileTab {
   /** Pending Edit/Write payload; null for plain reads. */
   pending: PendingEdit | null
   viewMode: FileViewMode
+  /**
+   * For markdown files only: rendered (default) shows formatted HTML,
+   * source shows the raw `.md` text. Ignored for non-markdown files.
+   */
+  markdownView: MarkdownView
 }
 
 interface BackendFile {
@@ -47,6 +53,7 @@ export interface UseFileTabsResult {
   open: (path: string, opts?: OpenOptions) => Promise<void>
   setActive: (path: string) => void
   setViewMode: (path: string, mode: FileViewMode) => void
+  setMarkdownView: (path: string, view: MarkdownView) => void
   close: (path: string) => void
   closeAll: () => void
 }
@@ -89,6 +96,7 @@ export function useFileTabs(): UseFileTabsResult {
           error: null,
           pending,
           viewMode: initialMode,
+          markdownView: 'rendered',
         },
       ]
     })
@@ -118,6 +126,12 @@ export function useFileTabs(): UseFileTabsResult {
     )
   }, [])
 
+  const setMarkdownView = useCallback((path: string, view: MarkdownView) => {
+    setTabs((prev) =>
+      prev.map((t) => (t.path === path ? { ...t, markdownView: view } : t)),
+    )
+  }, [])
+
   const close = useCallback(
     (path: string) => {
       setTabs((prev) => {
@@ -136,5 +150,14 @@ export function useFileTabs(): UseFileTabsResult {
     setActivePath(null)
   }, [])
 
-  return { tabs, activePath, open, setActive, setViewMode, close, closeAll }
+  return {
+    tabs,
+    activePath,
+    open,
+    setActive,
+    setViewMode,
+    setMarkdownView,
+    close,
+    closeAll,
+  }
 }

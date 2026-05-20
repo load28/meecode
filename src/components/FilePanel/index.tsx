@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Prism from 'prismjs'
-import type { FileTab, FileViewMode } from '../../hooks/useFileTabs'
+import type {
+  FileTab,
+  FileViewMode,
+  MarkdownView,
+} from '../../hooks/useFileTabs'
 import { DiffView } from '../DiffView'
+import { MarkdownContent } from '../MessageBubble/MarkdownContent'
 import './FilePanel.css'
 
 interface Props {
@@ -11,6 +16,7 @@ interface Props {
   onClose: (path: string) => void
   onCloseAll: () => void
   onSetViewMode?: (path: string, mode: FileViewMode) => void
+  onSetMarkdownView?: (path: string, view: MarkdownView) => void
   onAddSelectionToComposer: (snippet: {
     text: string
     path: string
@@ -63,6 +69,7 @@ export function FilePanel({
   onClose,
   onCloseAll,
   onSetViewMode,
+  onSetMarkdownView,
   onAddSelectionToComposer,
   onDetach,
   onDock,
@@ -79,6 +86,11 @@ export function FilePanel({
     if (!active) return ''
     return highlight(active.content, active.language)
   }, [active])
+
+  const isMarkdown = active?.language === 'markdown'
+  const showingDiff = active?.viewMode === 'diff' && !!active.pending
+  const renderMarkdown =
+    isMarkdown && !showingDiff && active?.markdownView !== 'source'
 
   const lineCount = useMemo(() => {
     if (!active) return 0
@@ -263,6 +275,38 @@ export function FilePanel({
                 </button>
               </div>
             )}
+            {isMarkdown && !showingDiff && onSetMarkdownView && (
+              <div
+                className="file-panel__mode-toggle"
+                role="tablist"
+                aria-label="마크다운 보기 모드"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active.markdownView === 'rendered'}
+                  className={
+                    'file-panel__mode-btn' +
+                    (active.markdownView === 'rendered' ? ' is-active' : '')
+                  }
+                  onClick={() => onSetMarkdownView(active.path, 'rendered')}
+                >
+                  Rendered
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={active.markdownView === 'source'}
+                  className={
+                    'file-panel__mode-btn' +
+                    (active.markdownView === 'source' ? ' is-active' : '')
+                  }
+                  onClick={() => onSetMarkdownView(active.path, 'source')}
+                >
+                  Source
+                </button>
+              </div>
+            )}
           </header>
           {active.loading && (
             <div className="file-panel__loading">불러오는 중…</div>
@@ -279,6 +323,13 @@ export function FilePanel({
                     newText={active.pending.newText}
                     sideBySide
                     collapsibleLabel={null}
+                  />
+                </div>
+              ) : renderMarkdown ? (
+                <div className="file-panel__markdown">
+                  <MarkdownContent
+                    className="file-panel__markdown-content message-bubble__content"
+                    source={active.content}
                   />
                 </div>
               ) : (

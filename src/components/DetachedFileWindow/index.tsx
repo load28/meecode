@@ -101,6 +101,7 @@ export function DetachedFileWindow() {
         onClose={fileTabs.close}
         onCloseAll={fileTabs.closeAll}
         onSetViewMode={fileTabs.setViewMode}
+        onSetMarkdownView={fileTabs.setMarkdownView}
         onAddSelectionToComposer={handleAddSnippet}
         onDock={handleDock}
       />
