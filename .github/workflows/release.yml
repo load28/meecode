@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '배포 모드 (베타는 버전 끝에 -beta 가 붙고 prerelease 로 표시됨)'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - production
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 패키지 버전 → 태그 계산
+        id: version
+        run: |
+          base=$(node -p "require('./package.json').version")
+          if [ "${{ inputs.mode }}" = "beta" ]; then
+            tag="v${base}-beta"
+          else
+            tag="v${base}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "MeeCode release tag: ${tag}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: Tauri 빌드 & 드래프트 릴리즈 업로드 (universal-apple-darwin)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: MeeCode ${{ steps.version.outputs.tag }}
+          releaseDraft: true
+          prerelease: ${{ inputs.mode == 'beta' }}
+          args: --target universal-apple-darwin
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 릴리즈 publish (이 시점에 태그가 가시화됨)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ needs.build.outputs.tag }}" --draft=false
