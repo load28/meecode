@@ -184,3 +184,79 @@
   color: #6e7681;
   padding: 0 2px;
 }
+
+.tool-approval-card__deny-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #f85149;
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(248, 81, 73, 0.04);
+}
+
+.tool-approval-card__deny-label {
+  font-size: 12px;
+  color: #ffa49b;
+  font-weight: 600;
+}
+
+.tool-approval-card__deny-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e6edf3;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.tool-approval-card__deny-input:focus {
+  outline: none;
+  border-color: #f85149;
+}
+
+.tool-approval-card__deny-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tool-approval-card__deny-cancel,
+.tool-approval-card__deny-submit {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.tool-approval-card__deny-cancel {
+  background: transparent;
+  color: #c9d1d9;
+}
+
+.tool-approval-card__deny-cancel:hover {
+  background: #30363d;
+}
+
+.tool-approval-card__deny-submit {
+  background: #da3633;
+  color: #fff;
+  border-color: #da3633;
+}
+
+.tool-approval-card__deny-submit:hover:not(:disabled) {
+  background: #f85149;
+}
+
+.tool-approval-card__deny-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

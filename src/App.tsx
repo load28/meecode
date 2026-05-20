@@ -440,12 +440,12 @@ function MainLayout({
                 turnInProgress={turnInProgress}
                 onPin={handlePin}
                 onAddComment={handleAddComment}
-                onRespondTool={(reqId, allow, tuId, updatedInput) => {
+                onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
                   const effective =
                     allow && (updatedInput === undefined || updatedInput === null)
                       ? pendingTool?.input ?? {}
                       : updatedInput
-                  respondTool(reqId, allow, tuId, effective)
+                  respondTool(reqId, allow, tuId, effective, denialMessage)
                 }}
               />
               {queue.length > 0 && (

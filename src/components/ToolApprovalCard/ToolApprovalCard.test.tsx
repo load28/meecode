@@ -90,6 +90,53 @@ describe('ToolApprovalCard', () => {
     expect(onRespond).toHaveBeenLastCalledWith(false)
   })
 
+  it('"거부 + 의견 전달" 클릭 시 메시지 입력 폼이 열림', () => {
+    const onRespond = vi.fn()
+    render(<ToolApprovalCard request={editReq} onRespond={onRespond} />)
+    fireEvent.click(screen.getByText('거부 + 의견 전달'))
+    expect(screen.getByLabelText(/Claude에게 전달할 내용/)).toBeInTheDocument()
+    // 폼이 열리기만 했고 아직 응답은 전송되지 않아야 함.
+    expect(onRespond).not.toHaveBeenCalled()
+  })
+
+  it('거부 메시지를 입력 후 전송 시 denialMessage 인자로 전달됨', () => {
+    const onRespond = vi.fn()
+    render(<ToolApprovalCard request={editReq} onRespond={onRespond} />)
+    fireEvent.click(screen.getByText('거부 + 의견 전달'))
+    const textarea = screen.getByLabelText(/Claude에게 전달할 내용/)
+    fireEvent.change(textarea, { target: { value: '백업 먼저 만들어줘' } })
+    fireEvent.click(screen.getByText('거부 + 전송'))
+    expect(onRespond).toHaveBeenCalledWith(false, undefined, '백업 먼저 만들어줘')
+  })
+
+  it('Cmd/Ctrl + Enter로도 거부 메시지를 전송할 수 있음', () => {
+    const onRespond = vi.fn()
+    render(<ToolApprovalCard request={editReq} onRespond={onRespond} />)
+    fireEvent.click(screen.getByText('거부 + 의견 전달'))
+    const textarea = screen.getByLabelText(/Claude에게 전달할 내용/)
+    fireEvent.change(textarea, { target: { value: '대신 PR 설명에만 적어줘' } })
+    fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
+    expect(onRespond).toHaveBeenCalledWith(false, undefined, '대신 PR 설명에만 적어줘')
+  })
+
+  it('빈 메시지로는 전송 버튼이 비활성', () => {
+    const onRespond = vi.fn()
+    render(<ToolApprovalCard request={editReq} onRespond={onRespond} />)
+    fireEvent.click(screen.getByText('거부 + 의견 전달'))
+    expect(screen.getByText('거부 + 전송')).toBeDisabled()
+  })
+
+  it('취소 버튼은 다시 옵션 목록으로 되돌림', () => {
+    const onRespond = vi.fn()
+    render(<ToolApprovalCard request={editReq} onRespond={onRespond} />)
+    fireEvent.click(screen.getByText('거부 + 의견 전달'))
+    fireEvent.click(screen.getByText('취소'))
+    // 폼이 닫히고 옵션 라벨이 다시 보여야 한다.
+    expect(screen.queryByLabelText(/Claude에게 전달할 내용/)).toBeNull()
+    expect(screen.getByText('예 (한 번 허용)')).toBeInTheDocument()
+    expect(onRespond).not.toHaveBeenCalled()
+  })
+
   it('Write 도구는 비어 있는 oldText로 diff 표시', () => {
     render(
       <ToolApprovalCard

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ToolRequest } from '../../types'
 import { AskUserQuestionCard, type AskInput } from '../AskUserQuestionCard'
 import { DiffView } from '../DiffView'
@@ -6,7 +6,11 @@ import './ToolApprovalCard.css'
 
 interface Props {
   request: ToolRequest
-  onRespond: (allow: boolean, updatedInput?: unknown) => void
+  onRespond: (
+    allow: boolean,
+    updatedInput?: unknown,
+    denialMessage?: string | null,
+  ) => void
 }
 
 interface EditPreview {
@@ -113,8 +117,10 @@ function summarize(input: unknown): string {
   return JSON.stringify(obj).slice(0, 200)
 }
 
+type ApprovalKey = 'allow' | 'allow-always' | 'deny' | 'deny-with-message'
+
 interface ApprovalOption {
-  key: 'allow' | 'allow-always' | 'deny'
+  key: ApprovalKey
   label: string
   description?: string
 }
@@ -146,6 +152,13 @@ function buildOptions(request: ToolRequest): ApprovalOption[] {
     label: '거부',
     description: 'Claude에게 이 작업을 취소하라고 알린다.',
   })
+  // Mirrors the CLI plugin's "No, and tell Claude what to do differently" —
+  // the user explains why and Claude sees that as the denial reason.
+  opts.push({
+    key: 'deny-with-message',
+    label: '거부 + 의견 전달',
+    description: 'Claude에게 다르게 해야 할 점을 설명한다.',
+  })
   return opts
 }
 
@@ -163,10 +176,30 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
   const preview = useMemo(() => extractPreview(request), [request])
   const options = useMemo(() => buildOptions(request), [request])
   const containerRef = useRef<HTMLElement | null>(null)
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null)
+  // When the user picks "거부 + 의견 전달" we expand an inline textarea
+  // instead of dispatching immediately. The submit fires only after they
+  // press 전송 (or Cmd/Ctrl+Enter), so accidental Enter taps don't send a
+  // half-typed message.
+  const [denyMessage, setDenyMessage] = useState('')
+  const [denyMode, setDenyMode] = useState(false)
 
-  const handleSelect = (key: ApprovalOption['key']) => {
+  const submitDenyMessage = () => {
+    const trimmed = denyMessage.trim()
+    if (!trimmed) return
+    onRespond(false, undefined, trimmed)
+  }
+
+  const handleSelect = (key: ApprovalKey) => {
     if (key === 'deny') {
       onRespond(false)
+      return
+    }
+    if (key === 'deny-with-message') {
+      setDenyMode(true)
+      // Defer focus until React commits the textarea — using requestAnimationFrame
+      // would also work, but a microtask via setTimeout(0) is enough.
+      setTimeout(() => messageInputRef.current?.focus(), 0)
       return
     }
     if (key === 'allow-always') {
@@ -264,31 +297,83 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
         <div className="tool-approval-card__blocked">⛔ {request.blocked_path}</div>
       )}
 
-      <ul className="tool-approval-card__options" role="listbox">
-        {options.map((opt, i) => (
-          <li
-            key={opt.key}
-            role="option"
-            aria-selected={false}
-            className={`tool-approval-card__option tool-approval-card__option--${opt.key}`}
-            onClick={() => handleSelect(opt.key)}
-          >
-            <span className="tool-approval-card__option-marker" aria-hidden="true">
-              {i + 1}
-            </span>
-            <div className="tool-approval-card__option-body">
-              <div className="tool-approval-card__option-label">{opt.label}</div>
-              {opt.description && (
-                <div className="tool-approval-card__option-desc">{opt.description}</div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {denyMode ? (
+        <div className="tool-approval-card__deny-form" role="form" aria-label="거부 의견">
+          <label className="tool-approval-card__deny-label" htmlFor="deny-message-input">
+            Claude에게 전달할 내용 (어떻게 해야 하는지)
+          </label>
+          <textarea
+            id="deny-message-input"
+            ref={messageInputRef}
+            className="tool-approval-card__deny-input"
+            placeholder="예: 이 파일은 수정하지 말고 별도 파일을 만들어줘"
+            value={denyMessage}
+            onChange={(e) => setDenyMessage(e.target.value)}
+            onKeyDown={(e) => {
+              // Cmd/Ctrl+Enter submits; plain Enter inserts a newline so
+              // multi-line guidance is easy to write.
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault()
+                submitDenyMessage()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                setDenyMode(false)
+                setDenyMessage('')
+              }
+            }}
+            rows={3}
+          />
+          <div className="tool-approval-card__deny-actions">
+            <button
+              type="button"
+              className="tool-approval-card__deny-cancel"
+              onClick={() => {
+                setDenyMode(false)
+                setDenyMessage('')
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              className="tool-approval-card__deny-submit"
+              onClick={submitDenyMessage}
+              disabled={!denyMessage.trim()}
+              title="Cmd/Ctrl + Enter"
+            >
+              거부 + 전송
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <ul className="tool-approval-card__options" role="listbox">
+            {options.map((opt, i) => (
+              <li
+                key={opt.key}
+                role="option"
+                aria-selected={false}
+                className={`tool-approval-card__option tool-approval-card__option--${opt.key}`}
+                onClick={() => handleSelect(opt.key)}
+              >
+                <span className="tool-approval-card__option-marker" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <div className="tool-approval-card__option-body">
+                  <div className="tool-approval-card__option-label">{opt.label}</div>
+                  {opt.description && (
+                    <div className="tool-approval-card__option-desc">{opt.description}</div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
 
-      <div className="tool-approval-card__hint-row" aria-hidden="true">
-        숫자 키로 선택 · Enter는 허용 · Esc는 거부
-      </div>
+          <div className="tool-approval-card__hint-row" aria-hidden="true">
+            숫자 키로 선택 · Enter는 허용 · Esc는 거부
+          </div>
+        </>
+      )}
     </section>
   )
 }

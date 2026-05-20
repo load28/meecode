@@ -146,7 +146,13 @@ describe('ChatStream', () => {
       />,
     )
     fireEvent.click(screen.getByText('예 (한 번 허용)'))
-    expect(onRespondTool).toHaveBeenCalledWith('r1', true, 'tu-7', undefined)
+    expect(onRespondTool).toHaveBeenCalledWith(
+      'r1',
+      true,
+      'tu-7',
+      undefined,
+      undefined,
+    )
   })
 
   it('pendingTool이 있으면 진행 인디케이터는 표시하지 않음', () => {

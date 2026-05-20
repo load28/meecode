@@ -16,6 +16,7 @@ interface Props {
     allow: boolean,
     toolUseId: string | null,
     updatedInput?: unknown,
+    denialMessage?: string | null,
   ) => void
   onOpenFile?: OpenFileFn
   taskActivity?: TaskActivity | null
@@ -86,12 +87,13 @@ export function ChatStream({
       {pendingTool && (
         <ToolApprovalCard
           request={pendingTool}
-          onRespond={(allow, updatedInput) =>
+          onRespond={(allow, updatedInput, denialMessage) =>
             onRespondTool(
               pendingTool.request_id,
               allow,
               pendingTool.tool_use_id,
               updatedInput,
+              denialMessage,
             )
           }
         />

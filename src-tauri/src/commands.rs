@@ -432,6 +432,11 @@ pub struct ToolResponseArgs {
     pub updated_input: Option<serde_json::Value>,
     #[serde(default)]
     pub tab_id: Option<String>,
+    /// Optional user-authored message accompanying a denial — when present
+    /// this replaces the default "User denied" string sent back to Claude
+    /// so the model knows what to do differently next time.
+    #[serde(default)]
+    pub denial_message: Option<String>,
 }
 
 #[tauri::command]
@@ -448,7 +453,13 @@ pub async fn send_tool_response(
     send_to_stdin(
         &app,
         &tab,
-        control_response(args.request_id, behavior, args.tool_use_id, args.updated_input),
+        control_response(
+            args.request_id,
+            behavior,
+            args.tool_use_id,
+            args.updated_input,
+            args.denial_message,
+        ),
     )
     .await
 }
@@ -908,6 +919,7 @@ fn handle_organize_event(
                         request_id,
                         PermissionBehavior::Deny,
                         tool_use_id,
+                        None,
                         None,
                     );
                     tokio::spawn(async move {
