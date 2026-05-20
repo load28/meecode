@@ -126,6 +126,9 @@ interface MainLayoutProps {
   onSessionTitleChange: (title: string | null) => void
   claudeReady: boolean
   onOpenSettings: () => void
+  showKnowledge: boolean
+  onToggleKnowledge: () => void
+  onSetKnowledge: (open: boolean) => void
 }
 
 function MainLayout({
@@ -138,6 +141,9 @@ function MainLayout({
   onSessionTitleChange,
   claudeReady,
   onOpenSettings,
+  showKnowledge,
+  onToggleKnowledge,
+  onSetKnowledge,
 }: MainLayoutProps) {
   const {
     pairs,
@@ -209,7 +215,6 @@ function MainLayout({
   const fileTabs = useFileTabs()
   const { isDetached, detach, openFile } = useDetachedFilePanel(fileTabs)
   const knowledge = useProjectKnowledge(projectPath)
-  const [showKnowledge, setShowKnowledge] = useState(false)
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
@@ -228,8 +233,9 @@ function MainLayout({
       knowledge.status === 'diff-ready' ||
       knowledge.status === 'error'
     ) {
-      setShowKnowledge(true)
+      onSetKnowledge(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [knowledge.status])
 
   const handlePin = async (input: {
@@ -332,7 +338,7 @@ function MainLayout({
           className={`app__knowledge-btn${
             showKnowledge ? ' is-active' : ''
           }`}
-          onClick={() => setShowKnowledge((v) => !v)}
+          onClick={onToggleKnowledge}
           title={`프로젝트 노트 (${knowledge.pins.length} 핀)`}
         >
           📚 노트 ({knowledge.pins.length})
@@ -418,126 +424,147 @@ function MainLayout({
         )}
       </div>
       <div className="app__body">
-        <PanelGroup direction="horizontal">
-          <Panel
-            defaultSize={
-              isOpen && fileTabs.tabs.length > 0
-                ? 40
-                : isOpen || fileTabs.tabs.length > 0
-                ? 55
-                : 100
-            }
-            minSize={25}
-          >
-            <div className="app__chat">
-              <ChatStream
-                pairs={pairs}
-                onExpand={handleExpand}
-                pendingTool={pendingTool}
-                onOpenFile={handleOpenFile}
-                taskActivity={taskActivity}
-                hookActivity={hookActivity}
-                turnInProgress={turnInProgress}
-                onPin={handlePin}
-                onAddComment={handleAddComment}
-                onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
-                  const effective =
-                    allow && (updatedInput === undefined || updatedInput === null)
-                      ? pendingTool?.input ?? {}
-                      : updatedInput
-                  respondTool(reqId, allow, tuId, effective, denialMessage)
-                }}
-              />
-              {queue.length > 0 && (
-                <div className="app__queue">
-                  <div className="app__queue-label">
-                    ⏳ 큐에 대기 중 ({queue.length})
-                  </div>
-                  {queue.map((q) => (
-                    <div key={q.id} className="app__queue-item">
-                      <span className="app__queue-text">{q.text || '🖼'}</span>
-                      <button
-                        type="button"
-                        className="app__queue-remove"
-                        onClick={() => removeQueued(q.id)}
-                        title="큐에서 제거"
-                      >
-                        ×
-                      </button>
+        {/*
+          Two nested PanelGroups so panel sizes can have different scopes:
+          - Outer group ("meecode.layout.knowledge", app-wide): main vs
+            knowledge. Resizing the knowledge panel persists across tabs.
+          - Inner group (per-tab id): chat / expand / file. Each tab keeps
+            its own ratios as panels open and close. The library remembers
+            each panel-combination's layout separately keyed by the stable
+            `id` we hand each Panel.
+        */}
+        <PanelGroup
+          direction="horizontal"
+          autoSaveId="meecode.layout.knowledge"
+        >
+          <Panel id="main-content" order={1} minSize={30}>
+            <PanelGroup
+              direction="horizontal"
+              autoSaveId={`meecode.layout.tab.${tabId}`}
+            >
+              <Panel
+                id="chat"
+                order={1}
+                defaultSize={
+                  isOpen && fileTabs.tabs.length > 0
+                    ? 40
+                    : isOpen || fileTabs.tabs.length > 0
+                    ? 55
+                    : 100
+                }
+                minSize={25}
+              >
+                <div className="app__chat">
+                  <ChatStream
+                    pairs={pairs}
+                    onExpand={handleExpand}
+                    pendingTool={pendingTool}
+                    onOpenFile={handleOpenFile}
+                    taskActivity={taskActivity}
+                    hookActivity={hookActivity}
+                    turnInProgress={turnInProgress}
+                    onPin={handlePin}
+                    onAddComment={handleAddComment}
+                    onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
+                      const effective =
+                        allow && (updatedInput === undefined || updatedInput === null)
+                          ? pendingTool?.input ?? {}
+                          : updatedInput
+                      respondTool(reqId, allow, tuId, effective, denialMessage)
+                    }}
+                  />
+                  {queue.length > 0 && (
+                    <div className="app__queue">
+                      <div className="app__queue-label">
+                        ⏳ 큐에 대기 중 ({queue.length})
+                      </div>
+                      {queue.map((q) => (
+                        <div key={q.id} className="app__queue-item">
+                          <span className="app__queue-text">{q.text || '🖼'}</span>
+                          <button
+                            type="button"
+                            className="app__queue-remove"
+                            onClick={() => removeQueued(q.id)}
+                            title="큐에서 제거"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  <ChatComposer
+                    mode={mode}
+                    disabled={pendingTool !== null}
+                    sendUserMessage={sendUserMessage}
+                    cycleMode={cycleMode}
+                    slashCommands={slashCommands}
+                    model={model}
+                    // CLI parity (CancelRequestHandler.canCancelRunningTask):
+                    // the stop affordance is active iff a turn is currently
+                    // running. Queued messages have their own X-buttons in the
+                    // queue list and auto-drain once the turn settles.
+                    busy={turnInProgress}
+                    projectPath={projectPath}
+                    recentUserTexts={recentUserTexts}
+                    onClearConversation={clearConversation}
+                    pendingSelection={pendingSelection}
+                    onSelectionConsumed={() => setPendingSelection(null)}
+                    onInterrupt={() => {
+                      interrupt().catch(() => {})
+                    }}
+                    claudeReady={claudeReady}
+                    onOpenSettings={onOpenSettings}
+                  />
                 </div>
+              </Panel>
+              {isOpen && (
+                <>
+                  <PanelResizeHandle className="resize-handle" />
+                  <Panel id="expand" order={2} defaultSize={30} minSize={20}>
+                    <ExpandPane
+                      pair={expandedPair}
+                      isOpen={isOpen}
+                      onToggle={toggleOpen}
+                      onOpenFile={handleOpenFile}
+                      pairs={pairs}
+                      pendingTool={pendingTool}
+                      turnInProgress={turnInProgress}
+                      taskActivity={taskActivity}
+                      hookActivity={hookActivity}
+                      onAddComment={handleAddComment}
+                    />
+                  </Panel>
+                </>
               )}
-              <ChatComposer
-                mode={mode}
-                disabled={pendingTool !== null}
-                sendUserMessage={sendUserMessage}
-                cycleMode={cycleMode}
-                slashCommands={slashCommands}
-                model={model}
-                // CLI parity (CancelRequestHandler.canCancelRunningTask):
-                // the stop affordance is active iff a turn is currently
-                // running. Queued messages have their own X-buttons in the
-                // queue list and auto-drain once the turn settles.
-                busy={turnInProgress}
-                projectPath={projectPath}
-                recentUserTexts={recentUserTexts}
-                onClearConversation={clearConversation}
-                pendingSelection={pendingSelection}
-                onSelectionConsumed={() => setPendingSelection(null)}
-                onInterrupt={() => {
-                  interrupt().catch(() => {})
-                }}
-                claudeReady={claudeReady}
-                onOpenSettings={onOpenSettings}
-              />
-            </div>
+              {!isDetached && fileTabs.tabs.length > 0 && (
+                <>
+                  <PanelResizeHandle className="resize-handle" />
+                  <Panel id="file" order={3} defaultSize={35} minSize={20}>
+                    <FilePanel
+                      tabs={fileTabs.tabs}
+                      activePath={fileTabs.activePath}
+                      onSelect={fileTabs.setActive}
+                      onClose={fileTabs.close}
+                      onCloseAll={fileTabs.closeAll}
+                      onSetViewMode={fileTabs.setViewMode}
+                      onAddSelectionToComposer={handleAddSnippet}
+                      onDetach={() => {
+                        void detach()
+                      }}
+                    />
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
           </Panel>
-          {isOpen && (
-            <>
-              <PanelResizeHandle className="resize-handle" />
-              <Panel defaultSize={30} minSize={20}>
-                <ExpandPane
-                  pair={expandedPair}
-                  isOpen={isOpen}
-                  onToggle={toggleOpen}
-                  onOpenFile={handleOpenFile}
-                  pairs={pairs}
-                  pendingTool={pendingTool}
-                  turnInProgress={turnInProgress}
-                  taskActivity={taskActivity}
-                  hookActivity={hookActivity}
-                  onAddComment={handleAddComment}
-                />
-              </Panel>
-            </>
-          )}
-          {!isDetached && fileTabs.tabs.length > 0 && (
-            <>
-              <PanelResizeHandle className="resize-handle" />
-              <Panel defaultSize={35} minSize={20}>
-                <FilePanel
-                  tabs={fileTabs.tabs}
-                  activePath={fileTabs.activePath}
-                  onSelect={fileTabs.setActive}
-                  onClose={fileTabs.close}
-                  onCloseAll={fileTabs.closeAll}
-                  onSetViewMode={fileTabs.setViewMode}
-                  onAddSelectionToComposer={handleAddSnippet}
-                  onDetach={() => {
-                    void detach()
-                  }}
-                />
-              </Panel>
-            </>
-          )}
           {showKnowledge && (
             <>
               <PanelResizeHandle className="resize-handle" />
-              <Panel defaultSize={28} minSize={20}>
+              <Panel id="knowledge" order={2} defaultSize={28} minSize={20}>
                 <KnowledgePanel
                   projectPath={projectPath}
-                  onClose={() => setShowKnowledge(false)}
+                  onClose={() => onSetKnowledge(false)}
                 />
               </Panel>
             </>
@@ -561,6 +588,16 @@ function makeTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
+const KNOWLEDGE_OPEN_STORAGE_KEY = 'meecode.knowledgeOpen'
+
+function readKnowledgeOpen(): boolean {
+  try {
+    return localStorage.getItem(KNOWLEDGE_OPEN_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 function App() {
   const [tabs, setTabs] = useState<TabRecord[]>(() => [
     {
@@ -575,6 +612,23 @@ function App() {
   const [activeId, setActiveId] = useState<string>('main')
   const { status: claudeStatus, refresh: refreshClaudeStatus } = useClaudeStatus()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Knowledge panel open/close is app-wide: toggling it on tab A persists
+  // and shows the same state on tab B. Sized by the outer PanelGroup so
+  // its width also carries across tabs.
+  const [showKnowledge, setShowKnowledgeState] = useState<boolean>(
+    readKnowledgeOpen,
+  )
+  const setShowKnowledge = (next: boolean | ((prev: boolean) => boolean)) => {
+    setShowKnowledgeState((prev) => {
+      const resolved = typeof next === 'function' ? next(prev) : next
+      try {
+        localStorage.setItem(KNOWLEDGE_OPEN_STORAGE_KEY, String(resolved))
+      } catch {
+        /* localStorage unavailable — ignore */
+      }
+      return resolved
+    })
+  }
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0]
 
@@ -728,6 +782,9 @@ function App() {
                 }
                 claudeReady={claudeStatus.ready}
                 onOpenSettings={() => setSettingsOpen(true)}
+                showKnowledge={showKnowledge}
+                onToggleKnowledge={() => setShowKnowledge((v) => !v)}
+                onSetKnowledge={(open) => setShowKnowledge(open)}
               />
             ) : (
               <FolderPicker onStart={handleStart} />

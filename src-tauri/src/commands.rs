@@ -9,7 +9,9 @@ use crate::claude_process::stdout_parser::DomainEvent;
 use crate::config::Config;
 use crate::history::list::{list_projects, list_sessions, ProjectInfo, SessionInfo};
 use crate::history::load_recent::{extract_qa_pairs, load_recent_pairs, projects_dir_for, QaPair};
-use crate::organize::{build_prompt, diff_entries, extract_assistant_text, parse_wiki_response};
+use crate::organize::{
+    build_prompt, diff_entries, extract_assistant_text, parse_wiki_response, OrganizeOptions,
+};
 use crate::pins::{
     append_pin, delete_pin, delete_wiki_file, list_pins, list_wiki_files, read_wiki_file,
     write_wiki_file, Pin, WikiFile,
@@ -975,8 +977,18 @@ fn handle_organize_event(
     }
 }
 
+#[derive(Deserialize)]
+pub struct OrganizeArgs {
+    pub project_path: String,
+    #[serde(default)]
+    pub selected_pin_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub user_prompt: Option<String>,
+}
+
 #[tauri::command]
-pub async fn organize_notes(app: AppHandle, project_path: String) -> Result<(), String> {
+pub async fn organize_notes(app: AppHandle, args: OrganizeArgs) -> Result<(), String> {
+    let project_path = args.project_path;
     {
         let state = app.state::<AppState>();
         let slot = state.organize.lock().map_err(|e| e.to_string())?;
@@ -985,7 +997,11 @@ pub async fn organize_notes(app: AppHandle, project_path: String) -> Result<(), 
         }
     }
 
-    let prompt = build_prompt(&project_path)?;
+    let opts = OrganizeOptions {
+        selected_pin_ids: args.selected_pin_ids,
+        user_prompt: args.user_prompt,
+    };
+    let prompt = build_prompt(&project_path, &opts)?;
 
     let claude_bin = {
         let state = app.state::<AppState>();
