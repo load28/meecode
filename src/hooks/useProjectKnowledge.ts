@@ -15,6 +15,13 @@ interface PinSnippetInput {
   qaId?: string | null
 }
 
+export interface StartOrganizeOptions {
+  /** Pin ids to include. `undefined` or empty omitted from payload = backend uses all pins. */
+  selectedPinIds?: string[]
+  /** Optional user-authored instructions prepended to the system prompt. */
+  userPrompt?: string
+}
+
 export interface UseProjectKnowledgeResult {
   pins: Pin[]
   wiki: WikiFileMeta[]
@@ -29,7 +36,7 @@ export interface UseProjectKnowledgeResult {
   readWiki: (fileName: string) => Promise<string>
   applyWikiDiff: (fileName: string, content: string) => Promise<void>
   deleteWiki: (fileName: string) => Promise<void>
-  startOrganize: () => Promise<void>
+  startOrganize: (opts?: StartOrganizeOptions) => Promise<void>
   cancelOrganize: () => Promise<void>
   dismissDiff: () => void
 }
@@ -173,19 +180,30 @@ export function useProjectKnowledge(
     [projectPath, refreshWiki],
   )
 
-  const startOrganize = useCallback(async () => {
-    if (!projectPath) return
-    try {
-      await invoke('organize_notes', { projectPath })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      setKnowledge(projectPath, (s) => ({
-        ...s,
-        status: 'error',
-        error: msg,
-      }))
-    }
-  }, [projectPath])
+  const startOrganize = useCallback(
+    async (opts?: StartOrganizeOptions) => {
+      if (!projectPath) return
+      const trimmedPrompt = opts?.userPrompt?.trim()
+      try {
+        await invoke('organize_notes', {
+          args: {
+            project_path: projectPath,
+            selected_pin_ids: opts?.selectedPinIds ?? null,
+            user_prompt:
+              trimmedPrompt && trimmedPrompt.length > 0 ? trimmedPrompt : null,
+          },
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        setKnowledge(projectPath, (s) => ({
+          ...s,
+          status: 'error',
+          error: msg,
+        }))
+      }
+    },
+    [projectPath],
+  )
 
   const cancelOrganize = useCallback(async () => {
     try {

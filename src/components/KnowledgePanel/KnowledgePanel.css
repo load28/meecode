@@ -452,3 +452,154 @@
   word-break: break-word;
   margin: 0;
 }
+
+/* ── Organize: pin selection + custom prompt ── */
+
+.knowledge-panel__organize-select {
+  border-top: 1px solid #21262d;
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.knowledge-panel__organize-select-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.knowledge-panel__organize-select-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c9d1d9;
+  flex: 1;
+}
+
+.knowledge-panel__organize-toggle-all {
+  background: none;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.knowledge-panel__organize-toggle-all:hover {
+  color: #f0f6fc;
+  border-color: #8b949e;
+}
+
+.knowledge-panel__organize-pinlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+}
+
+.knowledge-panel__organize-pinitem {
+  border-bottom: 1px solid #161b22;
+}
+
+.knowledge-panel__organize-pinitem:last-child {
+  border-bottom: none;
+}
+
+.knowledge-panel__organize-pinitem.is-checked {
+  background: rgba(31, 111, 235, 0.08);
+}
+
+.knowledge-panel__organize-pinlabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #c9d1d9;
+}
+
+.knowledge-panel__organize-pinlabel input[type='checkbox'] {
+  accent-color: #1f6feb;
+  cursor: pointer;
+  flex: none;
+}
+
+.knowledge-panel__organize-pinmarker {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: #79c0ff;
+  font-size: 10px;
+  flex: none;
+}
+
+.knowledge-panel__organize-pinkind {
+  background: #21262d;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 9px;
+  color: #8b949e;
+  flex: none;
+}
+
+.knowledge-panel__organize-pintext {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8b949e;
+}
+
+.knowledge-panel__organize-pinitem.is-checked .knowledge-panel__organize-pintext {
+  color: #c9d1d9;
+}
+
+.knowledge-panel__organize-prompt {
+  border-top: 1px solid #21262d;
+  padding-top: 10px;
+}
+
+.knowledge-panel__organize-prompt-toggle {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.knowledge-panel__organize-prompt-toggle:hover {
+  color: #f0f6fc;
+}
+
+.knowledge-panel__organize-prompt-input {
+  width: 100%;
+  margin-top: 6px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 12px;
+  padding: 8px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.knowledge-panel__organize-prompt-input:focus {
+  outline: none;
+  border-color: #1f6feb;
+}
+
+.knowledge-panel__organize-prompt-hint {
+  font-size: 10px;
+  color: #6e7681;
+  margin: 4px 0 0 0;
+  line-height: 1.5;
+}

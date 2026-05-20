@@ -106,7 +106,7 @@ export function KnowledgePanel({ projectPath, onClose }: Props) {
             progressChars={knowledge.progressChars}
             diff={knowledge.diff}
             error={knowledge.error}
-            pinsCount={knowledge.pins.length}
+            pins={knowledge.pins}
             onStart={knowledge.startOrganize}
             onCancel={knowledge.cancelOrganize}
             onApply={knowledge.applyWikiDiff}
@@ -274,8 +274,11 @@ interface OrganizeTabProps {
   progressChars: number
   diff: import('../../types').WikiDiffEntry[] | null
   error: string | null
-  pinsCount: number
-  onStart: () => Promise<void>
+  pins: Pin[]
+  onStart: (opts?: {
+    selectedPinIds?: string[]
+    userPrompt?: string
+  }) => Promise<void>
   onCancel: () => Promise<void>
   onApply: (fileName: string, content: string) => Promise<void>
   onDismiss: () => void
@@ -286,12 +289,65 @@ function OrganizeTab({
   progressChars,
   diff,
   error,
-  pinsCount,
+  pins,
   onStart,
   onCancel,
   onApply,
   onDismiss,
 }: OrganizeTabProps) {
+  // Track which pins are checked. Start with everything selected so the
+  // default behaviour matches the pre-improvement "send all pins" flow —
+  // users only have to act when they want a subset.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(pins.map((p) => p.id)),
+  )
+  // Auto-include any new pins that show up while the user is preparing.
+  // Removing a pin elsewhere should also drop it from the selection.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>()
+      let changed = false
+      for (const p of pins) {
+        if (prev.has(p.id)) {
+          next.add(p.id)
+        } else {
+          next.add(p.id)
+          changed = true
+        }
+      }
+      if (!changed && next.size === prev.size) return prev
+      return next
+    })
+    // We intentionally re-derive only when the pin list itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins.map((p) => p.id).join('|')])
+
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [userPrompt, setUserPrompt] = useState('')
+
+  const allSelected = pins.length > 0 && selectedIds.size === pins.length
+  const noneSelected = selectedIds.size === 0
+  const sortedPins = [...pins].sort((a, b) => b.picked_at_ms - a.picked_at_ms)
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(pins.map((p) => p.id)))
+  }
+  const togglePin = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleStart = () => {
+    void onStart({
+      selectedPinIds: Array.from(selectedIds),
+      userPrompt: userPrompt.trim() || undefined,
+    })
+  }
+
   return (
     <div className="knowledge-panel__organize">
       <div className="knowledge-panel__organize-controls">
@@ -300,20 +356,95 @@ function OrganizeTab({
             <button
               type="button"
               className="knowledge-panel__primary-btn"
-              onClick={() => void onStart()}
-              disabled={pinsCount === 0}
+              onClick={handleStart}
+              disabled={noneSelected}
               title={
-                pinsCount === 0
+                pins.length === 0
                   ? '핀을 먼저 추가하세요'
-                  : '핀과 기존 위키를 클로드한테 정리시키기'
+                  : noneSelected
+                  ? '하나 이상의 핀을 선택하세요'
+                  : '선택한 핀과 기존 위키를 클로드한테 정리시키기'
               }
             >
-              ✨ 정리 시작 ({pinsCount} 핀)
+              ✨ 정리 시작 ({selectedIds.size}/{pins.length} 핀)
             </button>
             <p className="knowledge-panel__hint">
-              백그라운드에서 클로드 세션을 띄워 핀을 위키로 통합합니다. 결과는
-              여기 diff로 표시되며 사용자가 적용을 결정합니다.
+              백그라운드에서 클로드 세션을 띄워 선택한 핀을 위키로 통합합니다.
+              결과는 여기 diff로 표시되며 사용자가 적용을 결정합니다.
             </p>
+            {pins.length > 0 && (
+              <div className="knowledge-panel__organize-select">
+                <div className="knowledge-panel__organize-select-head">
+                  <span className="knowledge-panel__organize-select-title">
+                    포함할 핀
+                  </span>
+                  <button
+                    type="button"
+                    className="knowledge-panel__organize-toggle-all"
+                    onClick={toggleAll}
+                  >
+                    {allSelected ? '전부 해제' : '전부 선택'}
+                  </button>
+                </div>
+                <ul className="knowledge-panel__organize-pinlist">
+                  {sortedPins.map((p) => {
+                    const checked = selectedIds.has(p.id)
+                    return (
+                      <li
+                        key={p.id}
+                        className={`knowledge-panel__organize-pinitem${
+                          checked ? ' is-checked' : ''
+                        }`}
+                      >
+                        <label className="knowledge-panel__organize-pinlabel">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => togglePin(p.id)}
+                          />
+                          <span className="knowledge-panel__organize-pinmarker">
+                            [^{p.marker}]
+                          </span>
+                          <span className="knowledge-panel__organize-pinkind">
+                            {p.segment_kind}
+                          </span>
+                          <span className="knowledge-panel__organize-pintext">
+                            {truncate(p.text, 90)}
+                          </span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+            <div className="knowledge-panel__organize-prompt">
+              <button
+                type="button"
+                className="knowledge-panel__organize-prompt-toggle"
+                onClick={() => setShowPrompt((v) => !v)}
+                aria-expanded={showPrompt}
+              >
+                {showPrompt ? '▾' : '▸'} 추가 프롬프트 (선택)
+              </button>
+              {showPrompt && (
+                <>
+                  <textarea
+                    className="knowledge-panel__organize-prompt-input"
+                    value={userPrompt}
+                    placeholder={
+                      '예) decisions.md 위주로 정리해 줘. 너무 짧은 핀은 묶지 말고 따로 둬.'
+                    }
+                    rows={4}
+                    onChange={(e) => setUserPrompt(e.target.value)}
+                  />
+                  <p className="knowledge-panel__organize-prompt-hint">
+                    비워두면 기본 시스템 프롬프트만 사용합니다. 적은 내용은 기본
+                    프롬프트 위에 우선순위로 덧붙습니다.
+                  </p>
+                </>
+              )}
+            </div>
           </>
         )}
         {status === 'running' && (

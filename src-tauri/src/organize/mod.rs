@@ -1,6 +1,7 @@
 use crate::pins::{list_pins, list_wiki_files, read_wiki_file};
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct WikiDiffEntry {
@@ -9,11 +10,41 @@ pub struct WikiDiffEntry {
     pub new_content: String,
 }
 
-pub fn build_prompt(project_path: &str) -> Result<String, String> {
-    let pins = list_pins(project_path)?;
+#[derive(Debug, Default, Clone)]
+pub struct OrganizeOptions {
+    /// When `Some`, only pins with matching ids are included. When `None`,
+    /// every pin in the project is used.
+    pub selected_pin_ids: Option<Vec<String>>,
+    /// Optional user-authored instructions injected at the top of the prompt.
+    /// Trimmed-empty input is treated as absent.
+    pub user_prompt: Option<String>,
+}
+
+pub fn build_prompt(project_path: &str, opts: &OrganizeOptions) -> Result<String, String> {
+    let all_pins = list_pins(project_path)?;
+    let pins: Vec<_> = match &opts.selected_pin_ids {
+        Some(ids) => {
+            let id_set: HashSet<&str> = ids.iter().map(|s| s.as_str()).collect();
+            all_pins
+                .into_iter()
+                .filter(|p| id_set.contains(p.id.as_str()))
+                .collect()
+        }
+        None => all_pins,
+    };
     let wiki = list_wiki_files(project_path)?;
 
     let mut prompt = String::new();
+
+    if let Some(user_prompt) = opts.user_prompt.as_deref() {
+        let trimmed = user_prompt.trim();
+        if !trimmed.is_empty() {
+            prompt.push_str("# User instructions (priority)\n\n");
+            prompt.push_str(trimmed);
+            prompt.push_str("\n\n---\n\n");
+        }
+    }
+
     prompt.push_str(
         "You are organizing scattered notes (pins) into a project wiki for a human reader. \
 Your job is to consolidate the pins below into a coherent set of markdown wiki files.\n\n",
@@ -195,7 +226,7 @@ line 2
     fn build_prompt_with_no_pins_no_wiki() {
         let dir = tempdir().unwrap();
         let project = dir.path().to_string_lossy().to_string();
-        let prompt = build_prompt(&project).unwrap();
+        let prompt = build_prompt(&project, &OrganizeOptions::default()).unwrap();
         assert!(prompt.contains("no pins yet"));
         assert!(prompt.contains("no wiki files yet"));
         assert!(prompt.contains("<wiki-file path="));
@@ -214,10 +245,78 @@ line 2
             "important fact about X".into(),
         )
         .unwrap();
-        let prompt = build_prompt(&project).unwrap();
+        let prompt = build_prompt(&project, &OrganizeOptions::default()).unwrap();
         assert!(prompt.contains("[^pin-1]"));
         assert!(prompt.contains("important fact about X"));
         assert!(prompt.contains("session=sess-abc"));
+    }
+
+    #[test]
+    fn build_prompt_filters_pins_by_selected_ids() {
+        let dir = tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let keep = crate::pins::append_pin(
+            &project,
+            None,
+            None,
+            "text".into(),
+            "keep this one".into(),
+        )
+        .unwrap();
+        let _drop = crate::pins::append_pin(
+            &project,
+            None,
+            None,
+            "text".into(),
+            "drop this one".into(),
+        )
+        .unwrap();
+        let opts = OrganizeOptions {
+            selected_pin_ids: Some(vec![keep.id.clone()]),
+            user_prompt: None,
+        };
+        let prompt = build_prompt(&project, &opts).unwrap();
+        assert!(prompt.contains("keep this one"));
+        assert!(!prompt.contains("drop this one"));
+    }
+
+    #[test]
+    fn build_prompt_empty_selection_yields_no_pins_section() {
+        let dir = tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        crate::pins::append_pin(&project, None, None, "text".into(), "anything".into()).unwrap();
+        let opts = OrganizeOptions {
+            selected_pin_ids: Some(vec![]),
+            user_prompt: None,
+        };
+        let prompt = build_prompt(&project, &opts).unwrap();
+        assert!(prompt.contains("no pins yet"));
+        assert!(!prompt.contains("anything"));
+    }
+
+    #[test]
+    fn build_prompt_includes_user_prompt_when_set() {
+        let dir = tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let opts = OrganizeOptions {
+            selected_pin_ids: None,
+            user_prompt: Some("focus only on architecture decisions".into()),
+        };
+        let prompt = build_prompt(&project, &opts).unwrap();
+        assert!(prompt.contains("User instructions"));
+        assert!(prompt.contains("focus only on architecture decisions"));
+    }
+
+    #[test]
+    fn build_prompt_skips_blank_user_prompt() {
+        let dir = tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let opts = OrganizeOptions {
+            selected_pin_ids: None,
+            user_prompt: Some("   \n  ".into()),
+        };
+        let prompt = build_prompt(&project, &opts).unwrap();
+        assert!(!prompt.contains("User instructions"));
     }
 
     #[test]
