@@ -12,7 +12,6 @@ interface Props {
   pair: QaPair
   onExpand: () => void
   onOpenFile?: OpenFileFn
-  onPin?: (input: { segmentKind: string; text: string; qaId: string }) => Promise<unknown>
   /** Attach the active selection to the composer as a `[코멘트 #N]` token. */
   onAddComment?: (text: string) => void
 }
@@ -94,30 +93,7 @@ function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): st
   return 'Thinking'
 }
 
-function buildPairText(pair: QaPair): string {
-  const assistant = pair.segments
-    .map((s) => {
-      switch (s.kind) {
-        case 'text':
-        case 'plan':
-        case 'thinking':
-          return s.text
-        case 'tool_use':
-          return `[tool ${s.name}] ${s.summary}`
-        case 'tool_result':
-          return s.is_error
-            ? `[tool error]\n${s.text}`
-            : `[tool result]\n${s.text}`
-        default:
-          return ''
-      }
-    })
-    .filter(Boolean)
-    .join('\n\n')
-  return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
-}
-
-export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Props) {
+export function QaCard({ pair, onExpand, onOpenFile, onAddComment }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
@@ -128,7 +104,6 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
   // clean with no extra chrome.
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
-  const [cardPinned, setCardPinned] = useState(false)
   const answerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -155,37 +130,9 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
     ? 'qa-card__answer qa-card__answer--clamped'
     : 'qa-card__answer'
 
-  const handleCardPin = async () => {
-    if (!onPin || cardPinned) return
-    setCardPinned(true)
-    await onPin({
-      segmentKind: 'qa_pair',
-      text: buildPairText(pair),
-      qaId: pair.id,
-    })
-  }
-
-  const handleSelectionPin = onPin
-    ? async (text: string) => {
-        await onPin({ segmentKind: 'selection', text, qaId: pair.id })
-      }
-    : undefined
-
   return (
     <article className="qa-card">
       <div className="qa-card__actions">
-        {onPin && (
-          <button
-            type="button"
-            className={`qa-card__pin-btn${cardPinned ? ' is-pinned' : ''}`}
-            aria-label="이 대화를 핀에 추가"
-            title={cardPinned ? '핀에 저장됨' : '이 Q&A를 핀에 저장'}
-            onClick={handleCardPin}
-            disabled={cardPinned}
-          >
-            📌
-          </button>
-        )}
         <button
           type="button"
           className="qa-card__expand-btn"
@@ -295,7 +242,6 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
                 selection={{ text: selection.text, rect: selection.rect }}
                 onClose={clearSelection}
                 onAddComment={onAddComment}
-                onPin={handleSelectionPin}
               />
             )}
           </div>

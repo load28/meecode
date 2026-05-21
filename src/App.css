@@ -444,22 +444,6 @@ body,
   border-color: #1f6feb;
 }
 
-.app__knowledge-pulse {
-  color: #f78166;
-  font-size: 9px;
-  animation: knowledge-btn-pulse 1.2s infinite ease-in-out;
-}
-
-.app__knowledge-pending {
-  color: #79c0ff;
-  font-size: 9px;
-}
-
-@keyframes knowledge-btn-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-
 .app__auto-toggle {
   display: inline-flex;
   align-items: center;

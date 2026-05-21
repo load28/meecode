@@ -60,33 +60,6 @@ describe('CommentFloat', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('onPin 미제공 시 핀 버튼 숨김', () => {
-    render(
-      <CommentFloat
-        selection={mockSelection}
-        onClose={() => {}}
-        onAddComment={() => {}}
-      />,
-    )
-    expect(screen.queryByText(/핀/)).not.toBeInTheDocument()
-  })
-
-  it('onPin 제공 시 핀 버튼 표시 및 클릭 시 호출', async () => {
-    const user = userEvent.setup()
-    const onPin = vi.fn().mockResolvedValue(undefined)
-    render(
-      <CommentFloat
-        selection={mockSelection}
-        onClose={() => {}}
-        onAddComment={() => {}}
-        onPin={onPin}
-      />,
-    )
-
-    await user.click(screen.getByText('📌 핀'))
-    expect(onPin).toHaveBeenCalledWith('await를 사용')
-  })
-
   it('onAddComment 미제공 시 코멘트 버튼 숨김', () => {
     render(<CommentFloat selection={mockSelection} onClose={() => {}} />)
     expect(screen.queryByText('💬 코멘트로 추가')).not.toBeInTheDocument()
