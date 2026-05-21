@@ -113,6 +113,21 @@ function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
   )
 }
 
+/**
+ * How wide the chat column should sit at, in % of its row. The chat row
+ * is shared with two optional siblings — the expand pane and the file
+ * pane. With one sibling visible we leave a ~45% margin for it; with
+ * both, ~60%; on its own, the chat takes the whole row.
+ */
+function chatPanelDefaultSize(
+  expandOpen: boolean,
+  fileTabsOpen: boolean,
+): number {
+  if (expandOpen && fileTabsOpen) return 40
+  if (expandOpen || fileTabsOpen) return 55
+  return 100
+}
+
 interface MainLayoutProps {
   tabId: string
   projectPath: string
@@ -485,13 +500,10 @@ function MainLayout({
               <Panel
                 id="chat"
                 order={1}
-                defaultSize={
-                  isOpen && fileTabs.tabs.length > 0
-                    ? 40
-                    : isOpen || fileTabs.tabs.length > 0
-                    ? 55
-                    : 100
-                }
+                defaultSize={chatPanelDefaultSize(
+                  isOpen,
+                  fileTabs.tabs.length > 0,
+                )}
                 minSize={25}
               >
                 <div className="app__chat">
