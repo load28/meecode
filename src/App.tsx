@@ -31,18 +31,22 @@ interface RecentProject {
   last_modified_ms: number
 }
 
+const MS_PER_MINUTE = 60_000
+const MINUTES_PER_HOUR = 60
+const HOURS_PER_DAY = 24
+const DAYS_PER_MONTH = 30
+
 function relativeTimeKr(ms: number): string {
   if (!ms) return ''
-  const diff = Date.now() - ms
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return '방금'
-  if (m < 60) return `${m}분 전`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}시간 전`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `${d}일 전`
-  const mo = Math.floor(d / 30)
-  return `${mo}달 전`
+  const minutes = Math.floor((Date.now() - ms) / MS_PER_MINUTE)
+  if (minutes < 1) return '방금'
+  if (minutes < MINUTES_PER_HOUR) return `${minutes}분 전`
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR)
+  if (hours < HOURS_PER_DAY) return `${hours}시간 전`
+  const days = Math.floor(hours / HOURS_PER_DAY)
+  if (days < DAYS_PER_MONTH) return `${days}일 전`
+  const months = Math.floor(days / DAYS_PER_MONTH)
+  return `${months}달 전`
 }
 
 function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
