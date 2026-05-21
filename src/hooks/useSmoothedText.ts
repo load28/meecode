@@ -8,6 +8,11 @@ interface Options {
   backlogMultiplier?: number
   /** Hard ceiling so a giant burst doesn't snap-paste. */
   maxCps?: number
+  /** If the gap between target and displayed exceeds this, skip the
+   *  typewriter and snap. Normal token bursts are ~10 chars; this only
+   *  triggers when a tab was hidden during streaming and the user just
+   *  revealed it — in that case typewriter catch-up would feel laggy. */
+  snapThreshold?: number
 }
 
 /**
@@ -28,7 +33,12 @@ export function useSmoothedText(
   isStreaming: boolean,
   options: Options = {},
 ): string {
-  const { baseCps = 80, backlogMultiplier = 3, maxCps = 500 } = options
+  const {
+    baseCps = 80,
+    backlogMultiplier = 3,
+    maxCps = 500,
+    snapThreshold = 500,
+  } = options
   const [displayed, setDisplayed] = useState(isStreaming ? '' : target)
   const targetRef = useRef(target)
   targetRef.current = target
@@ -54,6 +64,12 @@ export function useSmoothedText(
         // Target diverged (new segment) — reset the typewriter.
         if (!t.startsWith(prev)) return ''
         const backlog = t.length - prev.length
+        // Hidden-tab catch-up: when the user reveals a tab that was
+        // streaming behind the scenes, `target` jumps by hundreds/thousands
+        // of chars in one render. Playing a 10s typewriter recap would
+        // make the reveal feel laggy — snap instead so the user sees the
+        // up-to-date screen immediately.
+        if (backlog >= snapThreshold) return t
         const cps = Math.min(
           maxCps,
           Math.max(baseCps, backlog * backlogMultiplier),
@@ -65,7 +81,7 @@ export function useSmoothedText(
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [isStreaming, baseCps, backlogMultiplier, maxCps])
+  }, [isStreaming, baseCps, backlogMultiplier, maxCps, snapThreshold])
 
   return displayed
 }
