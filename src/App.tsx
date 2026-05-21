@@ -28,30 +28,14 @@ import {
   readPersistedFlag,
   writePersistedFlag,
 } from './state/persistedFlags'
+import { relativeTimeKr, truncateWithEllipsis } from './utils/format'
+import { makeTabId, MAIN_TAB_ID } from './utils/tabId'
 import './App.css'
 
 interface RecentProject {
   path: string
   session_count: number
   last_modified_ms: number
-}
-
-const MS_PER_MINUTE = 60_000
-const MINUTES_PER_HOUR = 60
-const HOURS_PER_DAY = 24
-const DAYS_PER_MONTH = 30
-
-function relativeTimeKr(ms: number): string {
-  if (!ms) return ''
-  const minutes = Math.floor((Date.now() - ms) / MS_PER_MINUTE)
-  if (minutes < 1) return '방금'
-  if (minutes < MINUTES_PER_HOUR) return `${minutes}분 전`
-  const hours = Math.floor(minutes / MINUTES_PER_HOUR)
-  if (hours < HOURS_PER_DAY) return `${hours}시간 전`
-  const days = Math.floor(hours / HOURS_PER_DAY)
-  if (days < DAYS_PER_MONTH) return `${days}일 전`
-  const months = Math.floor(days / DAYS_PER_MONTH)
-  return `${months}달 전`
 }
 
 function FolderPicker({ onStart }: { onStart: (path: string) => void }) {
@@ -651,10 +635,6 @@ interface TabRecord {
   sessionTitle: string | null
 }
 
-function makeTabId(): string {
-  return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-}
-
 function readTasksOpen(): boolean {
   return readPersistedFlag(PERSISTED_FLAG_KEYS.tasksOpen, false)
 }
@@ -662,7 +642,7 @@ function readTasksOpen(): boolean {
 function App() {
   const [tabs, setTabs] = useState<TabRecord[]>(() => [
     {
-      id: 'main',
+      id: MAIN_TAB_ID,
       projectPath: null,
       pendingSessionId: null,
       needsSwitch: false,
@@ -670,7 +650,7 @@ function App() {
       sessionTitle: null,
     },
   ])
-  const [activeId, setActiveId] = useState<string>('main')
+  const [activeId, setActiveId] = useState<string>(MAIN_TAB_ID)
   const { status: claudeStatus, refresh: refreshClaudeStatus } = useClaudeStatus()
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Tasks panel open/close is app-wide: toggling it on tab A persists
@@ -758,14 +738,14 @@ function App() {
       const next = list.filter((t) => t.id !== id)
       if (next.length === 0) {
         const fresh: TabRecord = {
-          id: 'main',
+          id: MAIN_TAB_ID,
           projectPath: null,
           pendingSessionId: null,
           needsSwitch: false,
           epoch: 0,
           sessionTitle: null,
         }
-        setActiveId('main')
+        setActiveId(MAIN_TAB_ID)
         return [fresh]
       }
       if (id === activeId) {
@@ -785,9 +765,6 @@ function App() {
     )
   }
 
-  const truncate = (s: string, n: number) =>
-    s.length <= n ? s : `${s.slice(0, n)}…`
-
   const descriptors: TabDescriptor[] = tabs.map((t) => {
     if (!t.projectPath) {
       return {
@@ -798,7 +775,9 @@ function App() {
       }
     }
     const project = t.projectPath.split('/').pop() || t.projectPath
-    const title = t.sessionTitle ? truncate(t.sessionTitle, 24) : null
+    const title = t.sessionTitle
+      ? truncateWithEllipsis(t.sessionTitle, 24)
+      : null
     return {
       id: t.id,
       label: title ? `${project} · ${title}` : project,

@@ -25,6 +25,7 @@ import {
   type StreamPartialEvent,
   type ToolProgressPayload,
 } from '../hooks/reduceStreamMessage'
+import { tabIdOf } from '../utils/tabId'
 
 export interface UsageStats {
   totalCostUsd: number
@@ -178,12 +179,6 @@ function modeFromClaude(s: string | undefined | null): Mode | null {
 }
 
 // --- Tauri listener bootstrap, runs exactly once per page load. ---
-
-function tabIdOf(payload: unknown): string {
-  if (!payload || typeof payload !== 'object') return 'main'
-  const t = (payload as { tab_id?: unknown }).tab_id
-  return typeof t === 'string' && t.length > 0 ? t : 'main'
-}
 
 let bootstrapped = false
 
