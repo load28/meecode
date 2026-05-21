@@ -132,6 +132,14 @@ interface MainLayoutProps {
   onOpenSettings: () => void
   showTasks: boolean
   onToggleTasks: () => void
+  /**
+   * Whether this tab is the active one. Hidden tabs unsubscribe from the
+   * session store so streaming chunks don't trigger re-renders / markdown
+   * re-parses / typewriter rAF loops behind the scenes. State stays current
+   * (listeners are module-level); re-subscription happens automatically on
+   * the next render after this flips back to true.
+   */
+  visible: boolean
 }
 
 function MainLayout({
@@ -146,6 +154,7 @@ function MainLayout({
   onOpenSettings,
   showTasks,
   onToggleTasks,
+  visible,
 }: MainLayoutProps) {
   const {
     pairs,
@@ -174,7 +183,7 @@ function MainLayout({
     queue,
     removeQueued,
     sessionTitle,
-  } = useClaudeSession(tabId)
+  } = useClaudeSession(tabId, visible)
   const { tasks } = useTasks()
   const sessionBindings = useSessionBindings(sessionId)
   const attachedTaskIds = useMemo(
@@ -831,6 +840,7 @@ function App() {
                 onOpenSettings={() => setSettingsOpen(true)}
                 showTasks={showTasks}
                 onToggleTasks={() => setShowTasks((v) => !v)}
+                visible={visible}
               />
             ) : (
               <FolderPicker onStart={handleStart} />
