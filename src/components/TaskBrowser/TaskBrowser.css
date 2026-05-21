@@ -1,0 +1,368 @@
+.task-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0d1117;
+  border-left: 1px solid #30363d;
+  min-width: 0;
+}
+
+.task-panel__header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #30363d;
+  gap: 8px;
+}
+
+.task-panel__back {
+  background: none;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.task-panel__back:hover {
+  color: #f0f6fc;
+}
+
+.task-panel__title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c9d1d9;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-panel__new-btn {
+  background: #1f6feb;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.task-panel__new-btn:hover {
+  background: #2c80f0;
+}
+
+.task-panel__close {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.task-panel__close:hover {
+  color: #f0f6fc;
+}
+
+.task-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+}
+
+.task-panel__empty {
+  padding: 32px 18px;
+  text-align: center;
+  color: #8b949e;
+}
+
+.task-panel__empty p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.task-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task-panel__item {
+  border-bottom: 1px solid #161b22;
+}
+
+.task-panel__item-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  text-align: left;
+  cursor: pointer;
+  padding: 10px 14px;
+}
+
+.task-panel__item-btn:hover {
+  background: #161b22;
+}
+
+.task-panel__item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f6fc;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-panel__item-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #6e7681;
+}
+
+.task-panel__item-desc {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #8b949e;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Inline create form */
+.task-panel__create {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.task-panel__create-input,
+.task-panel__create-textarea {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  color: #c9d1d9;
+  font-size: 12px;
+  padding: 6px 8px;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-panel__create-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.task-panel__create-input:focus,
+.task-panel__create-textarea:focus {
+  outline: none;
+  border-color: #1f6feb;
+}
+
+.task-panel__create-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.task-panel__btn {
+  background: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.task-panel__btn:hover {
+  background: #30363d;
+}
+
+.task-panel__btn--primary {
+  background: #1f6feb;
+  color: #fff;
+  border-color: transparent;
+}
+
+.task-panel__btn--primary:hover {
+  background: #2c80f0;
+}
+
+.task-panel__btn--primary:disabled {
+  background: #30363d;
+  cursor: not-allowed;
+  color: #6e7681;
+}
+
+.task-panel__btn--danger {
+  color: #f78166;
+  border-color: #5a1f1f;
+}
+
+.task-panel__btn--danger:hover {
+  background: #2d1212;
+}
+
+/* TaskDetail */
+.task-detail__field {
+  padding: 12px 14px;
+  border-bottom: 1px solid #21262d;
+}
+
+.task-detail__label {
+  display: block;
+  font-size: 11px;
+  color: #6e7681;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-detail__name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f6fc;
+  background: none;
+  border: 1px solid transparent;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.task-detail__name:hover {
+  border-color: #21262d;
+}
+
+.task-detail__name:focus {
+  outline: none;
+  border-color: #1f6feb;
+  background: #0d1117;
+}
+
+.task-detail__desc {
+  font-size: 12px;
+  color: #c9d1d9;
+  background: none;
+  border: 1px solid transparent;
+  width: 100%;
+  padding: 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+}
+
+.task-detail__desc:hover {
+  border-color: #21262d;
+}
+
+.task-detail__desc:focus {
+  outline: none;
+  border-color: #1f6feb;
+  background: #0d1117;
+}
+
+.task-detail__meta {
+  font-size: 11px;
+  color: #6e7681;
+  padding: 8px 14px;
+  display: flex;
+  gap: 12px;
+}
+
+.task-detail__section {
+  padding: 12px 14px;
+}
+
+.task-detail__section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8b949e;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-detail__section-empty {
+  font-size: 12px;
+  color: #6e7681;
+  padding: 16px;
+  text-align: center;
+  background: #0d1117;
+  border: 1px dashed #21262d;
+  border-radius: 6px;
+}
+
+.task-detail__footer {
+  padding: 12px 14px;
+  border-top: 1px solid #21262d;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.task-detail__error {
+  background: #2d1212;
+  border: 1px solid #5a1f1f;
+  color: #f78166;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin: 12px 14px;
+}
+
+.task-detail__attach-row {
+  padding: 8px 14px 12px;
+  border-bottom: 1px solid #21262d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-detail__attach-btn {
+  font-size: 12px;
+}
+
+.task-detail__attach-btn--detach {
+  background: #1f3a5f;
+  border-color: #1f3a5f;
+  color: #c9d1d9;
+}
+
+.task-detail__attach-btn--detach:hover {
+  background: #2c5489;
+}
+
+.task-detail__attach-hint {
+  font-size: 11px;
+  color: #79c0ff;
+}
+
+.task-panel__item-attached {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #1f3a5f;
+  color: #79c0ff;
+  vertical-align: middle;
+}

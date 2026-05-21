@@ -26,6 +26,12 @@ interface Props {
   hookActivity?: string | null
   /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
   onAddComment?: (text: string) => void
+  /** Open the Task picker for a capture from the active QaPair. */
+  onCapture?: (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => void
 }
 
 function formatTime(iso: string): string {
@@ -59,6 +65,7 @@ export function ExpandPane({
   taskActivity,
   hookActivity,
   onAddComment,
+  onCapture,
 }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   // Re-pin to bottom whenever the active pair gains segments — but only
@@ -151,6 +158,16 @@ export function ExpandPane({
               selection={{ text: selection.text, rect: selection.rect }}
               onClose={clearSelection}
               onAddComment={onAddComment}
+              onCapture={
+                onCapture && pair
+                  ? (text) =>
+                      onCapture({
+                        kind: 'selection',
+                        content: text,
+                        qaId: pair.id,
+                      })
+                  : undefined
+              }
             />
           )}
           </>

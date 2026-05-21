@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import type { SelectionState } from '../../types'
 import './CommentFloat.css'
 
@@ -13,12 +13,11 @@ interface Props {
    * selections can be queued before sending.
    */
   onAddComment?: (text: string) => void
-  onPin?: (text: string) => Promise<void> | void
+  /** Open the Task picker with this selection as the source content. */
+  onCapture?: (text: string) => void
 }
 
-export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props) {
-  const [pinned, setPinned] = useState(false)
-
+export function CommentFloat({ selection, onClose, onAddComment, onCapture }: Props) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -36,13 +35,11 @@ export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props)
     onClose()
   }
 
-  const handlePin = async () => {
-    if (!onPin) return
-    setPinned(true)
-    await onPin(selection.text)
-    // Keep the float open briefly so the user can read the "pinned" state,
-    // then close so the next selection starts clean.
-    setTimeout(onClose, 600)
+  const handleCapture = () => {
+    if (!onCapture) return
+    onCapture(selection.text)
+    window.getSelection()?.removeAllRanges()
+    onClose()
   }
 
   const style: React.CSSProperties = {
@@ -55,14 +52,13 @@ export function CommentFloat({ selection, onClose, onAddComment, onPin }: Props)
   return (
     <div style={style} className="comment-float">
       <div className="comment-float__actions">
-        {onPin && (
+        {onCapture && (
           <button
-            className="comment-float__button comment-float__button--pin"
-            onClick={handlePin}
-            disabled={pinned}
-            title="이 선택을 프로젝트 핀으로 저장"
+            className="comment-float__button comment-float__button--capture"
+            onClick={handleCapture}
+            title="이 선택을 Task에 캡처"
           >
-            {pinned ? '📌 저장됨' : '📌 핀'}
+            📥 캡처
           </button>
         )}
         {onAddComment && (

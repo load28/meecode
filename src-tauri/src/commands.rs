@@ -9,12 +9,20 @@ use crate::claude_process::stdout_parser::DomainEvent;
 use crate::config::Config;
 use crate::history::list::{list_projects, list_sessions, ProjectInfo, SessionInfo};
 use crate::history::load_recent::{extract_qa_pairs, load_recent_pairs, projects_dir_for, QaPair};
-use crate::organize::{
-    build_prompt, diff_entries, extract_assistant_text, parse_wiki_response, OrganizeOptions,
+use crate::bindings::{
+    attach as attach_binding, default_bindings_root, detach as detach_binding,
+    detach_all_for_task, list_for_session as list_bindings_for_session, Binding,
 };
-use crate::pins::{
-    append_pin, delete_pin, delete_wiki_file, list_pins, list_wiki_files, read_wiki_file,
-    write_wiki_file, Pin, WikiFile,
+use crate::tasks::organize::{
+    count_unprocessed_sources, kickoff_message, prepare_run, spawn_organize_process, OrganizeJob,
+};
+use crate::tasks::{
+    create_source as create_source_fn, create_task as create_task_fn, default_tasks_root,
+    delete_source as delete_source_fn, delete_task as delete_task_fn,
+    delete_wiki_file as delete_wiki_file_fn, list_sources, list_tasks as list_tasks_fn,
+    list_wiki_files as list_wiki_files_fn, read_organize_session, read_task,
+    read_wiki_file as read_wiki_file_fn, update_task as update_task_fn,
+    write_wiki_file as write_wiki_file_fn, Source, SourceOrigin, Task, TaskSummary, WikiFile,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -34,19 +42,16 @@ pub struct TabState {
 /// not block each other.
 pub type TabHandle = Arc<Mutex<TabState>>;
 
-pub struct OrganizeJob {
-    pub process: ProcessHandle,
-    pub project_path: String,
-    pub accumulated: Arc<Mutex<String>>,
-}
+/// One-slot-per-task organize job registry. Concurrent organize for
+/// *different* tasks is fine; double-clicking the same task while it's
+/// running errors out so we don't race two Claude processes against the
+/// same wiki dir.
+pub type OrganizeSlot = Arc<Mutex<Option<OrganizeJob>>>;
 
 pub struct AppState {
     pub tabs: Mutex<HashMap<String, TabHandle>>,
     pub config: Mutex<Config>,
-    /// Single-slot background job for the "organize pins → wiki" feature.
-    /// One job runs at a time per app; concurrent invocations error out so
-    /// the user gets clear feedback rather than racing claude processes.
-    pub organize: Mutex<Option<OrganizeJob>>,
+    pub organize_jobs: Mutex<HashMap<String, OrganizeSlot>>,
 }
 
 impl AppState {
@@ -54,7 +59,7 @@ impl AppState {
         Self {
             tabs: Mutex::new(HashMap::new()),
             config: Mutex::new(Config::load()),
-            organize: Mutex::new(None),
+            organize_jobs: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -798,284 +803,280 @@ pub fn set_claude_path(app: AppHandle, path: Option<String>) -> Result<(), Strin
     Ok(())
 }
 
+#[tauri::command]
+pub fn list_tasks() -> Result<Vec<TaskSummary>, String> {
+    list_tasks_fn(&default_tasks_root())
+}
+
 #[derive(Deserialize)]
-pub struct PinSnippetArgs {
-    pub project_path: String,
+pub struct CreateTaskArgs {
+    pub name: String,
     #[serde(default)]
-    pub session_id: Option<String>,
-    #[serde(default)]
-    pub qa_id: Option<String>,
-    pub segment_kind: String,
-    pub text: String,
+    pub description: Option<String>,
 }
 
 #[tauri::command]
-pub fn pin_snippet(args: PinSnippetArgs) -> Result<Pin, String> {
-    append_pin(
-        &args.project_path,
-        args.session_id,
-        args.qa_id,
-        args.segment_kind,
-        args.text,
+pub fn create_task(args: CreateTaskArgs) -> Result<Task, String> {
+    create_task_fn(
+        &default_tasks_root(),
+        args.name,
+        args.description.unwrap_or_default(),
     )
 }
 
 #[tauri::command]
-pub fn list_project_pins(project_path: String) -> Result<Vec<Pin>, String> {
-    list_pins(&project_path)
+pub fn get_task(task_id: String) -> Result<Task, String> {
+    read_task(&default_tasks_root(), &task_id)
 }
 
 #[derive(Deserialize)]
-pub struct DeletePinArgs {
-    pub project_path: String,
-    pub pin_id: String,
+pub struct UpdateTaskArgs {
+    pub task_id: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[tauri::command]
-pub fn delete_project_pin(args: DeletePinArgs) -> Result<(), String> {
-    delete_pin(&args.project_path, &args.pin_id)
+pub fn update_task(args: UpdateTaskArgs) -> Result<Task, String> {
+    update_task_fn(&default_tasks_root(), &args.task_id, args.name, args.description)
 }
 
 #[tauri::command]
-pub fn list_project_wiki(project_path: String) -> Result<Vec<WikiFile>, String> {
-    list_wiki_files(&project_path)
+pub fn delete_task(task_id: String) -> Result<(), String> {
+    // Drop the bindings first so the Task can't briefly appear "still
+    // attached" in a UI that polls bindings between these two steps.
+    let _ = detach_all_for_task(&default_bindings_root(), &task_id);
+    delete_task_fn(&default_tasks_root(), &task_id)
+}
+
+#[tauri::command]
+pub fn list_task_sources(task_id: String) -> Result<Vec<Source>, String> {
+    list_sources(&default_tasks_root(), &task_id)
 }
 
 #[derive(Deserialize)]
-pub struct ReadWikiArgs {
-    pub project_path: String,
-    pub file_name: String,
+pub struct CreateSourceArgs {
+    pub task_id: String,
+    pub kind: String,
+    pub content: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub qa_id: Option<String>,
+    #[serde(default)]
+    pub project_path: Option<String>,
 }
 
 #[tauri::command]
-pub fn read_project_wiki(args: ReadWikiArgs) -> Result<String, String> {
-    read_wiki_file(&args.project_path, &args.file_name)
+pub fn create_source(args: CreateSourceArgs) -> Result<Source, String> {
+    let origin = SourceOrigin {
+        session_id: args.session_id,
+        qa_id: args.qa_id,
+        project_path: args.project_path,
+    };
+    create_source_fn(
+        &default_tasks_root(),
+        &args.task_id,
+        args.kind,
+        args.content,
+        origin,
+    )
 }
 
 #[derive(Deserialize)]
-pub struct ApplyWikiDiffArgs {
-    pub project_path: String,
-    pub file_name: String,
+pub struct DeleteSourceArgs {
+    pub task_id: String,
+    pub source_id: String,
+}
+
+#[tauri::command]
+pub fn delete_source(args: DeleteSourceArgs) -> Result<(), String> {
+    delete_source_fn(&default_tasks_root(), &args.task_id, &args.source_id)
+}
+
+#[derive(Deserialize)]
+pub struct BindingArgs {
+    pub session_id: String,
+    pub task_id: String,
+}
+
+#[tauri::command]
+pub fn attach_task(args: BindingArgs) -> Result<Binding, String> {
+    attach_binding(&default_bindings_root(), args.session_id, args.task_id)
+}
+
+#[tauri::command]
+pub fn detach_task(args: BindingArgs) -> Result<(), String> {
+    detach_binding(&default_bindings_root(), &args.session_id, &args.task_id)
+}
+
+#[tauri::command]
+pub fn list_session_task_bindings(session_id: String) -> Result<Vec<Binding>, String> {
+    list_bindings_for_session(&default_bindings_root(), &session_id)
+}
+
+// ── Wiki ───────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_task_wiki_files(task_id: String) -> Result<Vec<WikiFile>, String> {
+    list_wiki_files_fn(&default_tasks_root(), &task_id)
+}
+
+#[derive(Deserialize)]
+pub struct WikiNameArgs {
+    pub task_id: String,
+    pub name: String,
+}
+
+#[tauri::command]
+pub fn read_task_wiki(args: WikiNameArgs) -> Result<String, String> {
+    read_wiki_file_fn(&default_tasks_root(), &args.task_id, &args.name)
+}
+
+#[derive(Deserialize)]
+pub struct WriteWikiArgs {
+    pub task_id: String,
+    pub name: String,
     pub content: String,
 }
 
 #[tauri::command]
-pub fn apply_wiki_diff(args: ApplyWikiDiffArgs) -> Result<(), String> {
-    write_wiki_file(&args.project_path, &args.file_name, &args.content)
-}
-
-#[derive(Deserialize)]
-pub struct DeleteWikiArgs {
-    pub project_path: String,
-    pub file_name: String,
-}
-
-#[tauri::command]
-pub fn delete_project_wiki(args: DeleteWikiArgs) -> Result<(), String> {
-    delete_wiki_file(&args.project_path, &args.file_name)
-}
-
-fn handle_organize_event(
-    app: &AppHandle,
-    project_path: &str,
-    accumulated: &Arc<Mutex<String>>,
-    ev: DomainEvent,
-) {
-    match ev {
-        DomainEvent::Message { kind, body, .. } if kind == "assistant" => {
-            let text = extract_assistant_text(&body);
-            if text.is_empty() {
-                return;
-            }
-            let chars = {
-                let mut buf = match accumulated.lock() {
-                    Ok(b) => b,
-                    Err(_) => return,
-                };
-                buf.push_str(&text);
-                buf.len()
-            };
-            let _ = app.emit(
-                "organize:progress",
-                serde_json::json!({
-                    "project_path": project_path,
-                    "chars": chars,
-                }),
-            );
-        }
-        DomainEvent::ToolRequest {
-            request_id,
-            tool_use_id,
-            ..
-        } => {
-            // Organize runs in a "no tools" contract — auto-deny anything
-            // claude tries to invoke so the prompt is the only input.
-            if let Some(state) = app.try_state::<AppState>() {
-                let tx_opt = state
-                    .organize
-                    .lock()
-                    .ok()
-                    .and_then(|s| s.as_ref().map(|j| j.process.stdin_tx.clone()));
-                if let Some(tx) = tx_opt {
-                    let msg = control_response(
-                        request_id,
-                        PermissionBehavior::Deny,
-                        tool_use_id,
-                        None,
-                        None,
-                    );
-                    tokio::spawn(async move {
-                        let _ = tx.send(msg).await;
-                    });
-                }
-            }
-        }
-        DomainEvent::UnsupportedControlRequest { request_id, .. } => {
-            if let Some(state) = app.try_state::<AppState>() {
-                let tx_opt = state
-                    .organize
-                    .lock()
-                    .ok()
-                    .and_then(|s| s.as_ref().map(|j| j.process.stdin_tx.clone()));
-                if let Some(tx) = tx_opt {
-                    let msg = control_response_error(
-                        request_id,
-                        "organize job does not handle control_requests".into(),
-                    );
-                    tokio::spawn(async move {
-                        let _ = tx.send(msg).await;
-                    });
-                }
-            }
-        }
-        DomainEvent::TurnEnd { .. } => {
-            let raw = accumulated
-                .lock()
-                .map(|b| b.clone())
-                .unwrap_or_default();
-            let parsed = parse_wiki_response(&raw);
-            let entries = diff_entries(project_path, &parsed);
-            let _ = app.emit(
-                "organize:diff",
-                serde_json::json!({
-                    "project_path": project_path,
-                    "files": entries,
-                    "raw_chars": raw.chars().count(),
-                }),
-            );
-            // Job is done — drop the slot and kill the child so we don't
-            // leave a claude process idling.
-            if let Some(state) = app.try_state::<AppState>() {
-                if let Ok(mut slot) = state.organize.lock() {
-                    if let Some(mut job) = slot.take() {
-                        job.process.kill();
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-#[derive(Deserialize)]
-pub struct OrganizeArgs {
-    pub project_path: String,
-    #[serde(default)]
-    pub selected_pin_ids: Option<Vec<String>>,
-    #[serde(default)]
-    pub user_prompt: Option<String>,
+pub fn write_task_wiki(args: WriteWikiArgs) -> Result<(), String> {
+    write_wiki_file_fn(
+        &default_tasks_root(),
+        &args.task_id,
+        &args.name,
+        &args.content,
+    )
 }
 
 #[tauri::command]
-pub async fn organize_notes(app: AppHandle, args: OrganizeArgs) -> Result<(), String> {
-    let project_path = args.project_path;
-    {
+pub fn delete_task_wiki(args: WikiNameArgs) -> Result<(), String> {
+    delete_wiki_file_fn(&default_tasks_root(), &args.task_id, &args.name)
+}
+
+// ── Organize ───────────────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct OrganizePreview {
+    pub task_id: String,
+    pub unprocessed_count: u64,
+    /// Persisted Claude session id for this task's organize loop, if any.
+    pub resume_session_id: Option<String>,
+}
+
+#[tauri::command]
+pub fn get_organize_preview(task_id: String) -> Result<OrganizePreview, String> {
+    let root = default_tasks_root();
+    let count = count_unprocessed_sources(&root, &task_id)? as u64;
+    let resume = read_organize_session(&root, &task_id)
+        .ok()
+        .flatten()
+        .map(|m| m.session_id);
+    Ok(OrganizePreview {
+        task_id,
+        unprocessed_count: count,
+        resume_session_id: resume,
+    })
+}
+
+#[tauri::command]
+pub async fn start_task_organize(app: AppHandle, task_id: String) -> Result<(), String> {
+    let tasks_root = default_tasks_root();
+    let bindings_root = default_bindings_root();
+
+    // Grab or create the per-task slot, check it isn't already running.
+    let slot: OrganizeSlot = {
         let state = app.state::<AppState>();
-        let slot = state.organize.lock().map_err(|e| e.to_string())?;
-        if slot.is_some() {
-            return Err("organize already running".into());
+        let mut jobs = state.organize_jobs.lock().map_err(|e| e.to_string())?;
+        let s = jobs
+            .entry(task_id.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(None)))
+            .clone();
+        // Quick non-blocking check — keep the registry lock short.
+        let guard = s.lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Err("이 Task의 organize 작업이 이미 실행 중입니다.".into());
         }
-    }
-
-    let opts = OrganizeOptions {
-        selected_pin_ids: args.selected_pin_ids,
-        user_prompt: args.user_prompt,
+        drop(guard);
+        s
     };
-    let prompt = build_prompt(&project_path, &opts)?;
+
+    let prepared = match prepare_run(&tasks_root, &task_id)? {
+        Some(p) => p,
+        None => return Err("정리할 새 Source가 없습니다.".into()),
+    };
 
     let claude_bin = {
         let state = app.state::<AppState>();
         let cfg = state.config.lock().map_err(|e| e.to_string())?;
         cfg.claude_path
             .clone()
-            .unwrap_or_else(|| "claude".to_string())
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| "claude_path가 설정되지 않았습니다.".to_string())?
     };
 
-    let accumulated: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let resume_session = read_organize_session(&tasks_root, &task_id)
+        .ok()
+        .flatten()
+        .map(|m| m.session_id);
 
-    let app_for_events = app.clone();
-    let app_for_stderr = app.clone();
-    let app_for_exit = app.clone();
-    let project_for_events = project_path.clone();
-    let project_for_exit = project_path.clone();
-    let accumulated_for_events = accumulated.clone();
-
-    let handle = spawn_claude(
-        &claude_bin,
-        &project_path,
-        None,
-        move |ev| {
-            handle_organize_event(
-                &app_for_events,
-                &project_for_events,
-                &accumulated_for_events,
-                ev,
-            );
-        },
-        move |line| {
-            eprintln!("[organize stderr] {line}");
-            let _ = app_for_stderr.emit(
-                "organize:stderr",
-                serde_json::json!({ "line": line }),
-            );
-        },
-        move |_id| {
-            // Clear the slot if the process dies before TurnEnd cleared it
-            // (e.g. claude crashed or was killed externally). TurnEnd path
-            // already cleared the slot; we just emit the exit signal here
-            // for the UI to drop its "organizing…" indicator.
-            if let Some(state) = app_for_exit.try_state::<AppState>() {
-                if let Ok(mut slot) = state.organize.lock() {
-                    if slot.is_some() {
-                        *slot = None;
-                    }
-                }
-            }
-            let _ = app_for_exit.emit(
-                "organize:exit",
-                serde_json::json!({ "project_path": project_for_exit }),
-            );
-        },
-    )
-    .await?;
-
-    let tx = handle.stdin_tx.clone();
-    {
-        let state = app.state::<AppState>();
-        let mut slot = state.organize.lock().map_err(|e| e.to_string())?;
-        *slot = Some(OrganizeJob {
-            process: handle,
-            project_path: project_path.clone(),
-            accumulated,
-        });
-    }
-
-    let msg = user_text_message(prompt);
-    tx.send(msg).await.map_err(|e| e.to_string())?;
+    let source_ids: Vec<String> = prepared.pending.iter().map(|s| s.id.clone()).collect();
 
     let _ = app.emit(
         "organize:start",
-        serde_json::json!({ "project_path": project_path }),
+        serde_json::json!({
+            "task_id": task_id,
+            "source_count": source_ids.len(),
+        }),
+    );
+
+    let handle = spawn_organize_process(
+        app.clone(),
+        claude_bin,
+        tasks_root,
+        bindings_root,
+        task_id.clone(),
+        resume_session,
+        slot.clone(),
+    )
+    .await?;
+    let tx = handle.stdin_tx.clone();
+
+    {
+        let mut guard = slot.lock().map_err(|e| e.to_string())?;
+        *guard = Some(OrganizeJob {
+            process: handle,
+            task_id: task_id.clone(),
+            source_ids,
+            session_id: Arc::new(Mutex::new(None)),
+        });
+    }
+
+    tx.send(kickoff_message(prepared.prompt))
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_task_organize(app: AppHandle, task_id: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let slot = {
+        let jobs = state.organize_jobs.lock().map_err(|e| e.to_string())?;
+        jobs.get(&task_id).cloned()
+    };
+    if let Some(slot) = slot {
+        let mut guard = slot.lock().map_err(|e| e.to_string())?;
+        if let Some(mut job) = guard.take() {
+            job.process.kill();
+        }
+    }
+    let _ = app.emit(
+        "organize:cancelled",
+        serde_json::json!({ "task_id": task_id }),
     );
     Ok(())
 }
@@ -1108,22 +1109,3 @@ pub async fn get_claude_status(app: AppHandle) -> Result<ClaudeStatus, String> {
     }
 }
 
-#[tauri::command]
-pub fn cancel_organize(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<AppState>();
-    let project = {
-        let mut slot = state.organize.lock().map_err(|e| e.to_string())?;
-        if let Some(mut job) = slot.take() {
-            let path = job.project_path.clone();
-            job.process.kill();
-            Some(path)
-        } else {
-            None
-        }
-    };
-    let _ = app.emit(
-        "organize:cancelled",
-        serde_json::json!({ "project_path": project }),
-    );
-    Ok(())
-}

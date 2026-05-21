@@ -28,13 +28,14 @@ interface Props {
    * gerund spinner would linger forever after the final assistant text.
    */
   turnInProgress?: boolean
-  onPin?: (input: {
-    segmentKind: string
-    text: string
-    qaId: string
-  }) => Promise<unknown>
   /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
   onAddComment?: (text: string) => void
+  /** Open the Task picker for a capture from a QaCard or its selection. */
+  onCapture?: (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => void
 }
 
 export function ChatStream({
@@ -46,8 +47,8 @@ export function ChatStream({
   taskActivity,
   hookActivity,
   turnInProgress = false,
-  onPin,
   onAddComment,
+  onCapture,
 }: Props) {
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
@@ -79,8 +80,8 @@ export function ChatStream({
             pair={p}
             onExpand={() => onExpand(p.id)}
             onOpenFile={onOpenFile}
-            onPin={onPin}
             onAddComment={onAddComment}
+            onCapture={onCapture}
           />
         ),
       )}

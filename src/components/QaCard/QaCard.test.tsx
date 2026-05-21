@@ -149,4 +149,32 @@ describe('QaCard', () => {
     fireEvent.mouseUp(container.querySelector('.qa-card__answer')!)
     expect(screen.getByText('💬 코멘트로 추가')).toBeInTheDocument()
   })
+
+  it('onCapture 미제공 시 캡처 버튼 숨김', () => {
+    render(<QaCard pair={pair('a', [text('답변')])} onExpand={() => {}} />)
+    expect(
+      screen.queryByRole('button', { name: '이 답변을 Task에 캡처' }),
+    ).toBeNull()
+  })
+
+  it('onCapture 제공 시 캡처 버튼 클릭하면 qa_block kind로 호출', () => {
+    const onCapture = vi.fn()
+    const p = pair('q-42', [
+      text('첫 줄 답변'),
+      tool('Bash', 'ls', 'tu1'),
+    ])
+    render(<QaCard pair={p} onExpand={() => {}} onCapture={onCapture} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: '이 답변을 Task에 캡처' }),
+    )
+    expect(onCapture).toHaveBeenCalledOnce()
+    const arg = onCapture.mock.calls[0][0]
+    expect(arg.kind).toBe('qa_block')
+    expect(arg.qaId).toBe('q-42')
+    // 직렬화 포맷: Q/A 헤더 + 도구 호출 마커
+    expect(arg.content).toContain('## Q\n내 질문')
+    expect(arg.content).toContain('## A')
+    expect(arg.content).toContain('첫 줄 답변')
+    expect(arg.content).toContain('[tool Bash]')
+  })
 })

@@ -12,9 +12,17 @@ interface Props {
   pair: QaPair
   onExpand: () => void
   onOpenFile?: OpenFileFn
-  onPin?: (input: { segmentKind: string; text: string; qaId: string }) => Promise<unknown>
   /** Attach the active selection to the composer as a `[코멘트 #N]` token. */
   onAddComment?: (text: string) => void
+  /**
+   * Open the Task picker for a capture. `kind`/`content`/origin are gathered
+   * here; the picker decides which Task receives the resulting Source.
+   */
+  onCapture?: (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => void
 }
 
 function pickString(input: unknown, key: string): string {
@@ -95,6 +103,9 @@ function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): st
 }
 
 function buildPairText(pair: QaPair): string {
+  // Serialize one Q&A turn into a plain-text block suitable for stashing
+  // as a Source. Tool calls and results are tagged inline so the reader
+  // (and the LLM consuming the Task's wiki later) can tell them apart.
   const assistant = pair.segments
     .map((s) => {
       switch (s.kind) {
@@ -117,7 +128,7 @@ function buildPairText(pair: QaPair): string {
   return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
 }
 
-export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Props) {
+export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
@@ -128,7 +139,6 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
   // clean with no extra chrome.
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
-  const [cardPinned, setCardPinned] = useState(false)
   const answerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -155,35 +165,29 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
     ? 'qa-card__answer qa-card__answer--clamped'
     : 'qa-card__answer'
 
-  const handleCardPin = async () => {
-    if (!onPin || cardPinned) return
-    setCardPinned(true)
-    await onPin({
-      segmentKind: 'qa_pair',
-      text: buildPairText(pair),
-      qaId: pair.id,
-    })
+  const handleCardCapture = () => {
+    if (!onCapture) return
+    onCapture({ kind: 'qa_block', content: buildPairText(pair), qaId: pair.id })
   }
 
-  const handleSelectionPin = onPin
-    ? async (text: string) => {
-        await onPin({ segmentKind: 'selection', text, qaId: pair.id })
+  const handleSelectionCapture = onCapture
+    ? (text: string) => {
+        onCapture({ kind: 'selection', content: text, qaId: pair.id })
       }
     : undefined
 
   return (
     <article className="qa-card">
       <div className="qa-card__actions">
-        {onPin && (
+        {onCapture && (
           <button
             type="button"
-            className={`qa-card__pin-btn${cardPinned ? ' is-pinned' : ''}`}
-            aria-label="이 대화를 핀에 추가"
-            title={cardPinned ? '핀에 저장됨' : '이 Q&A를 핀에 저장'}
-            onClick={handleCardPin}
-            disabled={cardPinned}
+            className="qa-card__capture-btn"
+            aria-label="이 답변을 Task에 캡처"
+            title="이 답변을 Task에 캡처"
+            onClick={handleCardCapture}
           >
-            📌
+            📥
           </button>
         )}
         <button
@@ -295,7 +299,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onPin, onAddComment }: Prop
                 selection={{ text: selection.text, rect: selection.rect }}
                 onClose={clearSelection}
                 onAddComment={onAddComment}
-                onPin={handleSelectionPin}
+                onCapture={handleSelectionCapture}
               />
             )}
           </div>

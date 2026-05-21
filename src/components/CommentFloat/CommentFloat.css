@@ -24,15 +24,10 @@
   gap: 4px;
 }
 
-.comment-float__button--pin {
-  background: #6f3a1f;
+.comment-float__button--capture {
+  background: #1f3a5f;
 }
 
-.comment-float__button--pin:hover {
-  background: #8b4a26;
-}
-
-.comment-float__button--pin:disabled {
-  background: #4a2614;
-  cursor: default;
+.comment-float__button--capture:hover {
+  background: #2c5489;
 }

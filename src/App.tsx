@@ -10,10 +10,14 @@ import { ProjectSwitcher } from './components/ProjectSwitcher'
 import { SessionSwitcher } from './components/SessionSwitcher'
 import { SessionTabs, type TabDescriptor } from './components/SessionTabs'
 import { FilePanel } from './components/FilePanel'
-import { KnowledgePanel } from './components/KnowledgePanel'
+import { TaskBrowser } from './components/TaskBrowser'
+import { TaskPicker, type CaptureDraft } from './components/TaskPicker'
 import { useFileTabs } from './hooks/useFileTabs'
 import { useDetachedFilePanel } from './hooks/useDetachedFilePanel'
-import { useProjectKnowledge } from './hooks/useProjectKnowledge'
+import { useTasks } from './hooks/useTasks'
+import { useSessionBindings } from './hooks/useSessionBindings'
+import { buildTaskContextMessage } from './utils/taskContext'
+import type { Source, Task } from './types/task'
 import { listen } from '@tauri-apps/api/event'
 import { useClaudeSession } from './hooks/useClaudeSession'
 import { useClaudeStatus } from './hooks/useClaudeStatus'
@@ -126,9 +130,8 @@ interface MainLayoutProps {
   onSessionTitleChange: (title: string | null) => void
   claudeReady: boolean
   onOpenSettings: () => void
-  showKnowledge: boolean
-  onToggleKnowledge: () => void
-  onSetKnowledge: (open: boolean) => void
+  showTasks: boolean
+  onToggleTasks: () => void
 }
 
 function MainLayout({
@@ -141,9 +144,8 @@ function MainLayout({
   onSessionTitleChange,
   claudeReady,
   onOpenSettings,
-  showKnowledge,
-  onToggleKnowledge,
-  onSetKnowledge,
+  showTasks,
+  onToggleTasks,
 }: MainLayoutProps) {
   const {
     pairs,
@@ -173,6 +175,12 @@ function MainLayout({
     removeQueued,
     sessionTitle,
   } = useClaudeSession(tabId)
+  const { tasks } = useTasks()
+  const sessionBindings = useSessionBindings(sessionId)
+  const attachedTaskIds = useMemo(
+    () => new Set(sessionBindings.bindings.map((b) => b.task_id)),
+    [sessionBindings.bindings],
+  )
 
   const titleCbRef = useRef(onSessionTitleChange)
   titleCbRef.current = onSessionTitleChange
@@ -214,7 +222,6 @@ function MainLayout({
 
   const fileTabs = useFileTabs()
   const { isDetached, detach, openFile } = useDetachedFilePanel(fileTabs)
-  const knowledge = useProjectKnowledge(projectPath)
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
@@ -224,31 +231,59 @@ function MainLayout({
     text: string
     source?: string
   } | null>(null)
+  // QaCard's capture button / CommentFloat's 📥 button push a draft here;
+  // TaskPicker (mounted below) reads it and writes the resulting Source.
+  // null = picker hidden.
+  const [pendingCapture, setPendingCapture] = useState<CaptureDraft | null>(null)
 
-  // Auto-open the knowledge panel when an organize job is running or a diff
-  // is waiting for review, so the user actually sees the result.
-  useEffect(() => {
-    if (
-      knowledge.status === 'running' ||
-      knowledge.status === 'diff-ready' ||
-      knowledge.status === 'error'
-    ) {
-      onSetKnowledge(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [knowledge.status])
-
-  const handlePin = async (input: {
-    segmentKind: string
-    text: string
+  const handleCapture = (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
     qaId: string
   }) => {
-    return knowledge.pin({
-      segmentKind: input.segmentKind,
-      text: input.text,
+    setPendingCapture({
+      kind: input.kind,
+      content: input.content,
+      sessionId: sessionId ?? null,
       qaId: input.qaId,
-      sessionId,
+      projectPath,
     })
+  }
+
+  const handleAttachTask = async (taskId: string) => {
+    if (!sessionId) return
+    // 1. Persist the binding first so the UI flips immediately and the
+    //    binding survives even if the inject step below errors out.
+    const binding = await sessionBindings.attach(taskId)
+    if (!binding) return
+    // 2. Pull the task + sources from the backend on demand. The browser
+    //    list already has a TaskSummary but lacks `description` (it does
+    //    in fact, but we still need sources separately), and the source
+    //    list isn't cached anywhere — go to the source of truth.
+    try {
+      const [task, sources] = await Promise.all([
+        invoke<Task>('get_task', { taskId }),
+        invoke<Source[]>('list_task_sources', { taskId }),
+      ])
+      const message = buildTaskContextMessage(task, sources)
+      if (!message) {
+        // Empty task — attach succeeded but nothing to inject. Show a
+        // light note so the user understands why the chat didn't get a
+        // new turn. `window.alert` is intentionally plain for now; a
+        // proper toast lands with the next polish pass.
+        console.info(
+          `[tasks] attached "${task.name}" but it has no content to inject.`,
+        )
+        return
+      }
+      await sendUserMessage(message)
+    } catch (e) {
+      console.warn('[tasks] context injection failed', e)
+    }
+  }
+
+  const handleDetachTask = async (taskId: string) => {
+    await sessionBindings.detach(taskId)
   }
 
   const handleOpenFile = (
@@ -335,18 +370,19 @@ function MainLayout({
         )}
         <button
           type="button"
-          className={`app__knowledge-btn${
-            showKnowledge ? ' is-active' : ''
-          }`}
-          onClick={onToggleKnowledge}
-          title={`프로젝트 노트 (${knowledge.pins.length} 핀)`}
+          className={`app__knowledge-btn${showTasks ? ' is-active' : ''}`}
+          onClick={onToggleTasks}
+          title={
+            attachedTaskIds.size > 0
+              ? `Tasks (${tasks.length}개 · ${attachedTaskIds.size}개 attach됨)`
+              : `Tasks (${tasks.length}개)`
+          }
         >
-          📚 노트 ({knowledge.pins.length})
-          {knowledge.status === 'running' && (
-            <span className="app__knowledge-pulse" aria-hidden>●</span>
-          )}
-          {knowledge.status === 'diff-ready' && (
-            <span className="app__knowledge-pending" aria-hidden>●</span>
+          📋 Tasks ({tasks.length})
+          {attachedTaskIds.size > 0 && (
+            <span className="app__attached-count">
+              📎 {attachedTaskIds.size}
+            </span>
           )}
         </button>
         <label className="app__auto-toggle">
@@ -426,8 +462,10 @@ function MainLayout({
       <div className="app__body">
         {/*
           Two nested PanelGroups so panel sizes can have different scopes:
-          - Outer group ("meecode.layout.knowledge", app-wide): main vs
-            knowledge. Resizing the knowledge panel persists across tabs.
+          - Outer group (app-wide): main content vs side panel (Tasks).
+            Resizing the side panel persists across tabs. The autoSaveId
+            keeps its historical "knowledge" name so existing users don't
+            lose their saved layout.
           - Inner group (per-tab id): chat / expand / file. Each tab keeps
             its own ratios as panels open and close. The library remembers
             each panel-combination's layout separately keyed by the stable
@@ -463,8 +501,8 @@ function MainLayout({
                     taskActivity={taskActivity}
                     hookActivity={hookActivity}
                     turnInProgress={turnInProgress}
-                    onPin={handlePin}
                     onAddComment={handleAddComment}
+                    onCapture={handleCapture}
                     onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
                       const effective =
                         allow && (updatedInput === undefined || updatedInput === null)
@@ -533,6 +571,7 @@ function MainLayout({
                       taskActivity={taskActivity}
                       hookActivity={hookActivity}
                       onAddComment={handleAddComment}
+                      onCapture={handleCapture}
                     />
                   </Panel>
                 </>
@@ -559,19 +598,28 @@ function MainLayout({
               )}
             </PanelGroup>
           </Panel>
-          {showKnowledge && (
+          {showTasks && (
             <>
               <PanelResizeHandle className="resize-handle" />
               <Panel id="knowledge" order={2} defaultSize={28} minSize={20}>
-                <KnowledgePanel
-                  projectPath={projectPath}
-                  onClose={() => onSetKnowledge(false)}
+                <TaskBrowser
+                  onClose={onToggleTasks}
+                  sessionId={sessionId}
+                  attachedTaskIds={attachedTaskIds}
+                  onAttachTask={handleAttachTask}
+                  onDetachTask={handleDetachTask}
                 />
               </Panel>
             </>
           )}
         </PanelGroup>
       </div>
+      {pendingCapture && (
+        <TaskPicker
+          draft={pendingCapture}
+          onClose={() => setPendingCapture(null)}
+        />
+      )}
     </div>
   )
 }
@@ -589,11 +637,11 @@ function makeTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-const KNOWLEDGE_OPEN_STORAGE_KEY = 'meecode.knowledgeOpen'
+const TASKS_OPEN_STORAGE_KEY = 'meecode.tasksOpen'
 
-function readKnowledgeOpen(): boolean {
+function readTasksOpen(): boolean {
   try {
-    return localStorage.getItem(KNOWLEDGE_OPEN_STORAGE_KEY) === 'true'
+    return localStorage.getItem(TASKS_OPEN_STORAGE_KEY) === 'true'
   } catch {
     return false
   }
@@ -613,17 +661,15 @@ function App() {
   const [activeId, setActiveId] = useState<string>('main')
   const { status: claudeStatus, refresh: refreshClaudeStatus } = useClaudeStatus()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // Knowledge panel open/close is app-wide: toggling it on tab A persists
+  // Tasks panel open/close is app-wide: toggling it on tab A persists
   // and shows the same state on tab B. Sized by the outer PanelGroup so
   // its width also carries across tabs.
-  const [showKnowledge, setShowKnowledgeState] = useState<boolean>(
-    readKnowledgeOpen,
-  )
-  const setShowKnowledge = (next: boolean | ((prev: boolean) => boolean)) => {
-    setShowKnowledgeState((prev) => {
+  const [showTasks, setShowTasksState] = useState<boolean>(readTasksOpen)
+  const setShowTasks = (next: boolean | ((prev: boolean) => boolean)) => {
+    setShowTasksState((prev) => {
       const resolved = typeof next === 'function' ? next(prev) : next
       try {
-        localStorage.setItem(KNOWLEDGE_OPEN_STORAGE_KEY, String(resolved))
+        localStorage.setItem(TASKS_OPEN_STORAGE_KEY, String(resolved))
       } catch {
         /* localStorage unavailable — ignore */
       }
@@ -783,9 +829,8 @@ function App() {
                 }
                 claudeReady={claudeStatus.ready}
                 onOpenSettings={() => setSettingsOpen(true)}
-                showKnowledge={showKnowledge}
-                onToggleKnowledge={() => setShowKnowledge((v) => !v)}
-                onSetKnowledge={(open) => setShowKnowledge(open)}
+                showTasks={showTasks}
+                onToggleTasks={() => setShowTasks((v) => !v)}
               />
             ) : (
               <FolderPicker onStart={handleStart} />
