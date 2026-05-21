@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useTasks, useTaskDetail } from '../../hooks/useTasks'
+import {
+  useTasks,
+  useTaskDetail,
+  useTaskOrganize,
+  useTaskWiki,
+} from '../../hooks/useTasks'
+import { WikiEditor } from '../WikiEditor'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -37,8 +43,25 @@ export function TaskDetail({
   onDetach,
 }: Props) {
   const { updateTask, deleteTask } = useTasks()
-  const { task, sources, loading, error, setTask, deleteSource } = useTaskDetail(taskId)
+  const { task, sources, loading, error, setTask, deleteSource, refresh: refreshDetail } =
+    useTaskDetail(taskId)
+  const wiki = useTaskWiki(taskId)
+  const organize = useTaskOrganize(taskId)
   const [attachBusy, setAttachBusy] = useState(false)
+  const [organizeBusy, setOrganizeBusy] = useState(false)
+  const [organizeError, setOrganizeError] = useState<string | null>(null)
+  const [activeWiki, setActiveWiki] = useState<string | null>(null)
+  const [newWikiName, setNewWikiName] = useState('')
+  const [showNewWikiInput, setShowNewWikiInput] = useState(false)
+
+  // When organize completes, refresh sources (processed badges) and wiki list.
+  useEffect(() => {
+    if (organize.status === 'idle' && organize.lastProcessedSourceIds.length > 0) {
+      void refreshDetail()
+      void wiki.refresh()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organize.status, organize.lastProcessedSourceIds])
 
   // Edits stay local until the input is blurred, so every keystroke isn't
   // an IPC roundtrip + disk write.
@@ -76,6 +99,30 @@ export function TaskDetail({
     }
     await deleteTask(task.id)
     onDeleted?.()
+  }
+
+  const handleStartOrganize = async () => {
+    setOrganizeBusy(true)
+    setOrganizeError(null)
+    try {
+      const err = await organize.start()
+      if (err) setOrganizeError(err)
+    } finally {
+      setOrganizeBusy(false)
+    }
+  }
+
+  const handleNewWiki = async () => {
+    if (!task) return
+    let name = newWikiName.trim()
+    if (!name) return
+    if (!name.endsWith('.md')) name = `${name}.md`
+    const ok = await wiki.writeFile(name, `# ${name.replace(/\.md$/, '')}\n\n`)
+    if (ok) {
+      setNewWikiName('')
+      setShowNewWikiInput(false)
+      setActiveWiki(name)
+    }
   }
 
   return (
@@ -203,67 +250,249 @@ export function TaskDetail({
               </div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {sources.map((s) => (
+                {sources.map((s) => {
+                  const isProcessed = !!s.processed_at_ms
+                  return (
+                    <li
+                      key={s.id}
+                      style={{
+                        background: isProcessed ? '#0d1117' : '#10171f',
+                        border: isProcessed
+                          ? '1px solid #21262d'
+                          : '1px solid #1f3a5f',
+                        borderRadius: 6,
+                        padding: 8,
+                        marginBottom: 6,
+                        fontSize: 12,
+                        color: '#c9d1d9',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 10,
+                          color: '#6e7681',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span style={{ flex: 1 }}>
+                          {s.kind} · {formatTs(s.captured_at_ms)}
+                          {isProcessed ? (
+                            <span style={{ marginLeft: 6, color: '#79c0ff' }}>
+                              ✓ wiki 반영됨
+                            </span>
+                          ) : (
+                            <span style={{ marginLeft: 6, color: '#d29922' }}>
+                              ● 미정리
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm('이 Source를 삭제하시겠습니까?')) {
+                              void deleteSource(s.id)
+                            }
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#6e7681',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            padding: '0 4px',
+                          }}
+                          title="Source 삭제"
+                          aria-label="Source 삭제"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          maxHeight: 120,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {s.content.slice(0, 400)}
+                        {s.content.length > 400 ? '…' : ''}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="task-detail__section">
+            <h3 className="task-detail__section-title">
+              정리 (Organize)
+            </h3>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="task-panel__btn task-panel__btn--primary"
+                onClick={handleStartOrganize}
+                disabled={
+                  organizeBusy ||
+                  organize.status === 'running' ||
+                  (organize.preview?.unprocessed_count ?? 0) === 0
+                }
+                title={
+                  organize.preview?.resume_session_id
+                    ? '기존 Claude Code 세션을 resume — 캐시 활용'
+                    : '새 Claude Code 세션 시작'
+                }
+              >
+                {organize.status === 'running'
+                  ? '🔄 정리 중...'
+                  : `🪄 정리 (${organize.preview?.unprocessed_count ?? 0}개 새 source)`}
+              </button>
+              {organize.status === 'running' && (
+                <button
+                  type="button"
+                  className="task-panel__btn"
+                  onClick={() => {
+                    void organize.cancel()
+                  }}
+                >
+                  취소
+                </button>
+              )}
+              {organize.preview?.resume_session_id && (
+                <span style={{ fontSize: 10, color: '#6e7681' }}>
+                  ↺ 캐시 가능
+                </span>
+              )}
+            </div>
+            {organize.lastNote && (
+              <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6 }}>
+                {organize.lastNote}
+              </div>
+            )}
+            {organizeError && (
+              <div className="task-detail__error" style={{ margin: '6px 0 0' }}>
+                {organizeError}
+              </div>
+            )}
+          </div>
+          <div className="task-detail__section">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 8,
+              }}
+            >
+              <h3
+                className="task-detail__section-title"
+                style={{ flex: 1, margin: 0 }}
+              >
+                Wiki ({wiki.files.length})
+              </h3>
+              <button
+                type="button"
+                className="task-panel__btn"
+                onClick={() => setShowNewWikiInput((v) => !v)}
+                style={{ fontSize: 11 }}
+              >
+                {showNewWikiInput ? '취소' : '+ 새 파일'}
+              </button>
+            </div>
+            {showNewWikiInput && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <input
+                  className="task-panel__create-input"
+                  placeholder="파일명 (예: decisions)"
+                  value={newWikiName}
+                  onChange={(e) => setNewWikiName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleNewWiki()
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="task-panel__btn task-panel__btn--primary"
+                  onClick={handleNewWiki}
+                  disabled={!newWikiName.trim()}
+                >
+                  생성
+                </button>
+              </div>
+            )}
+            {wiki.files.length === 0 ? (
+              <div className="task-detail__section-empty">
+                위키 파일이 없습니다.
+                <br />
+                <span style={{ fontSize: 11 }}>
+                  Source를 추가하고 위 "정리" 버튼을 누르거나, 직접 새 파일을 만드세요.
+                </span>
+              </div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {wiki.files.map((f) => (
                   <li
-                    key={s.id}
+                    key={f.name}
                     style={{
-                      background: '#0d1117',
-                      border: '1px solid #21262d',
+                      display: 'flex',
+                      alignItems: 'center',
                       borderRadius: 6,
-                      padding: 8,
-                      marginBottom: 6,
-                      fontSize: 12,
-                      color: '#c9d1d9',
+                      background: activeWiki === f.name ? '#161b22' : 'transparent',
+                      marginBottom: 2,
                     }}
                   >
-                    <div
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveWiki((cur) => (cur === f.name ? null : f.name))
+                      }
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 10,
-                        color: '#6e7681',
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span style={{ flex: 1 }}>
-                        {s.kind} · {formatTs(s.captured_at_ms)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm('이 Source를 삭제하시겠습니까?')) {
-                            void deleteSource(s.id)
-                          }
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#6e7681',
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          padding: '0 4px',
-                        }}
-                        title="Source 삭제"
-                        aria-label="Source 삭제"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div
-                      style={{
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        maxHeight: 120,
+                        flex: 1,
+                        background: 'none',
+                        border: 'none',
+                        color: '#c9d1d9',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                        fontSize: 12,
                         overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {s.content.slice(0, 400)}
-                      {s.content.length > 400 ? '…' : ''}
-                    </div>
+                      📄 {f.name}
+                    </button>
+                    <span style={{ fontSize: 10, color: '#6e7681', marginRight: 8 }}>
+                      {f.size_bytes}B
+                    </span>
                   </li>
                 ))}
               </ul>
+            )}
+            {activeWiki && (
+              <WikiEditor
+                taskId={task.id}
+                name={activeWiki}
+                onClose={() => setActiveWiki(null)}
+                readFile={wiki.readFile}
+                writeFile={wiki.writeFile}
+                deleteFile={wiki.deleteFile}
+              />
             )}
           </div>
           <div className="task-detail__footer">

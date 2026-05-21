@@ -4,6 +4,7 @@ import App from './App'
 import { DetachedFileWindow } from './components/DetachedFileWindow'
 import './styles/tokens.css'
 import { bootstrapSessionListeners } from './state/sessionStore'
+import { bootstrapOrganizeListeners } from './state/organizeStore'
 
 const params = new URLSearchParams(window.location.search)
 const view = params.get('view')
@@ -13,6 +14,7 @@ const view = params.get('view')
 // double-subscribe to backend events (those belong to the main window).
 if (view !== 'file-panel') {
   bootstrapSessionListeners()
+  bootstrapOrganizeListeners()
 }
 
 window.addEventListener('unhandledrejection', (e) => {

@@ -14,6 +14,8 @@
 //! Phase 1 only exposes Task CRUD + Source listing — capture, attach,
 //! organize, and the wiki editor land in later phases.
 
+pub mod organize;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -60,6 +62,11 @@ pub struct Source {
     #[serde(default)]
     pub origin: SourceOrigin,
     pub captured_at_ms: u64,
+    /// Set when an organize turn has folded this source into the wiki.
+    /// `None` = still pending. The organize prompt only sends pending
+    /// sources so cached runs stay incremental.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processed_at_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -268,6 +275,7 @@ pub fn create_source(
         content,
         origin,
         captured_at_ms: now_ms(),
+        processed_at_ms: None,
     };
     let path = dir.join(format!("{id}.json"));
     let body = serde_json::to_string_pretty(&source).map_err(|e| e.to_string())?;
@@ -276,6 +284,170 @@ pub fn create_source(
     // to the top — matches user mental model of "the one I'm working on".
     let _ = update_task(root, task_id, None, None);
     Ok(source)
+}
+
+pub fn mark_sources_processed(
+    root: &Path,
+    task_id: &str,
+    source_ids: &[String],
+) -> Result<(), String> {
+    validate_task_id(task_id)?;
+    let ts = now_ms();
+    let dir = sources_dir(root, task_id);
+    for id in source_ids {
+        validate_source_id(id)?;
+        let path = dir.join(format!("{id}.json"));
+        if !path.exists() {
+            continue;
+        }
+        let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let mut src: Source = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        src.processed_at_ms = Some(ts);
+        let body = serde_json::to_string_pretty(&src).map_err(|e| e.to_string())?;
+        fs::write(&path, body).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ── Wiki ───────────────────────────────────────────────────────────────
+
+/// Files served as the curated output of organize runs. Flat `.md` only,
+/// no subdirectories — matches the cwd the organize Claude process runs in.
+#[derive(Debug, Clone, Serialize)]
+pub struct WikiFile {
+    pub name: String,
+    pub size_bytes: u64,
+}
+
+pub fn wiki_dir(root: &Path, task_id: &str) -> PathBuf {
+    task_dir(root, task_id).join("wiki")
+}
+
+fn validate_wiki_name(name: &str) -> Result<(), String> {
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+        || name.starts_with('.')
+    {
+        return Err(format!("invalid wiki file name: {name}"));
+    }
+    if !name.ends_with(".md") {
+        return Err(format!("wiki file must end with .md: {name}"));
+    }
+    Ok(())
+}
+
+pub fn list_wiki_files(root: &Path, task_id: &str) -> Result<Vec<WikiFile>, String> {
+    validate_task_id(task_id)?;
+    let dir = wiki_dir(root, task_id);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    let mut out: Vec<WikiFile> = Vec::new();
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+        let name = match p.file_name().and_then(|s| s.to_str()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        out.push(WikiFile {
+            name,
+            size_bytes: size,
+        });
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+pub fn read_wiki_file(root: &Path, task_id: &str, name: &str) -> Result<String, String> {
+    validate_task_id(task_id)?;
+    validate_wiki_name(name)?;
+    let path = wiki_dir(root, task_id).join(name);
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+pub fn write_wiki_file(
+    root: &Path,
+    task_id: &str,
+    name: &str,
+    content: &str,
+) -> Result<(), String> {
+    validate_task_id(task_id)?;
+    validate_wiki_name(name)?;
+    let dir = wiki_dir(root, task_id);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(name);
+    fs::write(&path, content).map_err(|e| e.to_string())?;
+    let _ = update_task(root, task_id, None, None);
+    Ok(())
+}
+
+pub fn delete_wiki_file(root: &Path, task_id: &str, name: &str) -> Result<(), String> {
+    validate_task_id(task_id)?;
+    validate_wiki_name(name)?;
+    let path = wiki_dir(root, task_id).join(name);
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+        let _ = update_task(root, task_id, None, None);
+    }
+    Ok(())
+}
+
+// ── Organize session metadata ──────────────────────────────────────────
+
+/// Persisted Claude Code session id used to resume the organize loop for
+/// a given task. Cached on disk so closing/reopening the app still hits
+/// the prompt cache on the next organize.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrganizeSessionMeta {
+    pub session_id: String,
+    pub last_used_at_ms: u64,
+}
+
+fn organize_meta_path(root: &Path, task_id: &str) -> PathBuf {
+    task_dir(root, task_id).join("organize-session.json")
+}
+
+pub fn read_organize_session(
+    root: &Path,
+    task_id: &str,
+) -> Result<Option<OrganizeSessionMeta>, String> {
+    validate_task_id(task_id)?;
+    let path = organize_meta_path(root, task_id);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str::<OrganizeSessionMeta>(&text)
+        .map(Some)
+        .map_err(|e| e.to_string())
+}
+
+pub fn write_organize_session(
+    root: &Path,
+    task_id: &str,
+    session_id: &str,
+) -> Result<(), String> {
+    validate_task_id(task_id)?;
+    if session_id.is_empty() {
+        return Err("session_id cannot be empty".into());
+    }
+    fs::create_dir_all(task_dir(root, task_id)).map_err(|e| e.to_string())?;
+    let meta = OrganizeSessionMeta {
+        session_id: session_id.to_string(),
+        last_used_at_ms: now_ms(),
+    };
+    let body = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
+    fs::write(organize_meta_path(root, task_id), body).map_err(|e| e.to_string())
 }
 
 fn validate_source_id(source_id: &str) -> Result<(), String> {
@@ -490,5 +662,73 @@ mod tests {
         let t = create_task(&root, "t".into(), "".into()).unwrap();
         assert!(delete_source(&root, &t.id, "../escape").is_err());
         assert!(delete_source(&root, &t.id, ".hidden").is_err());
+    }
+
+    #[test]
+    fn mark_sources_processed_sets_timestamp() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        let a = create_source(&root, &t.id, "manual".into(), "a".into(), SourceOrigin::default())
+            .unwrap();
+        let b = create_source(&root, &t.id, "manual".into(), "b".into(), SourceOrigin::default())
+            .unwrap();
+        assert!(a.processed_at_ms.is_none());
+        mark_sources_processed(&root, &t.id, &[a.id.clone()]).unwrap();
+        let list = list_sources(&root, &t.id).unwrap();
+        let a_refreshed = list.iter().find(|s| s.id == a.id).unwrap();
+        let b_refreshed = list.iter().find(|s| s.id == b.id).unwrap();
+        assert!(a_refreshed.processed_at_ms.is_some());
+        assert!(b_refreshed.processed_at_ms.is_none());
+    }
+
+    #[test]
+    fn mark_sources_processed_ignores_missing_ids() {
+        // Stale IDs from a UI snapshot shouldn't blow up the whole batch.
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        let s = create_source(&root, &t.id, "manual".into(), "x".into(), SourceOrigin::default())
+            .unwrap();
+        mark_sources_processed(
+            &root,
+            &t.id,
+            &[s.id.clone(), "src-deleted".into()],
+        )
+        .unwrap();
+        let list = list_sources(&root, &t.id).unwrap();
+        assert!(list[0].processed_at_ms.is_some());
+    }
+
+    #[test]
+    fn wiki_roundtrip() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        write_wiki_file(&root, &t.id, "decisions.md", "# Decisions\n").unwrap();
+        write_wiki_file(&root, &t.id, "glossary.md", "# Glossary\n").unwrap();
+        let files = list_wiki_files(&root, &t.id).unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].name, "decisions.md");
+        let content = read_wiki_file(&root, &t.id, "decisions.md").unwrap();
+        assert_eq!(content, "# Decisions\n");
+    }
+
+    #[test]
+    fn wiki_rejects_traversal_and_non_md() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        assert!(write_wiki_file(&root, &t.id, "../escape.md", "x").is_err());
+        assert!(write_wiki_file(&root, &t.id, "sub/file.md", "x").is_err());
+        assert!(write_wiki_file(&root, &t.id, "no-ext", "x").is_err());
+        assert!(write_wiki_file(&root, &t.id, ".hidden.md", "x").is_err());
+    }
+
+    #[test]
+    fn organize_session_meta_roundtrip() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        assert!(read_organize_session(&root, &t.id).unwrap().is_none());
+        write_organize_session(&root, &t.id, "claude-session-abc").unwrap();
+        let m = read_organize_session(&root, &t.id).unwrap().unwrap();
+        assert_eq!(m.session_id, "claude-session-abc");
+        assert!(m.last_used_at_ms > 0);
     }
 }

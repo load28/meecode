@@ -84,6 +84,13 @@ pub fn run() {
             commands::attach_task,
             commands::detach_task,
             commands::list_session_task_bindings,
+            commands::list_task_wiki_files,
+            commands::read_task_wiki,
+            commands::write_task_wiki,
+            commands::delete_task_wiki,
+            commands::get_organize_preview,
+            commands::start_task_organize,
+            commands::cancel_task_organize,
         ])
         .run(tauri::generate_context!())
         .expect("error running meecode");

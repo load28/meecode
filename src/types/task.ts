@@ -42,7 +42,22 @@ export interface Source {
   content: string
   origin: SourceOrigin
   captured_at_ms: number
+  /** Set by the organize loop when this Source has been folded into the wiki. */
+  processed_at_ms?: number | null
 }
+
+export interface WikiFile {
+  name: string
+  size_bytes: number
+}
+
+export interface OrganizePreview {
+  task_id: string
+  unprocessed_count: number
+  resume_session_id: string | null
+}
+
+export type OrganizeStatus = 'idle' | 'running' | 'error'
 
 export interface SessionTaskBinding {
   session_id: string

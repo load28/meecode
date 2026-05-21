@@ -1,7 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import type { Source, Task, TaskSummary } from '../types/task'
+import type {
+  OrganizePreview,
+  Source,
+  Task,
+  TaskSummary,
+  WikiFile,
+} from '../types/task'
 import {
   getTaskSnapshot,
   removeTask as removeTaskInStore,
@@ -9,6 +15,10 @@ import {
   subscribeTasks,
   upsertTask,
 } from '../state/taskStore'
+import {
+  getOrganizeSnapshot,
+  subscribeOrganize,
+} from '../state/organizeStore'
 
 export interface CreateSourceInput {
   taskId: string
@@ -208,4 +218,145 @@ export function useTaskDetail(taskId: string | null) {
   )
 
   return { task, sources, loading, error, refresh, setTask, deleteSource }
+}
+
+/** Wiki file listing + read/write/delete for a single task. */
+export function useTaskWiki(taskId: string | null) {
+  const [files, setFiles] = useState<WikiFile[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const refresh = useCallback(async () => {
+    if (!taskId) {
+      setFiles([])
+      return
+    }
+    setLoading(true)
+    try {
+      const list = await invoke<WikiFile[]>('list_task_wiki_files', { taskId })
+      setFiles(list)
+    } catch (e) {
+      console.warn('[tasks] list_task_wiki_files failed', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [taskId])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  const readFile = useCallback(
+    async (name: string): Promise<string> => {
+      if (!taskId) return ''
+      try {
+        return await invoke<string>('read_task_wiki', {
+          args: { task_id: taskId, name },
+        })
+      } catch (e) {
+        console.warn('[tasks] read_task_wiki failed', e)
+        return ''
+      }
+    },
+    [taskId],
+  )
+
+  const writeFile = useCallback(
+    async (name: string, content: string): Promise<boolean> => {
+      if (!taskId) return false
+      try {
+        await invoke('write_task_wiki', {
+          args: { task_id: taskId, name, content },
+        })
+        await refresh()
+        return true
+      } catch (e) {
+        console.warn('[tasks] write_task_wiki failed', e)
+        return false
+      }
+    },
+    [taskId, refresh],
+  )
+
+  const deleteFile = useCallback(
+    async (name: string): Promise<void> => {
+      if (!taskId) return
+      try {
+        await invoke('delete_task_wiki', {
+          args: { task_id: taskId, name },
+        })
+        await refresh()
+      } catch (e) {
+        console.warn('[tasks] delete_task_wiki failed', e)
+      }
+    },
+    [taskId, refresh],
+  )
+
+  return { files, loading, refresh, readFile, writeFile, deleteFile }
+}
+
+/** Organize trigger + reactive status. */
+export function useTaskOrganize(taskId: string | null) {
+  const key = taskId ?? ''
+  const snapshot = useSyncExternalStore(
+    useCallback((cb: () => void) => subscribeOrganize(key, cb), [key]),
+    useCallback(() => getOrganizeSnapshot(key), [key]),
+  )
+
+  const [preview, setPreview] = useState<OrganizePreview | null>(null)
+  const refreshPreview = useCallback(async () => {
+    if (!taskId) {
+      setPreview(null)
+      return
+    }
+    try {
+      const p = await invoke<OrganizePreview>('get_organize_preview', { taskId })
+      setPreview(p)
+    } catch (e) {
+      console.warn('[organize] get_organize_preview failed', e)
+    }
+  }, [taskId])
+
+  // Refresh the preview when the task changes and when an organize run
+  // completes (the source count drops to 0).
+  useEffect(() => {
+    void refreshPreview()
+  }, [refreshPreview])
+
+  useEffect(() => {
+    if (snapshot.status === 'idle' && snapshot.lastProcessedSourceIds.length > 0) {
+      void refreshPreview()
+    }
+  }, [snapshot.status, snapshot.lastProcessedSourceIds, refreshPreview])
+
+  const start = useCallback(async (): Promise<string | null> => {
+    if (!taskId) return 'No task'
+    try {
+      await invoke('start_task_organize', { taskId })
+      return null
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return msg
+    }
+  }, [taskId])
+
+  const cancel = useCallback(async () => {
+    if (!taskId) return
+    try {
+      await invoke('cancel_task_organize', { taskId })
+    } catch (e) {
+      console.warn('[organize] cancel failed', e)
+    }
+  }, [taskId])
+
+  return {
+    status: snapshot.status,
+    lastNote: snapshot.lastNote,
+    lastProcessedSourceIds: snapshot.lastProcessedSourceIds,
+    error: snapshot.error,
+    preview,
+    refreshPreview,
+    start,
+    cancel,
+  }
 }
