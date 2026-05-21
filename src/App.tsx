@@ -11,6 +11,7 @@ import { SessionSwitcher } from './components/SessionSwitcher'
 import { SessionTabs, type TabDescriptor } from './components/SessionTabs'
 import { FilePanel } from './components/FilePanel'
 import { TaskBrowser } from './components/TaskBrowser'
+import { TaskPicker, type CaptureDraft } from './components/TaskPicker'
 import { useFileTabs } from './hooks/useFileTabs'
 import { useDetachedFilePanel } from './hooks/useDetachedFilePanel'
 import { useTasks } from './hooks/useTasks'
@@ -222,6 +223,24 @@ function MainLayout({
     text: string
     source?: string
   } | null>(null)
+  // QaCard's capture button / CommentFloat's 📥 button push a draft here;
+  // TaskPicker (mounted below) reads it and writes the resulting Source.
+  // null = picker hidden.
+  const [pendingCapture, setPendingCapture] = useState<CaptureDraft | null>(null)
+
+  const handleCapture = (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => {
+    setPendingCapture({
+      kind: input.kind,
+      content: input.content,
+      sessionId: sessionId ?? null,
+      qaId: input.qaId,
+      projectPath,
+    })
+  }
 
   const handleOpenFile = (
     path: string,
@@ -430,6 +449,7 @@ function MainLayout({
                     hookActivity={hookActivity}
                     turnInProgress={turnInProgress}
                     onAddComment={handleAddComment}
+                    onCapture={handleCapture}
                     onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
                       const effective =
                         allow && (updatedInput === undefined || updatedInput === null)
@@ -498,6 +518,7 @@ function MainLayout({
                       taskActivity={taskActivity}
                       hookActivity={hookActivity}
                       onAddComment={handleAddComment}
+                      onCapture={handleCapture}
                     />
                   </Panel>
                 </>
@@ -534,6 +555,12 @@ function MainLayout({
           )}
         </PanelGroup>
       </div>
+      {pendingCapture && (
+        <TaskPicker
+          draft={pendingCapture}
+          onClose={() => setPendingCapture(null)}
+        />
+      )}
     </div>
   )
 }

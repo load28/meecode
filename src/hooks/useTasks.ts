@@ -10,6 +10,15 @@ import {
   upsertTask,
 } from '../state/taskStore'
 
+export interface CreateSourceInput {
+  taskId: string
+  kind: string
+  content: string
+  sessionId?: string | null
+  qaId?: string | null
+  projectPath?: string | null
+}
+
 export interface UseTasksResult {
   tasks: TaskSummary[]
   loaded: boolean
@@ -20,6 +29,11 @@ export interface UseTasksResult {
     patch: { name?: string; description?: string },
   ) => Promise<Task | null>
   deleteTask: (id: string) => Promise<void>
+  /**
+   * Capture a Source into a Task. Returns the created Source on success.
+   * Triggers a list refresh so the caller's `source_count` reflects it.
+   */
+  createSource: (input: CreateSourceInput) => Promise<Source | null>
 }
 
 export function useTasks(): UseTasksResult {
@@ -107,6 +121,32 @@ export function useTasks(): UseTasksResult {
     }
   }, [])
 
+  const createSource = useCallback(
+    async (input: CreateSourceInput): Promise<Source | null> => {
+      try {
+        const created = await invoke<Source>('create_source', {
+          args: {
+            task_id: input.taskId,
+            kind: input.kind,
+            content: input.content,
+            session_id: input.sessionId ?? null,
+            qa_id: input.qaId ?? null,
+            project_path: input.projectPath ?? null,
+          },
+        })
+        // The backend bumps Task.updated_at and source_count grew by one,
+        // so refresh the list to reflect both. Cheaper than rebuilding
+        // each entry by hand.
+        void refresh()
+        return created
+      } catch (e) {
+        console.warn('[tasks] create_source failed', e)
+        return null
+      }
+    },
+    [refresh],
+  )
+
   return {
     tasks: snapshot.tasks,
     loaded: snapshot.loaded,
@@ -114,6 +154,7 @@ export function useTasks(): UseTasksResult {
     createTask,
     updateTask,
     deleteTask,
+    createSource,
   }
 }
 
@@ -151,5 +192,20 @@ export function useTaskDetail(taskId: string | null) {
     void refresh()
   }, [refresh])
 
-  return { task, sources, loading, error, refresh, setTask }
+  const deleteSource = useCallback(
+    async (sourceId: string) => {
+      if (!taskId) return
+      try {
+        await invoke('delete_source', {
+          args: { task_id: taskId, source_id: sourceId },
+        })
+        setSources((prev) => prev.filter((s) => s.id !== sourceId))
+      } catch (e) {
+        console.warn('[tasks] delete_source failed', e)
+      }
+    },
+    [taskId],
+  )
+
+  return { task, sources, loading, error, refresh, setTask, deleteSource }
 }

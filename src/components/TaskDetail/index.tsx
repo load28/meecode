@@ -22,7 +22,7 @@ function formatTs(ms: number): string {
 
 export function TaskDetail({ taskId, onBack, onClose, onDeleted }: Props) {
   const { updateTask, deleteTask } = useTasks()
-  const { task, sources, loading, error, setTask } = useTaskDetail(taskId)
+  const { task, sources, loading, error, setTask, deleteSource } = useTaskDetail(taskId)
 
   // Edits stay local until the input is blurred, so every keystroke isn't
   // an IPC roundtrip + disk write.
@@ -134,7 +134,7 @@ export function TaskDetail({ taskId, onBack, onClose, onDeleted }: Props) {
                 아직 Source가 없습니다.
                 <br />
                 <span style={{ fontSize: 11 }}>
-                  채팅에서 답변을 캡처하는 기능은 다음 단계에서 추가됩니다.
+                  채팅의 답변 옆 📥 버튼이나 선택 텍스트의 📥 캡처로 추가할 수 있습니다.
                 </span>
               </div>
             ) : (
@@ -154,12 +154,37 @@ export function TaskDetail({ taskId, onBack, onClose, onDeleted }: Props) {
                   >
                     <div
                       style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
                         fontSize: 10,
                         color: '#6e7681',
                         marginBottom: 4,
                       }}
                     >
-                      {s.kind} · {formatTs(s.captured_at_ms)}
+                      <span style={{ flex: 1 }}>
+                        {s.kind} · {formatTs(s.captured_at_ms)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('이 Source를 삭제하시겠습니까?')) {
+                            void deleteSource(s.id)
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#6e7681',
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          padding: '0 4px',
+                        }}
+                        title="Source 삭제"
+                        aria-label="Source 삭제"
+                      >
+                        ×
+                      </button>
                     </div>
                     <div
                       style={{

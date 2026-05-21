@@ -23,3 +23,11 @@
   display: inline-flex;
   gap: 4px;
 }
+
+.comment-float__button--capture {
+  background: #1f3a5f;
+}
+
+.comment-float__button--capture:hover {
+  background: #2c5489;
+}

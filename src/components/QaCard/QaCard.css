@@ -190,6 +190,7 @@
   gap: 4px;
 }
 
+.qa-card__capture-btn,
 .qa-card__expand-btn {
   width: 26px;
   height: 26px;
@@ -204,6 +205,12 @@
   line-height: 1;
   cursor: pointer;
   padding: 0;
+}
+
+.qa-card__capture-btn:hover {
+  background: #1f3a5f;
+  color: #79c0ff;
+  border-color: #1f6feb;
 }
 
 .qa-card__expand-btn:hover {

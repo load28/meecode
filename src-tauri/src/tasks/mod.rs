@@ -245,6 +245,63 @@ pub fn list_sources(root: &Path, task_id: &str) -> Result<Vec<Source>, String> {
     Ok(out)
 }
 
+pub fn create_source(
+    root: &Path,
+    task_id: &str,
+    kind: String,
+    content: String,
+    origin: SourceOrigin,
+) -> Result<Source, String> {
+    // Ensure the task exists — otherwise we'd be creating an orphan
+    // sources directory under a stale id (e.g. after a delete).
+    let _task = read_task(root, task_id)?;
+    if content.is_empty() {
+        return Err("source content cannot be empty".into());
+    }
+    let dir = sources_dir(root, task_id);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let id = new_id("src");
+    let source = Source {
+        id: id.clone(),
+        task_id: task_id.to_string(),
+        kind,
+        content,
+        origin,
+        captured_at_ms: now_ms(),
+    };
+    let path = dir.join(format!("{id}.json"));
+    let body = serde_json::to_string_pretty(&source).map_err(|e| e.to_string())?;
+    fs::write(&path, body).map_err(|e| e.to_string())?;
+    // Touch the parent task so the browser sorts the just-captured task
+    // to the top — matches user mental model of "the one I'm working on".
+    let _ = update_task(root, task_id, None, None);
+    Ok(source)
+}
+
+fn validate_source_id(source_id: &str) -> Result<(), String> {
+    if source_id.is_empty()
+        || source_id.contains('/')
+        || source_id.contains('\\')
+        || source_id.contains("..")
+        || source_id.starts_with('.')
+    {
+        return Err(format!("invalid source id: {source_id}"));
+    }
+    Ok(())
+}
+
+pub fn delete_source(root: &Path, task_id: &str, source_id: &str) -> Result<(), String> {
+    validate_task_id(task_id)?;
+    validate_source_id(source_id)?;
+    let path = sources_dir(root, task_id).join(format!("{source_id}.json"));
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_file(&path).map_err(|e| e.to_string())?;
+    let _ = update_task(root, task_id, None, None);
+    Ok(())
+}
+
 /// Public root resolver used by the IPC layer. Lives here so the
 /// production path stays consistent with the test helpers below.
 pub fn default_tasks_root() -> PathBuf {
@@ -351,5 +408,87 @@ mod tests {
         let (_g, root) = root();
         let t = create_task(&root, "t".into(), "".into()).unwrap();
         assert!(list_sources(&root, &t.id).unwrap().is_empty());
+    }
+
+    #[test]
+    fn create_source_then_list() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        let origin = SourceOrigin {
+            session_id: Some("s1".into()),
+            qa_id: Some("qa-1".into()),
+            project_path: Some("/tmp/proj".into()),
+        };
+        let s = create_source(
+            &root,
+            &t.id,
+            "qa_block".into(),
+            "## Q\nhello\n\n## A\nhi".into(),
+            origin,
+        )
+        .unwrap();
+        assert!(s.id.starts_with("src-"));
+        assert_eq!(s.task_id, t.id);
+        let list = list_sources(&root, &t.id).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].content, "## Q\nhello\n\n## A\nhi");
+        assert_eq!(list[0].origin.qa_id.as_deref(), Some("qa-1"));
+    }
+
+    #[test]
+    fn create_source_bumps_task_updated_at() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        let before = t.updated_at_ms;
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        create_source(&root, &t.id, "manual".into(), "note".into(), SourceOrigin::default())
+            .unwrap();
+        let refreshed = read_task(&root, &t.id).unwrap();
+        assert!(refreshed.updated_at_ms > before);
+    }
+
+    #[test]
+    fn create_source_rejects_unknown_task() {
+        let (_g, root) = root();
+        let err = create_source(
+            &root,
+            "task-nonexistent",
+            "manual".into(),
+            "x".into(),
+            SourceOrigin::default(),
+        )
+        .unwrap_err();
+        // surfaces the underlying read_task error — either form is acceptable
+        // so long as the call doesn't silently create a phantom directory.
+        assert!(!err.is_empty());
+        assert!(!sources_dir(&root, "task-nonexistent").exists());
+    }
+
+    #[test]
+    fn create_source_rejects_empty_content() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        assert!(create_source(&root, &t.id, "manual".into(), "".into(), SourceOrigin::default())
+            .is_err());
+    }
+
+    #[test]
+    fn delete_source_removes_it() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        let s = create_source(&root, &t.id, "manual".into(), "x".into(), SourceOrigin::default())
+            .unwrap();
+        delete_source(&root, &t.id, &s.id).unwrap();
+        assert!(list_sources(&root, &t.id).unwrap().is_empty());
+        // Idempotent: deleting again is fine.
+        delete_source(&root, &t.id, &s.id).unwrap();
+    }
+
+    #[test]
+    fn delete_source_rejects_path_traversal() {
+        let (_g, root) = root();
+        let t = create_task(&root, "t".into(), "".into()).unwrap();
+        assert!(delete_source(&root, &t.id, "../escape").is_err());
+        assert!(delete_source(&root, &t.id, ".hidden").is_err());
     }
 }

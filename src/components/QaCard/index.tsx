@@ -14,6 +14,15 @@ interface Props {
   onOpenFile?: OpenFileFn
   /** Attach the active selection to the composer as a `[코멘트 #N]` token. */
   onAddComment?: (text: string) => void
+  /**
+   * Open the Task picker for a capture. `kind`/`content`/origin are gathered
+   * here; the picker decides which Task receives the resulting Source.
+   */
+  onCapture?: (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => void
 }
 
 function pickString(input: unknown, key: string): string {
@@ -93,7 +102,33 @@ function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): st
   return 'Thinking'
 }
 
-export function QaCard({ pair, onExpand, onOpenFile, onAddComment }: Props) {
+function buildPairText(pair: QaPair): string {
+  // Serialize one Q&A turn into a plain-text block suitable for stashing
+  // as a Source. Tool calls and results are tagged inline so the reader
+  // (and the LLM consuming the Task's wiki later) can tell them apart.
+  const assistant = pair.segments
+    .map((s) => {
+      switch (s.kind) {
+        case 'text':
+        case 'plan':
+        case 'thinking':
+          return s.text
+        case 'tool_use':
+          return `[tool ${s.name}] ${s.summary}`
+        case 'tool_result':
+          return s.is_error
+            ? `[tool error]\n${s.text}`
+            : `[tool result]\n${s.text}`
+        default:
+          return ''
+      }
+    })
+    .filter(Boolean)
+    .join('\n\n')
+  return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
+}
+
+export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: Props) {
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
@@ -130,9 +165,31 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment }: Props) {
     ? 'qa-card__answer qa-card__answer--clamped'
     : 'qa-card__answer'
 
+  const handleCardCapture = () => {
+    if (!onCapture) return
+    onCapture({ kind: 'qa_block', content: buildPairText(pair), qaId: pair.id })
+  }
+
+  const handleSelectionCapture = onCapture
+    ? (text: string) => {
+        onCapture({ kind: 'selection', content: text, qaId: pair.id })
+      }
+    : undefined
+
   return (
     <article className="qa-card">
       <div className="qa-card__actions">
+        {onCapture && (
+          <button
+            type="button"
+            className="qa-card__capture-btn"
+            aria-label="이 답변을 Task에 캡처"
+            title="이 답변을 Task에 캡처"
+            onClick={handleCardCapture}
+          >
+            📥
+          </button>
+        )}
         <button
           type="button"
           className="qa-card__expand-btn"
@@ -242,6 +299,7 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment }: Props) {
                 selection={{ text: selection.text, rect: selection.rect }}
                 onClose={clearSelection}
                 onAddComment={onAddComment}
+                onCapture={handleSelectionCapture}
               />
             )}
           </div>

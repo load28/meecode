@@ -10,8 +10,9 @@ use crate::config::Config;
 use crate::history::list::{list_projects, list_sessions, ProjectInfo, SessionInfo};
 use crate::history::load_recent::{extract_qa_pairs, load_recent_pairs, projects_dir_for, QaPair};
 use crate::tasks::{
-    create_task as create_task_fn, default_tasks_root, delete_task as delete_task_fn,
-    list_sources, list_tasks as list_tasks_fn, read_task, update_task as update_task_fn, Source,
+    create_source as create_source_fn, create_task as create_task_fn, default_tasks_root,
+    delete_source as delete_source_fn, delete_task as delete_task_fn, list_sources,
+    list_tasks as list_tasks_fn, read_task, update_task as update_task_fn, Source, SourceOrigin,
     Task, TaskSummary,
 };
 use serde::Deserialize;
@@ -833,6 +834,46 @@ pub fn delete_task(task_id: String) -> Result<(), String> {
 #[tauri::command]
 pub fn list_task_sources(task_id: String) -> Result<Vec<Source>, String> {
     list_sources(&default_tasks_root(), &task_id)
+}
+
+#[derive(Deserialize)]
+pub struct CreateSourceArgs {
+    pub task_id: String,
+    pub kind: String,
+    pub content: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub qa_id: Option<String>,
+    #[serde(default)]
+    pub project_path: Option<String>,
+}
+
+#[tauri::command]
+pub fn create_source(args: CreateSourceArgs) -> Result<Source, String> {
+    let origin = SourceOrigin {
+        session_id: args.session_id,
+        qa_id: args.qa_id,
+        project_path: args.project_path,
+    };
+    create_source_fn(
+        &default_tasks_root(),
+        &args.task_id,
+        args.kind,
+        args.content,
+        origin,
+    )
+}
+
+#[derive(Deserialize)]
+pub struct DeleteSourceArgs {
+    pub task_id: String,
+    pub source_id: String,
+}
+
+#[tauri::command]
+pub fn delete_source(args: DeleteSourceArgs) -> Result<(), String> {
+    delete_source_fn(&default_tasks_root(), &args.task_id, &args.source_id)
 }
 
 #[tauri::command]

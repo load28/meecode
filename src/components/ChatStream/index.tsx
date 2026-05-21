@@ -30,6 +30,12 @@ interface Props {
   turnInProgress?: boolean
   /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
   onAddComment?: (text: string) => void
+  /** Open the Task picker for a capture from a QaCard or its selection. */
+  onCapture?: (input: {
+    kind: 'qa_block' | 'selection'
+    content: string
+    qaId: string
+  }) => void
 }
 
 export function ChatStream({
@@ -42,6 +48,7 @@ export function ChatStream({
   hookActivity,
   turnInProgress = false,
   onAddComment,
+  onCapture,
 }: Props) {
   const { ref: scrollRef, onScroll: handleScroll } =
     useStickyScroll<HTMLDivElement>([pairs, pendingTool])
@@ -74,6 +81,7 @@ export function ChatStream({
             onExpand={() => onExpand(p.id)}
             onOpenFile={onOpenFile}
             onAddComment={onAddComment}
+            onCapture={onCapture}
           />
         ),
       )}

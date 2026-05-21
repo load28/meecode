@@ -13,9 +13,11 @@ interface Props {
    * selections can be queued before sending.
    */
   onAddComment?: (text: string) => void
+  /** Open the Task picker with this selection as the source content. */
+  onCapture?: (text: string) => void
 }
 
-export function CommentFloat({ selection, onClose, onAddComment }: Props) {
+export function CommentFloat({ selection, onClose, onAddComment, onCapture }: Props) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -33,6 +35,13 @@ export function CommentFloat({ selection, onClose, onAddComment }: Props) {
     onClose()
   }
 
+  const handleCapture = () => {
+    if (!onCapture) return
+    onCapture(selection.text)
+    window.getSelection()?.removeAllRanges()
+    onClose()
+  }
+
   const style: React.CSSProperties = {
     position: 'fixed',
     top: selection.rect.top - 44,
@@ -43,6 +52,15 @@ export function CommentFloat({ selection, onClose, onAddComment }: Props) {
   return (
     <div style={style} className="comment-float">
       <div className="comment-float__actions">
+        {onCapture && (
+          <button
+            className="comment-float__button comment-float__button--capture"
+            onClick={handleCapture}
+            title="이 선택을 Task에 캡처"
+          >
+            📥 캡처
+          </button>
+        )}
         {onAddComment && (
           <button
             className="comment-float__button"
