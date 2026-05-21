@@ -23,6 +23,11 @@ import { useClaudeSession } from './hooks/useClaudeSession'
 import { useClaudeStatus } from './hooks/useClaudeStatus'
 import { useExpandPanel } from './hooks/useExpandPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import {
+  PERSISTED_FLAG_KEYS,
+  readPersistedFlag,
+  writePersistedFlag,
+} from './state/persistedFlags'
 import './App.css'
 
 interface RecentProject {
@@ -650,14 +655,8 @@ function makeTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-const TASKS_OPEN_STORAGE_KEY = 'meecode.tasksOpen'
-
 function readTasksOpen(): boolean {
-  try {
-    return localStorage.getItem(TASKS_OPEN_STORAGE_KEY) === 'true'
-  } catch {
-    return false
-  }
+  return readPersistedFlag(PERSISTED_FLAG_KEYS.tasksOpen, false)
 }
 
 function App() {
@@ -681,11 +680,7 @@ function App() {
   const setShowTasks = (next: boolean | ((prev: boolean) => boolean)) => {
     setShowTasksState((prev) => {
       const resolved = typeof next === 'function' ? next(prev) : next
-      try {
-        localStorage.setItem(TASKS_OPEN_STORAGE_KEY, String(resolved))
-      } catch {
-        /* localStorage unavailable — ignore */
-      }
+      writePersistedFlag(PERSISTED_FLAG_KEYS.tasksOpen, resolved)
       return resolved
     })
   }
