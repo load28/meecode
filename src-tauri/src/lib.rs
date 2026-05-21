@@ -1,3 +1,4 @@
+pub mod bindings;
 pub mod claude_discovery;
 pub mod claude_process;
 pub mod commands;
@@ -80,6 +81,9 @@ pub fn run() {
             commands::list_task_sources,
             commands::create_source,
             commands::delete_source,
+            commands::attach_task,
+            commands::detach_task,
+            commands::list_session_task_bindings,
         ])
         .run(tauri::generate_context!())
         .expect("error running meecode");

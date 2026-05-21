@@ -5,6 +5,13 @@ import './TaskBrowser.css'
 
 interface Props {
   onClose?: () => void
+  /** Active session id, if any — drives the "attached" badges and the
+   *  attach/detach button in TaskDetail. */
+  sessionId?: string | null
+  attachedTaskIds?: Set<string>
+  /** Performs the real attach (binding + context injection). null when no session. */
+  onAttachTask?: (taskId: string) => Promise<void> | void
+  onDetachTask?: (taskId: string) => Promise<void> | void
 }
 
 function relativeTimeKr(ms: number): string {
@@ -21,7 +28,13 @@ function relativeTimeKr(ms: number): string {
   return `${mo}달 전`
 }
 
-export function TaskBrowser({ onClose }: Props) {
+export function TaskBrowser({
+  onClose,
+  sessionId,
+  attachedTaskIds,
+  onAttachTask,
+  onDetachTask,
+}: Props) {
   const { tasks, loaded, createTask, refresh } = useTasks()
   // Two-way view: list <-> detail. Detail mounts when a task is selected.
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -68,6 +81,10 @@ export function TaskBrowser({ onClose }: Props) {
           setSelectedId(null)
           void refresh()
         }}
+        attached={attachedTaskIds?.has(selectedId) ?? false}
+        canAttach={!!sessionId}
+        onAttach={onAttachTask}
+        onDetach={onDetachTask}
       />
     )
   }
@@ -148,25 +165,35 @@ export function TaskBrowser({ onClose }: Props) {
           </div>
         ) : (
           <ul className="task-panel__list">
-            {tasks.map((t) => (
-              <li key={t.id} className="task-panel__item">
-                <button
-                  type="button"
-                  className="task-panel__item-btn"
-                  onClick={() => setSelectedId(t.id)}
-                >
-                  <div className="task-panel__item-name">{t.name}</div>
-                  <div className="task-panel__item-meta">
-                    <span>{t.source_count} sources</span>
-                    <span>·</span>
-                    <span>{relativeTimeKr(t.updated_at_ms)}</span>
-                  </div>
-                  {t.description && (
-                    <div className="task-panel__item-desc">{t.description}</div>
-                  )}
-                </button>
-              </li>
-            ))}
+            {tasks.map((t) => {
+              const isAttached = attachedTaskIds?.has(t.id) ?? false
+              return (
+                <li key={t.id} className="task-panel__item">
+                  <button
+                    type="button"
+                    className="task-panel__item-btn"
+                    onClick={() => setSelectedId(t.id)}
+                  >
+                    <div className="task-panel__item-name">
+                      {t.name}
+                      {isAttached && (
+                        <span className="task-panel__item-attached">
+                          📎 attached
+                        </span>
+                      )}
+                    </div>
+                    <div className="task-panel__item-meta">
+                      <span>{t.source_count} sources</span>
+                      <span>·</span>
+                      <span>{relativeTimeKr(t.updated_at_ms)}</span>
+                    </div>
+                    {t.description && (
+                      <div className="task-panel__item-desc">{t.description}</div>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

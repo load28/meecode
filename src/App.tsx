@@ -15,6 +15,9 @@ import { TaskPicker, type CaptureDraft } from './components/TaskPicker'
 import { useFileTabs } from './hooks/useFileTabs'
 import { useDetachedFilePanel } from './hooks/useDetachedFilePanel'
 import { useTasks } from './hooks/useTasks'
+import { useSessionBindings } from './hooks/useSessionBindings'
+import { buildTaskContextMessage } from './utils/taskContext'
+import type { Source, Task } from './types/task'
 import { listen } from '@tauri-apps/api/event'
 import { useClaudeSession } from './hooks/useClaudeSession'
 import { useClaudeStatus } from './hooks/useClaudeStatus'
@@ -173,6 +176,11 @@ function MainLayout({
     sessionTitle,
   } = useClaudeSession(tabId)
   const { tasks } = useTasks()
+  const sessionBindings = useSessionBindings(sessionId)
+  const attachedTaskIds = useMemo(
+    () => new Set(sessionBindings.bindings.map((b) => b.task_id)),
+    [sessionBindings.bindings],
+  )
 
   const titleCbRef = useRef(onSessionTitleChange)
   titleCbRef.current = onSessionTitleChange
@@ -240,6 +248,42 @@ function MainLayout({
       qaId: input.qaId,
       projectPath,
     })
+  }
+
+  const handleAttachTask = async (taskId: string) => {
+    if (!sessionId) return
+    // 1. Persist the binding first so the UI flips immediately and the
+    //    binding survives even if the inject step below errors out.
+    const binding = await sessionBindings.attach(taskId)
+    if (!binding) return
+    // 2. Pull the task + sources from the backend on demand. The browser
+    //    list already has a TaskSummary but lacks `description` (it does
+    //    in fact, but we still need sources separately), and the source
+    //    list isn't cached anywhere — go to the source of truth.
+    try {
+      const [task, sources] = await Promise.all([
+        invoke<Task>('get_task', { taskId }),
+        invoke<Source[]>('list_task_sources', { taskId }),
+      ])
+      const message = buildTaskContextMessage(task, sources)
+      if (!message) {
+        // Empty task — attach succeeded but nothing to inject. Show a
+        // light note so the user understands why the chat didn't get a
+        // new turn. `window.alert` is intentionally plain for now; a
+        // proper toast lands with the next polish pass.
+        console.info(
+          `[tasks] attached "${task.name}" but it has no content to inject.`,
+        )
+        return
+      }
+      await sendUserMessage(message)
+    } catch (e) {
+      console.warn('[tasks] context injection failed', e)
+    }
+  }
+
+  const handleDetachTask = async (taskId: string) => {
+    await sessionBindings.detach(taskId)
   }
 
   const handleOpenFile = (
@@ -328,9 +372,18 @@ function MainLayout({
           type="button"
           className={`app__knowledge-btn${showTasks ? ' is-active' : ''}`}
           onClick={onToggleTasks}
-          title={`Tasks (${tasks.length}개)`}
+          title={
+            attachedTaskIds.size > 0
+              ? `Tasks (${tasks.length}개 · ${attachedTaskIds.size}개 attach됨)`
+              : `Tasks (${tasks.length}개)`
+          }
         >
           📋 Tasks ({tasks.length})
+          {attachedTaskIds.size > 0 && (
+            <span className="app__attached-count">
+              📎 {attachedTaskIds.size}
+            </span>
+          )}
         </button>
         <label className="app__auto-toggle">
           <input
@@ -549,7 +602,13 @@ function MainLayout({
             <>
               <PanelResizeHandle className="resize-handle" />
               <Panel id="knowledge" order={2} defaultSize={28} minSize={20}>
-                <TaskBrowser onClose={onToggleTasks} />
+                <TaskBrowser
+                  onClose={onToggleTasks}
+                  sessionId={sessionId}
+                  attachedTaskIds={attachedTaskIds}
+                  onAttachTask={handleAttachTask}
+                  onDetachTask={handleDetachTask}
+                />
               </Panel>
             </>
           )}

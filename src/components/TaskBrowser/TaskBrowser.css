@@ -328,3 +328,41 @@
   font-size: 12px;
   margin: 12px 14px;
 }
+
+.task-detail__attach-row {
+  padding: 8px 14px 12px;
+  border-bottom: 1px solid #21262d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-detail__attach-btn {
+  font-size: 12px;
+}
+
+.task-detail__attach-btn--detach {
+  background: #1f3a5f;
+  border-color: #1f3a5f;
+  color: #c9d1d9;
+}
+
+.task-detail__attach-btn--detach:hover {
+  background: #2c5489;
+}
+
+.task-detail__attach-hint {
+  font-size: 11px;
+  color: #79c0ff;
+}
+
+.task-panel__item-attached {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #1f3a5f;
+  color: #79c0ff;
+  vertical-align: middle;
+}

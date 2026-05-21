@@ -7,6 +7,12 @@ interface Props {
   onBack: () => void
   onClose?: () => void
   onDeleted?: () => void
+  /** Whether the *current chat session* (if any) has this task attached. */
+  attached?: boolean
+  /** Disabled when there's no session to attach to (e.g. no project open). */
+  canAttach?: boolean
+  onAttach?: (taskId: string) => Promise<void> | void
+  onDetach?: (taskId: string) => Promise<void> | void
 }
 
 function formatTs(ms: number): string {
@@ -20,9 +26,19 @@ function formatTs(ms: number): string {
   return `${yy}-${mm}-${dd} ${hh}:${mi}`
 }
 
-export function TaskDetail({ taskId, onBack, onClose, onDeleted }: Props) {
+export function TaskDetail({
+  taskId,
+  onBack,
+  onClose,
+  onDeleted,
+  attached = false,
+  canAttach = false,
+  onAttach,
+  onDetach,
+}: Props) {
   const { updateTask, deleteTask } = useTasks()
   const { task, sources, loading, error, setTask, deleteSource } = useTaskDetail(taskId)
+  const [attachBusy, setAttachBusy] = useState(false)
 
   // Edits stay local until the input is blurred, so every keystroke isn't
   // an IPC roundtrip + disk write.
@@ -124,6 +140,54 @@ export function TaskDetail({ taskId, onBack, onClose, onDeleted }: Props) {
           <div className="task-detail__meta">
             <span>생성 {formatTs(task.created_at_ms)}</span>
             <span>수정 {formatTs(task.updated_at_ms)}</span>
+          </div>
+          <div className="task-detail__attach-row">
+            {attached ? (
+              <button
+                type="button"
+                className="task-panel__btn task-detail__attach-btn task-detail__attach-btn--detach"
+                onClick={async () => {
+                  if (!onDetach || attachBusy) return
+                  setAttachBusy(true)
+                  try {
+                    await onDetach(task.id)
+                  } finally {
+                    setAttachBusy(false)
+                  }
+                }}
+                disabled={!onDetach || attachBusy}
+                title="이 세션에서 Task 분리 (이미 주입된 컨텍스트는 제거되지 않음)"
+              >
+                {attachBusy ? '...' : '🔗 분리'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="task-panel__btn task-panel__btn--primary task-detail__attach-btn"
+                onClick={async () => {
+                  if (!onAttach || attachBusy) return
+                  setAttachBusy(true)
+                  try {
+                    await onAttach(task.id)
+                  } finally {
+                    setAttachBusy(false)
+                  }
+                }}
+                disabled={!canAttach || !onAttach || attachBusy}
+                title={
+                  canAttach
+                    ? '이 세션에 Task의 컨텍스트를 주입하고 attach'
+                    : '현재 활성화된 세션이 없습니다'
+                }
+              >
+                {attachBusy ? '...' : '📎 이 세션에 attach'}
+              </button>
+            )}
+            {attached && (
+              <span className="task-detail__attach-hint">
+                이 세션에 attach됨
+              </span>
+            )}
           </div>
           <div className="task-detail__section">
             <h3 className="task-detail__section-title">

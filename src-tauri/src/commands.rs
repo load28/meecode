@@ -9,6 +9,10 @@ use crate::claude_process::stdout_parser::DomainEvent;
 use crate::config::Config;
 use crate::history::list::{list_projects, list_sessions, ProjectInfo, SessionInfo};
 use crate::history::load_recent::{extract_qa_pairs, load_recent_pairs, projects_dir_for, QaPair};
+use crate::bindings::{
+    attach as attach_binding, default_bindings_root, detach as detach_binding,
+    detach_all_for_task, list_for_session as list_bindings_for_session, Binding,
+};
 use crate::tasks::{
     create_source as create_source_fn, create_task as create_task_fn, default_tasks_root,
     delete_source as delete_source_fn, delete_task as delete_task_fn, list_sources,
@@ -828,6 +832,9 @@ pub fn update_task(args: UpdateTaskArgs) -> Result<Task, String> {
 
 #[tauri::command]
 pub fn delete_task(task_id: String) -> Result<(), String> {
+    // Drop the bindings first so the Task can't briefly appear "still
+    // attached" in a UI that polls bindings between these two steps.
+    let _ = detach_all_for_task(&default_bindings_root(), &task_id);
     delete_task_fn(&default_tasks_root(), &task_id)
 }
 
@@ -874,6 +881,27 @@ pub struct DeleteSourceArgs {
 #[tauri::command]
 pub fn delete_source(args: DeleteSourceArgs) -> Result<(), String> {
     delete_source_fn(&default_tasks_root(), &args.task_id, &args.source_id)
+}
+
+#[derive(Deserialize)]
+pub struct BindingArgs {
+    pub session_id: String,
+    pub task_id: String,
+}
+
+#[tauri::command]
+pub fn attach_task(args: BindingArgs) -> Result<Binding, String> {
+    attach_binding(&default_bindings_root(), args.session_id, args.task_id)
+}
+
+#[tauri::command]
+pub fn detach_task(args: BindingArgs) -> Result<(), String> {
+    detach_binding(&default_bindings_root(), &args.session_id, &args.task_id)
+}
+
+#[tauri::command]
+pub fn list_session_task_bindings(session_id: String) -> Result<Vec<Binding>, String> {
+    list_bindings_for_session(&default_bindings_root(), &session_id)
 }
 
 #[tauri::command]

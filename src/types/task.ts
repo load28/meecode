@@ -43,3 +43,9 @@ export interface Source {
   origin: SourceOrigin
   captured_at_ms: number
 }
+
+export interface SessionTaskBinding {
+  session_id: string
+  task_id: string
+  attached_at_ms: number
+}
