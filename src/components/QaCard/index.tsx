@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AssistantSegment, QaPair } from '../../types'
-import type { PendingEdit } from '../../hooks/useFileTabs'
+import type { QaPair } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
 import { FilePath, type OpenFileFn } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
+import {
+  ANSWER_MAX_HEIGHT_PX,
+  FILE_PATH_TOOLS,
+  buildPairText,
+  pendingFromSegment,
+  thinkingLabel,
+} from './helpers'
 import './QaCard.css'
 
 interface Props {
@@ -23,109 +29,6 @@ interface Props {
     content: string
     qaId: string
   }) => void
-}
-
-function pickString(input: unknown, key: string): string {
-  if (!input || typeof input !== 'object') return ''
-  const v = (input as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : ''
-}
-
-function pickArray(input: unknown, key: string): unknown[] {
-  if (!input || typeof input !== 'object') return []
-  const v = (input as Record<string, unknown>)[key]
-  return Array.isArray(v) ? v : []
-}
-
-/** Reconstruct a PendingEdit payload from an Edit/Write/MultiEdit tool_use
- *  segment so file-path clicks can open the file with a diff view attached. */
-function pendingFromSegment(
-  seg: Extract<AssistantSegment, { kind: 'tool_use' }>,
-): PendingEdit | null {
-  switch (seg.name) {
-    case 'Edit':
-      return {
-        kind: 'edit',
-        oldText: pickString(seg.input, 'old_string'),
-        newText: pickString(seg.input, 'new_string'),
-      }
-    case 'Write':
-      return {
-        kind: 'write',
-        oldText: '',
-        newText: pickString(seg.input, 'content'),
-      }
-    case 'MultiEdit': {
-      const edits = pickArray(seg.input, 'edits') as Array<{
-        old_string?: string
-        new_string?: string
-      }>
-      return {
-        kind: 'multiedit',
-        oldText: edits
-          .map((e) => (typeof e.old_string === 'string' ? e.old_string : ''))
-          .join('\n'),
-        newText: edits
-          .map((e) => (typeof e.new_string === 'string' ? e.new_string : ''))
-          .join('\n'),
-        label: `${edits.length}개 변경`,
-      }
-    }
-    case 'NotebookEdit':
-      return {
-        kind: 'notebookedit',
-        oldText: '',
-        newText: pickString(seg.input, 'new_source'),
-      }
-    default:
-      return null
-  }
-}
-
-/** Tools whose `summary` (computed in `summarizeToolInput`) is a file path —
- *  these render as a clickable link instead of plain text in the step row. */
-const FILE_PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
-
-/** Threshold (px) above which the answer body collapses with a fade until
- *  the user clicks 더 보기. Kept small (~6-7 lines) so the chat stream stays
- *  scannable and each pair sits as a compact card by default. */
-const ANSWER_MAX_HEIGHT_PX = 180
-
-function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): string {
-  // While streaming we drop the trailing "…" — the animated dot triplet
-  // beside the label provides the "in progress" feel instead of a static
-  // ellipsis glyph.
-  if (seg.partial) return 'Thinking'
-  if (typeof seg.duration_ms === 'number') {
-    return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
-  }
-  return 'Thinking'
-}
-
-function buildPairText(pair: QaPair): string {
-  // Serialize one Q&A turn into a plain-text block suitable for stashing
-  // as a Source. Tool calls and results are tagged inline so the reader
-  // (and the LLM consuming the Task's wiki later) can tell them apart.
-  const assistant = pair.segments
-    .map((s) => {
-      switch (s.kind) {
-        case 'text':
-        case 'plan':
-        case 'thinking':
-          return s.text
-        case 'tool_use':
-          return `[tool ${s.name}] ${s.summary}`
-        case 'tool_result':
-          return s.is_error
-            ? `[tool error]\n${s.text}`
-            : `[tool result]\n${s.text}`
-        default:
-          return ''
-      }
-    })
-    .filter(Boolean)
-    .join('\n\n')
-  return `## Q\n${pair.user_text}\n\n## A\n${assistant}`
 }
 
 export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: Props) {
