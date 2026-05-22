@@ -8,6 +8,7 @@ import {
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { useTextHistory } from '../../hooks/useTextHistory'
+import { useSelectionPlaceholders } from '../../hooks/useSelectionPlaceholders'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -111,72 +112,13 @@ export function ChatComposer({
   // Registered selections by their inline number (1-based). The textarea
   // value carries `[코멘트 #N +M줄]` tokens; on submit each token expands
   // back into a fenced code block looked up from this map.
-  const selectionsRef = useRef<Map<number, { text: string; source?: string }>>(
-    new Map(),
-  )
-  const selectionCounterRef = useRef(0)
-  const lastSelectionIdRef = useRef<number | null>(null)
-  useEffect(() => {
-    if (!pendingSelection) return
-    if (lastSelectionIdRef.current === pendingSelection.id) return
-    lastSelectionIdRef.current = pendingSelection.id
-
-    const num = ++selectionCounterRef.current
-    selectionsRef.current.set(num, {
-      text: pendingSelection.text,
-      source: pendingSelection.source,
-    })
-    const lines = pendingSelection.text.split('\n').length
-    const placeholder = `[코멘트 #${num} +${lines}줄]`
-
-    const ta = textareaRef.current
-    const caret =
-      ta?.selectionStart != null && document.activeElement === ta
-        ? ta.selectionStart
-        : value.length
-    let nextValue = ''
-    let nextCaret = caret
-    setValue((v) => {
-      const before = v.slice(0, caret)
-      const after = v.slice(caret)
-      const sepBefore =
-        before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n')
-          ? ' '
-          : ''
-      const sepAfter =
-        after.length > 0 && !after.startsWith(' ') && !after.startsWith('\n')
-          ? ' '
-          : ''
-      nextValue = before + sepBefore + placeholder + sepAfter + after
-      nextCaret = (before + sepBefore + placeholder + sepAfter).length
-      return nextValue
-    })
-    requestAnimationFrame(() => {
-      const t = textareaRef.current
-      if (t) {
-        t.focus()
-        try {
-          t.setSelectionRange(nextCaret, nextCaret)
-        } catch {
-          /* setSelectionRange can throw if the value isn't applied yet — harmless */
-        }
-      }
-    })
-    onSelectionConsumed?.()
-  }, [pendingSelection, onSelectionConsumed])
-
-  // Expand `[코멘트 #N +M줄]` tokens to fenced code blocks. Tokens whose id
-  // is no longer in the registry (user deleted/edited the placeholder) are
-  // dropped silently — matches Claude Code's behavior where stale paste
-  // placeholders simply disappear instead of erroring out.
-  const expandSelections = (text: string): string => {
-    return text.replace(/\[코멘트 #(\d+) \+\d+줄\]/g, (_, n) => {
-      const sel = selectionsRef.current.get(Number(n))
-      if (!sel) return ''
-      const header = sel.source ? `// ${sel.source}\n` : ''
-      return `\n\n\`\`\`\n${header}${sel.text}\n\`\`\`\n`
-    })
-  }
+  const selections = useSelectionPlaceholders({
+    pendingSelection,
+    onSelectionConsumed,
+    textareaRef,
+    value,
+    setValue,
+  })
 
   useEffect(() => {
     if (!showSlash) return
@@ -230,7 +172,7 @@ export function ChatComposer({
     // no attachments is a no-op (matches `onSubmit` in PromptInput.tsx).
     // Selection placeholders expand into fenced code blocks here, mirroring
     // how Claude Code substitutes pasted-text tokens at send time.
-    const expanded = expandSelections(value)
+    const expanded = selections.expand(value)
     const trimmed = expanded.trimEnd()
     if (!trimmed && pendingImages.length === 0) return
     const images = pendingImages.map((p) => ({
@@ -245,8 +187,7 @@ export function ChatComposer({
       setShowSlash(false)
       setMention(null)
       history.reset()
-      selectionsRef.current.clear()
-      selectionCounterRef.current = 0
+      selections.clear()
     } catch (e) {
       setError(String(e))
     }
@@ -383,8 +324,7 @@ export function ChatComposer({
         if (escClear.press()) {
           setValue('')
           history.reset()
-          selectionsRef.current.clear()
-          selectionCounterRef.current = 0
+          selections.clear()
         }
         return
       }
