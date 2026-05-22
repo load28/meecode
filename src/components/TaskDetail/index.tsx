@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import {
   useTasks,
   useTaskDetail,
@@ -7,6 +7,7 @@ import {
 } from '../../hooks/useTasks'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
+import { AttachTaskRow } from './AttachTaskRow'
 import { SourcesSection } from './SourcesSection'
 import { OrganizeSection } from './OrganizeSection'
 import { WikiSection } from './WikiSection'
@@ -51,8 +52,6 @@ export function TaskDetail({
     useTaskDetail(taskId)
   const wiki = useTaskWiki(taskId)
   const organize = useTaskOrganize(taskId)
-  const [attachBusy, setAttachBusy] = useState(false)
-
   // When organize completes, refresh sources (processed badges) and wiki list.
   useEffect(() => {
     if (organize.status === 'idle' && organize.lastProcessedSourceIds.length > 0) {
@@ -98,54 +97,13 @@ export function TaskDetail({
             onCommitName={commitName}
             onCommitDescription={commitDesc}
           />
-          <div className="task-detail__attach-row">
-            {attached ? (
-              <button
-                type="button"
-                className="task-panel__btn task-detail__attach-btn task-detail__attach-btn--detach"
-                onClick={async () => {
-                  if (!onDetach || attachBusy) return
-                  setAttachBusy(true)
-                  try {
-                    await onDetach(task.id)
-                  } finally {
-                    setAttachBusy(false)
-                  }
-                }}
-                disabled={!onDetach || attachBusy}
-                title="이 세션에서 Task 분리 (이미 주입된 컨텍스트는 제거되지 않음)"
-              >
-                {attachBusy ? '...' : '🔗 분리'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="task-panel__btn task-panel__btn--primary task-detail__attach-btn"
-                onClick={async () => {
-                  if (!onAttach || attachBusy) return
-                  setAttachBusy(true)
-                  try {
-                    await onAttach(task.id)
-                  } finally {
-                    setAttachBusy(false)
-                  }
-                }}
-                disabled={!canAttach || !onAttach || attachBusy}
-                title={
-                  canAttach
-                    ? '이 세션에 Task의 컨텍스트를 주입하고 attach'
-                    : '현재 활성화된 세션이 없습니다'
-                }
-              >
-                {attachBusy ? '...' : '📎 이 세션에 attach'}
-              </button>
-            )}
-            {attached && (
-              <span className="task-detail__attach-hint">
-                이 세션에 attach됨
-              </span>
-            )}
-          </div>
+          <AttachTaskRow
+            taskId={task.id}
+            attached={attached}
+            canAttach={canAttach}
+            onAttach={onAttach}
+            onDetach={onDetach}
+          />
           <SourcesSection
             sources={sources}
             onDelete={(id) => void deleteSource(id)}
