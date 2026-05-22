@@ -1,34 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
-import {
-  CLIENT_SLASH_COMMANDS,
-  decorateServerSlash,
-} from '../../hooks/clientSlash'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { useTextHistory } from '../../hooks/useTextHistory'
 import { useSelectionPlaceholders } from '../../hooks/useSelectionPlaceholders'
+import { useSlashMenu } from '../../hooks/useSlashMenu'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
 import { MentionMenu } from './MentionMenu'
 import './ChatComposer.css'
-
-// Commands MeeCode dispatches without sending anything to the CLI. See
-// `hooks/clientSlash.ts` for the dispatch logic; this list just drives
-// the suggestion menu so the same commands appear in both places.
-const CLIENT_SIDE_SLASH: ReadonlyArray<{ name: string; description?: string }> =
-  CLIENT_SLASH_COMMANDS
-
-// Pre-`session:init` fallback for the CLI-dispatched built-ins.
-const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
-  { name: '/init', description: '프로젝트 초기화 (CLAUDE.md 생성)' },
-  { name: '/compact', description: '대화 압축' },
-  { name: '/context', description: '컨텍스트 현황' },
-  { name: '/review', description: '코드 리뷰' },
-  { name: '/security-review', description: '보안 리뷰' },
-]
 
 interface Props {
   mode: Mode
@@ -88,8 +70,6 @@ export function ChatComposer({
   const composerDisabled = (disabled && !busy) || !claudeReady
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [showSlash, setShowSlash] = useState(false)
-  const [slashIdx, setSlashIdx] = useState(0)
   const [mention, setMention] = useState<MentionState | null>(null)
   const [mentionResults, setMentionResults] = useState<string[]>([])
   const [mentionIdx, setMentionIdx] = useState(0)
@@ -107,7 +87,6 @@ export function ChatComposer({
   const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
-  const slashListRef = useRef<HTMLUListElement | null>(null)
   const mentionListRef = useRef<HTMLUListElement | null>(null)
   // Registered selections by their inline number (1-based). The textarea
   // value carries `[코멘트 #N +M줄]` tokens; on submit each token expands
@@ -120,15 +99,11 @@ export function ChatComposer({
     setValue,
   })
 
-  useEffect(() => {
-    if (!showSlash) return
-    const list = slashListRef.current
-    if (!list) return
-    const item = list.children[slashIdx] as HTMLElement | undefined
-    if (item && typeof item.scrollIntoView === 'function') {
-      item.scrollIntoView({ block: 'nearest' })
-    }
-  }, [slashIdx, showSlash])
+  const slashMenu = useSlashMenu({
+    value,
+    setValue,
+    serverCommands: slashCommands,
+  })
 
   useEffect(() => {
     if (!mention) return
@@ -184,7 +159,7 @@ export function ChatComposer({
       await sendUserMessage(trimmed, images.length > 0 ? images : undefined)
       setValue('')
       clearImages()
-      setShowSlash(false)
+      slashMenu.setShow(false)
       setMention(null)
       history.reset()
       selections.clear()
@@ -243,26 +218,31 @@ export function ChatComposer({
     if (composing && e.key !== 'Escape') {
       return
     }
-    if (showSlash && allSlashes.length > 0 && !mention) {
+    if (slashMenu.show && slashMenu.items.length > 0 && !mention) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSlashIdx((i) => Math.min(i + 1, allSlashes.length - 1))
+        slashMenu.setSelectedIndex((i) =>
+          Math.min(i + 1, slashMenu.items.length - 1),
+        )
         return
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSlashIdx((i) => Math.max(i - 1, 0))
+        slashMenu.setSelectedIndex((i) => Math.max(i - 1, 0))
         return
       }
       if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
         e.preventDefault()
-        const pick = allSlashes[Math.min(slashIdx, allSlashes.length - 1)]
-        if (pick) onSelectSlash(pick.name)
+        const pick =
+          slashMenu.items[
+            Math.min(slashMenu.selectedIndex, slashMenu.items.length - 1)
+          ]
+        if (pick) slashMenu.select(pick.name)
         return
       }
       if (e.key === 'Escape') {
         e.preventDefault()
-        setShowSlash(false)
+        slashMenu.setShow(false)
         return
       }
     }
@@ -370,49 +350,17 @@ export function ChatComposer({
     }
   }
 
-  const allSlashes: SlashCommand[] = (() => {
-    const dynamic = slashCommands ?? []
-    const seen = new Set<string>()
-    const out: SlashCommand[] = []
-    for (const c of CLIENT_SIDE_SLASH) {
-      if (seen.has(c.name)) continue
-      seen.add(c.name)
-      out.push(c)
-    }
-    for (const c of dynamic) {
-      const key = c.name.startsWith('/') ? c.name : '/' + c.name
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(decorateServerSlash({ ...c, name: key }))
-    }
-    if (dynamic.length === 0) {
-      for (const c of FALLBACK_SLASH) {
-        if (seen.has(c.name)) continue
-        seen.add(c.name)
-        out.push(c)
-      }
-    }
-    const q = value.trim().toLowerCase()
-    if (!q.startsWith('/')) return []
-    return out.filter((c) => c.name.toLowerCase().startsWith(q))
-  })()
-
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value
     const caret = e.target.selectionStart ?? v.length
     setValue(v)
-    setShowSlash(v.startsWith('/'))
-    setSlashIdx(0)
+    slashMenu.setShow(v.startsWith('/'))
+    slashMenu.setSelectedIndex(0)
     setMention(detectMention(v, caret))
     setMentionIdx(0)
     history.reset()
     // Any further typing disarms the double-ESC clear (CLI parity).
     escClear.reset()
-  }
-
-  const onSelectSlash = (cmd: string) => {
-    setValue(cmd + ' ')
-    setShowSlash(false)
   }
 
   const onSelectMention = (path: string) => {
@@ -455,13 +403,13 @@ export function ChatComposer({
           Esc 한 번 더 누르면 입력이 지워집니다
         </div>
       )}
-      {showSlash && allSlashes.length > 0 && !mention && (
+      {slashMenu.show && slashMenu.items.length > 0 && !mention && (
         <SlashMenu
-          ref={slashListRef}
-          items={allSlashes}
-          selectedIndex={slashIdx}
-          onHover={setSlashIdx}
-          onSelect={onSelectSlash}
+          ref={slashMenu.listRef}
+          items={slashMenu.items}
+          selectedIndex={slashMenu.selectedIndex}
+          onHover={slashMenu.setSelectedIndex}
+          onSelect={slashMenu.select}
         />
       )}
       {mention && mentionResults.length > 0 && (
