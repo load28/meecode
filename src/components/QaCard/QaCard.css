@@ -1,8 +1,8 @@
 .qa-card {
   position: relative;
-  border: 1px solid #21262d;
+  border: 1px solid var(--color-border-muted);
   border-radius: 10px;
-  background: #0d1117;
+  background: var(--color-bg-base);
   padding: 18px 20px;
   margin: 14px 0;
   display: flex;
@@ -16,12 +16,12 @@
   align-items: baseline;
   padding-right: 76px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #161b22;
+  border-bottom: 1px solid var(--color-bg-elevated);
   flex-wrap: wrap;
 }
 
 .qa-card__question-label {
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
   font-weight: 700;
   font-size: 12px;
   flex-shrink: 0;
@@ -29,7 +29,7 @@
 }
 
 .qa-card__question-text {
-  color: #e6edf3;
+  color: var(--color-text-strong);
   font-size: 14px;
   line-height: 1.65;
   white-space: pre-wrap;
@@ -55,7 +55,7 @@
   padding: 4px 10px;
   border-radius: 4px;
   background: rgba(110, 118, 129, 0.12);
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 12px;
   align-self: flex-start;
 }
@@ -94,8 +94,8 @@
   align-self: center;
   margin-top: -8px;
   background: transparent;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-default);
   border-radius: 999px;
   padding: 4px 14px;
   font-size: 12px;
@@ -107,13 +107,13 @@
 }
 
 .qa-card__toggle:hover {
-  background: #1f6feb;
-  border-color: #1f6feb;
+  background: var(--color-accent-blue);
+  border-color: var(--color-accent-blue);
   color: #fff;
 }
 
 .qa-card__preview {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 14px;
   line-height: 1.75;
   user-select: text;
@@ -127,7 +127,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 1px 0;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.55;
   min-width: 0;
@@ -138,7 +138,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #6e7681;
+  background: var(--color-text-subtle);
   align-self: center;
 }
 
@@ -147,14 +147,14 @@
 }
 
 .qa-card__step-tool {
-  color: #e6edf3;
+  color: var(--color-text-strong);
   font-weight: 600;
 }
 
 .qa-card__step-arg {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -172,7 +172,7 @@
   margin: 0;
   text-align: left;
   font: inherit;
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -198,8 +198,8 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: #8b949e;
-  border: 1px solid #30363d;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-default);
   border-radius: 6px;
   font-size: 14px;
   line-height: 1;
@@ -208,19 +208,19 @@
 }
 
 .qa-card__capture-btn:hover {
-  background: #1f3a5f;
-  color: #79c0ff;
-  border-color: #1f6feb;
+  background: var(--color-bg-accent-subtle);
+  color: var(--color-accent-blue-pale);
+  border-color: var(--color-accent-blue);
 }
 
 .qa-card__expand-btn:hover {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .qa-card__pending {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 13px;
   padding: 8px 0;
 }

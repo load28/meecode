@@ -5,10 +5,10 @@
 
 .session-info__toggle {
   background: transparent;
-  border: 1px solid #30363d;
+  border: 1px solid var(--color-border-default);
   border-radius: 4px;
   padding: 2px 8px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 11px;
   cursor: pointer;
   display: inline-flex;
@@ -17,16 +17,16 @@
 }
 
 .session-info__toggle:hover {
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .session-info__chip {
   font-family: var(--font-mono);
-  color: #c9d1d9;
+  color: var(--color-text-default);
 }
 
 .session-info__caret {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin-left: 2px;
 }
 
@@ -35,8 +35,8 @@
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   padding: 10px 12px;
   width: 360px;
@@ -53,7 +53,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 6px 0;
-  border-bottom: 1px dashed #21262d;
+  border-bottom: 1px dashed var(--color-border-muted);
 }
 
 .session-info__row:last-child {
@@ -61,14 +61,14 @@
 }
 
 .session-info__label {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
 
 .session-info__row code {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-family: var(--font-mono);
   font-size: 11px;
   word-break: break-all;
@@ -87,7 +87,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
 }
 
 .session-info__mcp {
@@ -101,25 +101,25 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #6e7681;
+  background: var(--color-text-subtle);
 }
 
 .session-info__mcp--connected .session-info__dot {
-  background: #2ea043;
+  background: var(--color-accent-green);
 }
 .session-info__mcp--failed .session-info__dot,
 .session-info__mcp--disconnected .session-info__dot {
-  background: #f85149;
+  background: var(--color-danger);
 }
 
 .session-info__status {
   font-size: 10px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin-left: auto;
 }
 
 .session-info__desc {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 11px;
   margin-left: 8px;
 }
@@ -131,10 +131,10 @@
 }
 
 .session-info__tool {
-  background: #161b22;
-  border: 1px solid #21262d;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-muted);
   border-radius: 4px;
   padding: 1px 6px;
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
   font-size: 11px;
 }

@@ -13,7 +13,7 @@
 }
 
 .chat-composer__error {
-  color: #f85149;
+  color: var(--color-danger);
   font-size: 12px;
   padding: 4px 8px;
   background: #2b1416;
@@ -23,7 +23,7 @@
 
 .chat-composer__esc-hint {
   align-self: center;
-  color: #d29922;
+  color: var(--color-accent-yellow);
   font-size: 11px;
   padding: 2px 8px;
   background: rgba(210, 153, 34, 0.08);
@@ -161,7 +161,7 @@
   height: 56px;
   border-radius: 6px;
   border: 1px solid #3c3c3c;
-  background: #0d1117;
+  background: var(--color-bg-base);
   overflow: hidden;
 }
 
@@ -208,7 +208,7 @@
 }
 
 .chat-composer__textarea::placeholder {
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 /* ── 하단 툴바 ── */
@@ -273,7 +273,7 @@
 }
 
 .chat-composer__chip[data-mode="plan"] {
-  color: #d29922;
+  color: var(--color-accent-yellow);
   border-color: rgba(210, 153, 34, 0.5);
 }
 
@@ -288,7 +288,7 @@
 }
 
 .chat-composer__chip-shortcut {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 10px;
   margin-left: 2px;
 }
@@ -318,7 +318,7 @@
 .chat-composer__send:disabled {
   background: #2a2d2e;
   border-color: #3c3c3c;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   cursor: not-allowed;
 }
 
@@ -340,7 +340,7 @@
 /* 카드 외부 짧은 안내 (선택사항: 작은 키 힌트) */
 .chat-composer__hint {
   font-size: 10.5px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   padding: 2px 6px 0;
   user-select: none;
   display: flex;

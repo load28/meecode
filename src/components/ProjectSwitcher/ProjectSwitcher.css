@@ -7,9 +7,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-default);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 12px;
@@ -33,7 +33,7 @@
 }
 
 .project-switcher__caret {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 10px;
 }
 
@@ -46,8 +46,8 @@
   max-width: 90vw;
   max-height: calc(100vh - 96px);
   overflow-y: auto;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   z-index: 30;
@@ -57,11 +57,11 @@
 
 .project-switcher__header {
   padding: 8px 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .project-switcher__list {
@@ -72,7 +72,7 @@
 
 .project-switcher__empty {
   padding: 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 12px;
   text-align: center;
 }
@@ -88,12 +88,12 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  color: #c9d1d9;
-  border-bottom: 1px solid #161b22;
+  color: var(--color-text-default);
+  border-bottom: 1px solid var(--color-bg-elevated);
 }
 
 .project-switcher__item:hover {
-  background: #161b22;
+  background: var(--color-bg-elevated);
 }
 
 .project-switcher__item.is-current {
@@ -103,7 +103,7 @@
 .project-switcher__item-name {
   font-size: 13px;
   font-weight: 600;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -111,14 +111,14 @@
 
 .project-switcher__item-meta {
   font-size: 11px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   text-align: right;
 }
 
 .project-switcher__item-path {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   grid-column: 1 / -1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -127,9 +127,9 @@
 
 .project-switcher__add {
   border: none;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid var(--color-border-muted);
   background: transparent;
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
   font-size: 12px;
   padding: 10px 12px;
   cursor: pointer;
@@ -137,5 +137,5 @@
 }
 
 .project-switcher__add:hover {
-  background: #161b22;
+  background: var(--color-bg-elevated);
 }

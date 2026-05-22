@@ -3,12 +3,12 @@
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
 .token.punctuation {
-  color: #c9d1d9;
+  color: var(--color-text-default);
 }
 
 .token.namespace {
@@ -22,7 +22,7 @@
 .token.constant,
 .token.symbol,
 .token.deleted {
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
 }
 
 .token.selector,
