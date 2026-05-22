@@ -7,6 +7,7 @@ import {
 } from '../../hooks/clientSlash'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
+import { AttachmentsStrip } from './AttachmentsStrip'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -617,24 +618,7 @@ export function ChatComposer({
           'chat-composer__card' + (disabled && !busy ? ' is-disabled' : '')
         }
       >
-        {pendingImages.length > 0 && (
-          <div className="chat-composer__attachments">
-            {pendingImages.map((img) => (
-              <div key={img.id} className="chat-composer__attachment">
-                <img src={img.previewUrl} alt="첨부 이미지" />
-                <button
-                  type="button"
-                  className="chat-composer__attachment-remove"
-                  onClick={() => removeImage(img.id)}
-                  aria-label="이미지 제거"
-                  title="제거"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <AttachmentsStrip images={pendingImages} onRemove={removeImage} />
         <textarea
           ref={textareaRef}
           className="chat-composer__textarea"
