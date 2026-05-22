@@ -8,6 +8,7 @@ import {
 import { WikiEditor } from '../WikiEditor'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
+import { SourcesSection } from './SourcesSection'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -173,97 +174,11 @@ export function TaskDetail({
               </span>
             )}
           </div>
-          <div className="task-detail__section">
-            <h3 className="task-detail__section-title">
-              Sources ({sources.length})
-            </h3>
-            {sources.length === 0 ? (
-              <div className="task-detail__section-empty">
-                아직 Source가 없습니다.
-                <br />
-                <span style={{ fontSize: 11 }}>
-                  채팅의 답변 옆 📥 버튼이나 선택 텍스트의 📥 캡처로 추가할 수 있습니다.
-                </span>
-              </div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {sources.map((s) => {
-                  const isProcessed = !!s.processed_at_ms
-                  return (
-                    <li
-                      key={s.id}
-                      style={{
-                        background: isProcessed ? '#0d1117' : '#10171f',
-                        border: isProcessed
-                          ? '1px solid #21262d'
-                          : '1px solid #1f3a5f',
-                        borderRadius: 6,
-                        padding: 8,
-                        marginBottom: 6,
-                        fontSize: 12,
-                        color: '#c9d1d9',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          fontSize: 10,
-                          color: '#6e7681',
-                          marginBottom: 4,
-                        }}
-                      >
-                        <span style={{ flex: 1 }}>
-                          {s.kind} · {formatTs(s.captured_at_ms)}
-                          {isProcessed ? (
-                            <span style={{ marginLeft: 6, color: '#79c0ff' }}>
-                              ✓ wiki 반영됨
-                            </span>
-                          ) : (
-                            <span style={{ marginLeft: 6, color: '#d29922' }}>
-                              ● 미정리
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm('이 Source를 삭제하시겠습니까?')) {
-                              void deleteSource(s.id)
-                            }
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#6e7681',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            padding: '0 4px',
-                          }}
-                          title="Source 삭제"
-                          aria-label="Source 삭제"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div
-                        style={{
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          maxHeight: 120,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {s.content.slice(0, 400)}
-                        {s.content.length > 400 ? '…' : ''}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
+          <SourcesSection
+            sources={sources}
+            onDelete={(id) => void deleteSource(id)}
+            formatTimestamp={formatTs}
+          />
           <div className="task-detail__section">
             <h3 className="task-detail__section-title">
               정리 (Organize)
