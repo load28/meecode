@@ -80,11 +80,14 @@ export function MainLayout({
   useSyncEffect(onSessionTitleChange, sessionTitle)
   useSessionSwitchOnMount({ tabId, projectPath, pendingSessionId, needsSwitch })
 
+  // composer의 ArrowUp/Down 히스토리에 보여줄 최근 사용자 메시지 갯수.
+  // 너무 길면 페이징이 번거롭고, 너무 짧으면 한 세션 안에서 자주 잘린다.
+  const HISTORY_TAIL_SIZE = 20
   const recentUserTexts = useMemo(() => {
     return pairs
       .map((p) => p.user_text)
       .filter((t) => !!t && !t.startsWith('──'))
-      .slice(-20)
+      .slice(-HISTORY_TAIL_SIZE)
   }, [pairs])
   const {
     expandedId,
