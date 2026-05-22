@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Source, TaskSummary } from '../../types/task'
+import { TaskList } from './TaskList'
 import './TaskPicker.css'
 
 /** A pending capture — the content + origin gathered at the click site,
@@ -180,37 +181,15 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
         />
         {error && <div className="task-picker__error">{error}</div>}
         <div className="task-picker__body">
-          {!loaded ? (
-            <div className="task-picker__empty">불러오는 중...</div>
-          ) : filtered.length === 0 ? (
-            <div className="task-picker__empty">
-              {tasks.length === 0
-                ? '아직 Task가 없습니다. 아래에서 만들어보세요.'
-                : '검색 결과 없음'}
-            </div>
-          ) : (
-            <ul className="task-picker__list">
-              {filtered.map((t, i) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    className={`task-picker__item${
-                      i === focusIdx ? ' is-focused' : ''
-                    }`}
-                    onClick={() => captureInto(t.id)}
-                    onMouseEnter={() => setFocusIdx(i)}
-                    disabled={submitting}
-                  >
-                    <div className="task-picker__item-name">{t.name}</div>
-                    <div className="task-picker__item-meta">
-                      {t.source_count} sources
-                      {t.description ? ` · ${previewLine(t.description)}` : ''}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <TaskList
+            loaded={loaded}
+            total={tasks.length}
+            filtered={filtered}
+            focusIdx={focusIdx}
+            submitting={submitting}
+            onFocus={setFocusIdx}
+            onPick={(id) => void captureInto(id)}
+          />
         </div>
         <div className="task-picker__create">
           <div className="task-picker__create-row">
