@@ -18,6 +18,9 @@ import 'prismjs/components/prism-css'
 import 'prismjs/components/prism-sql'
 import './prism-tokens.css'
 
+/** "복사됨" 체크마크가 다시 📋로 돌아가기까지 걸리는 시간. */
+const COPY_FEEDBACK_MS = 1200
+
 const LANG_ALIAS: Record<string, string> = {
   ts: 'typescript',
   tsx: 'tsx',
@@ -92,7 +95,7 @@ export function MarkdownContent({ source, className }: Props) {
           btn.textContent = '✓'
           setTimeout(() => {
             btn.textContent = '📋'
-          }, 1200)
+          }, COPY_FEEDBACK_MS)
         } catch {
           btn.textContent = '✗'
         }
