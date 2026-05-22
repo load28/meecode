@@ -1,6 +1,7 @@
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useFileTabs } from '../../hooks/useFileTabs'
+import type { CodeSnippet } from '../../types/composer'
 import { FilePanel } from '../FilePanel'
 import {
   useDetachedFileEvents,
@@ -8,18 +9,11 @@ import {
 } from './useDetachedFileEvents'
 import './DetachedFileWindow.css'
 
-interface SnippetPayload {
-  text: string
-  path: string
-  startLine: number
-  endLine: number
-}
-
 export function DetachedFileWindow() {
   const fileTabs = useFileTabs()
   const { hydrated } = useDetachedFileEvents(fileTabs)
 
-  const handleAddSnippet = (snippet: SnippetPayload) => {
+  const handleAddSnippet = (snippet: CodeSnippet) => {
     void emitTo(DETACHED_MAIN_LABEL, 'composer:add-context', snippet)
   }
 
@@ -50,4 +44,6 @@ export function DetachedFileWindow() {
   )
 }
 
-export type { SnippetPayload as DetachedSnippet }
+// SnippetPayload는 types/composer.ts의 CodeSnippet으로 통합됨 —
+// 외부 import 경로 호환을 위해 alias만 유지.
+export type { CodeSnippet as DetachedSnippet }

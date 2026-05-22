@@ -1,4 +1,5 @@
 import type { QaPair } from '../../types'
+import type { CaptureSource } from '../../types/composer'
 import { type OpenFileFn } from '../ToolViews'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
@@ -19,11 +20,7 @@ interface Props {
    * Open the Task picker for a capture. `kind`/`content`/origin are gathered
    * here; the picker decides which Task receives the resulting Source.
    */
-  onCapture?: (input: {
-    kind: 'qa_block' | 'selection'
-    content: string
-    qaId: string
-  }) => void
+  onCapture?: (input: CaptureSource) => void
 }
 
 export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: Props) {

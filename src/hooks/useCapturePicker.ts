@@ -1,11 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { CaptureDraft } from '../components/TaskPicker'
-
-interface CaptureSource {
-  kind: 'qa_block' | 'selection'
-  content: string
-  qaId: string
-}
+import type { CaptureSource } from '../types/composer'
 
 interface Options {
   sessionId: string | null

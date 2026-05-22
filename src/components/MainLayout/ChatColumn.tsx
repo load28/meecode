@@ -4,12 +4,8 @@ import { QueueList } from './QueueList'
 import type { UseClaudeSessionResult } from '../../hooks/useClaudeSession'
 import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
 import type { OpenFileFn } from '../ToolViews'
+import type { CaptureSource } from '../../types/composer'
 
-interface CaptureInput {
-  kind: 'qa_block' | 'selection'
-  content: string
-  qaId: string
-}
 
 interface Props {
   /** useClaudeSession 결과 — props 폭증을 피하기 위해 통째로 받는다. */
@@ -20,7 +16,7 @@ interface Props {
   pendingSelection: PendingComposerSelection | null
   onSelectionConsumed: () => void
   onAddComment: (text: string) => void
-  onCapture: (input: CaptureInput) => void
+  onCapture: (input: CaptureSource) => void
   onExpand: (id: string) => void
   onOpenFile: OpenFileFn
   onOpenSettings: () => void

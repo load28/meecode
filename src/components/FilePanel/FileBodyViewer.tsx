@@ -1,4 +1,5 @@
 import type { FileTab } from '../../hooks/useFileTabs'
+import type { CodeSnippet } from '../../types/composer'
 import { DiffView } from '../DiffView'
 import { MarkdownContent } from '../MessageBubble/MarkdownContent'
 import { highlight, langForPrism } from './highlight'
@@ -15,12 +16,7 @@ interface Props {
   codeRef: React.MutableRefObject<HTMLDivElement | null>
   onMouseUp: () => void
   onClearSelection: () => void
-  onAddSelectionToComposer: (snippet: {
-    text: string
-    path: string
-    startLine: number
-    endLine: number
-  }) => void
+  onAddSelectionToComposer: (snippet: CodeSnippet) => void
 }
 
 /**

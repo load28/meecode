@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import type { CodeSnippet } from '../types/composer'
 
 export interface PendingComposerSelection {
   id: number
@@ -8,14 +9,7 @@ export interface PendingComposerSelection {
   source?: string
 }
 
-interface SnippetInput {
-  text: string
-  path: string
-  startLine: number
-  endLine: number
-}
-
-function snippetToSelection(snippet: SnippetInput): PendingComposerSelection {
+function snippetToSelection(snippet: CodeSnippet): PendingComposerSelection {
   const range =
     snippet.startLine === snippet.endLine
       ? `:${snippet.startLine}`
@@ -31,7 +25,7 @@ export interface UsePendingSelectionResult {
   pending: PendingComposerSelection | null
   consume: () => void
   /** Source-with-range path (QaCard / file panel / detached window). */
-  addSnippet: (snippet: SnippetInput) => void
+  addSnippet: (snippet: CodeSnippet) => void
   /** Pure text, no source header (QaCard's comment buttons). */
   addComment: (text: string) => void
 }
@@ -48,7 +42,7 @@ export interface UsePendingSelectionResult {
 export function usePendingSelection(): UsePendingSelectionResult {
   const [pending, setPending] = useState<PendingComposerSelection | null>(null)
 
-  const addSnippet = useCallback((snippet: SnippetInput) => {
+  const addSnippet = useCallback((snippet: CodeSnippet) => {
     setPending(snippetToSelection(snippet))
   }, [])
 
@@ -68,7 +62,7 @@ export function usePendingSelection(): UsePendingSelectionResult {
   useEffect(() => {
     let unlisten: (() => void) | null = null
     let mounted = true
-    void listen<SnippetInput>('composer:add-context', (e) => {
+    void listen<CodeSnippet>('composer:add-context', (e) => {
       addSnippetRef.current(e.payload)
     }).then((u) => {
       if (!mounted) {

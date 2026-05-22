@@ -3,6 +3,7 @@ import { useStickyScroll } from '../../hooks/useStickyScroll'
 import { CommentFloat } from '../CommentFloat'
 import { type OpenFileFn } from '../ToolViews'
 import type { QaPair, ToolRequest } from '../../types'
+import type { CaptureSource } from '../../types/composer'
 import type { TaskActivity } from '../../state/sessionStore'
 import { ExpandPaneHeader } from './ExpandPaneHeader'
 import { ExpandSegmentView } from './ExpandSegmentView'
@@ -28,11 +29,7 @@ interface Props {
   /** Attach a selection to the composer as a `[코멘트 #N]` placeholder. */
   onAddComment?: (text: string) => void
   /** Open the Task picker for a capture from the active QaPair. */
-  onCapture?: (input: {
-    kind: 'qa_block' | 'selection'
-    content: string
-    qaId: string
-  }) => void
+  onCapture?: (input: CaptureSource) => void
 }
 
 export function ExpandPane({

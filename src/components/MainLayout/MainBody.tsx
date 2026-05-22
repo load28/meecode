@@ -4,23 +4,14 @@ import { InnerPanelGroup } from './InnerPanelGroup'
 import type { UseClaudeSessionResult } from '../../hooks/useClaudeSession'
 import type { UseFileTabsResult, PendingEdit } from '../../hooks/useFileTabs'
 import type { QaPair } from '../../types'
-
-interface CaptureInput {
-  kind: 'qa_block' | 'selection'
-  content: string
-  qaId: string
-}
+import type { CaptureSource, CodeSnippet } from '../../types/composer'
+import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
 
 interface SelectionApi {
-  pending: import('../../hooks/usePendingSelection').PendingComposerSelection | null
+  pending: PendingComposerSelection | null
   consume: () => void
   addComment: (text: string) => void
-  addSnippet: (snippet: {
-    text: string
-    path: string
-    startLine: number
-    endLine: number
-  }) => void
+  addSnippet: (snippet: CodeSnippet) => void
 }
 
 interface Props {
@@ -36,7 +27,7 @@ interface Props {
   isDetached: boolean
   onDetachFilePanel: () => void
   selection: SelectionApi
-  onCapture: (input: CaptureInput) => void
+  onCapture: (input: CaptureSource) => void
   onExpand: (id: string) => void
   onOpenFile: (path: string, opts?: { pending?: PendingEdit | null }) => void
   onOpenSettings: () => void

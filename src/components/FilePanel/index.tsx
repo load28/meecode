@@ -4,6 +4,7 @@ import type {
   FileViewMode,
   MarkdownView,
 } from '../../hooks/useFileTabs'
+import type { CodeSnippet } from '../../types/composer'
 import { highlight } from './highlight'
 import { FileTabsBar } from './FileTabsBar'
 import { FileBodyViewer } from './FileBodyViewer'
@@ -19,12 +20,7 @@ interface Props {
   onCloseAll: () => void
   onSetViewMode?: (path: string, mode: FileViewMode) => void
   onSetMarkdownView?: (path: string, view: MarkdownView) => void
-  onAddSelectionToComposer: (snippet: {
-    text: string
-    path: string
-    startLine: number
-    endLine: number
-  }) => void
+  onAddSelectionToComposer: (snippet: CodeSnippet) => void
   // Inline mode passes onDetach (pop into satellite window). The detached
   // window passes onDock (collapse back into main). Exactly one of the two
   // is set per render — they're mutually exclusive states.
