@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { ToolRequest } from '../../types'
 import { AskUserQuestionCard, type AskInput } from '../AskUserQuestionCard'
 import { DiffView } from '../DiffView'
@@ -6,6 +6,7 @@ import { extractPreview, summarize } from './preview'
 import { buildOptions, type ApprovalKey } from './options'
 import { ApprovalOptions } from './ApprovalOptions'
 import { DenyMessageForm } from './DenyMessageForm'
+import { useApprovalKeyboard } from './useApprovalKeyboard'
 import './ToolApprovalCard.css'
 
 interface Props {
@@ -60,37 +61,7 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
     onRespond(true)
   }
 
-  // Plugin-style keyboard shortcuts: digit selects, Enter = first allow,
-  // Esc = deny so the user can decline without reaching for the mouse.
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const handler = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return
-      }
-      if (e.key >= '1' && e.key <= '9') {
-        const idx = Number(e.key) - 1
-        if (idx >= 0 && idx < options.length) {
-          e.preventDefault()
-          handleSelect(options[idx].key)
-        }
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        handleSelect(options[0].key)
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        handleSelect('deny')
-      }
-    }
-    el.addEventListener('keydown', handler)
-    return () => el.removeEventListener('keydown', handler)
-    // `handleSelect` is recreated on every render; capturing it via closure
-    // is fine because we always want the latest version of `onRespond`.
-  })
+  useApprovalKeyboard({ containerRef, options, onSelect: handleSelect })
 
   return (
     <section
