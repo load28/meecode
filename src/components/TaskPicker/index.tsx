@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Source, TaskSummary } from '../../types/task'
 import { TaskList } from './TaskList'
 import { useTaskCapture } from './useTaskCapture'
+import { useTaskFilter } from './useTaskFilter'
 import './TaskPicker.css'
 
 /** A pending capture — the content + origin gathered at the click site,
@@ -28,9 +29,10 @@ function previewLine(text: string): string {
 
 export function TaskPicker({ draft, onClose, onCaptured }: Props) {
   const { tasks, loaded, refresh, createTask, createSource } = useTasks()
-  const [query, setQuery] = useState('')
+  const filter = useTaskFilter(tasks)
+  const { query, setQuery, filtered, focusIdx, setFocusIdx, focusNext, focusPrev } =
+    filter
   const [newName, setNewName] = useState('')
-  const [focusIdx, setFocusIdx] = useState(0)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const capture = useTaskCapture({
     draft,
@@ -48,22 +50,6 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
     setTimeout(() => searchRef.current?.focus(), 0)
   }, [refresh])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return tasks
-    return tasks.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q),
-    )
-  }, [tasks, query])
-
-  // Keep keyboard focus index in range as the filter changes.
-  useEffect(() => {
-    if (focusIdx >= filtered.length) setFocusIdx(Math.max(0, filtered.length - 1))
-  }, [filtered.length, focusIdx])
-
-
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose()
@@ -71,10 +57,10 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFocusIdx((i) => Math.min(filtered.length - 1, i + 1))
+      focusNext()
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setFocusIdx((i) => Math.max(0, i - 1))
+      focusPrev()
     } else if (e.key === 'Enter') {
       const target = filtered[focusIdx]
       if (target && !submitting) {
