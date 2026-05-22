@@ -9,6 +9,8 @@ import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
+import { SlashMenu } from './SlashMenu'
+import { MentionMenu } from './MentionMenu'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -560,45 +562,22 @@ export function ChatComposer({
         </div>
       )}
       {showSlash && allSlashes.length > 0 && !mention && (
-        <ul ref={slashListRef} className="chat-composer__slash" role="listbox">
-          {allSlashes.map((c, i) => (
-            <li key={c.name}>
-              <button
-                type="button"
-                className={
-                  'chat-composer__slash-item' +
-                  (i === slashIdx ? ' is-selected' : '')
-                }
-                onMouseEnter={() => setSlashIdx(i)}
-                onClick={() => onSelectSlash(c.name)}
-              >
-                <span className="chat-composer__slash-name">{c.name}</span>
-                {c.description && (
-                  <span className="chat-composer__slash-desc">{c.description}</span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <SlashMenu
+          ref={slashListRef}
+          items={allSlashes}
+          selectedIndex={slashIdx}
+          onHover={setSlashIdx}
+          onSelect={onSelectSlash}
+        />
       )}
       {mention && mentionResults.length > 0 && (
-        <ul ref={mentionListRef} className="chat-composer__mention" role="listbox">
-          {mentionResults.slice(0, 20).map((p, i) => (
-            <li key={p}>
-              <button
-                type="button"
-                className={
-                  'chat-composer__mention-item' +
-                  (i === mentionIdx ? ' is-selected' : '')
-                }
-                onMouseEnter={() => setMentionIdx(i)}
-                onClick={() => onSelectMention(p)}
-              >
-                <span className="chat-composer__mention-path">{p}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <MentionMenu
+          ref={mentionListRef}
+          results={mentionResults}
+          selectedIndex={mentionIdx}
+          onHover={setMentionIdx}
+          onSelect={onSelectMention}
+        />
       )}
       <div
         className={
