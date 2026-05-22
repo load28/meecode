@@ -43,7 +43,7 @@ export function OrganizeSection({
   return (
     <div className="task-detail__section">
       <h3 className="task-detail__section-title">정리 (Organize)</h3>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="task-detail__organize-row">
         <button
           type="button"
           className="task-panel__btn task-panel__btn--primary"
@@ -71,18 +71,12 @@ export function OrganizeSection({
           </button>
         )}
         {preview?.resume_session_id && (
-          <span style={{ fontSize: 10, color: '#6e7681' }}>
-            ↺ 캐시 가능
-          </span>
+          <span className="task-detail__organize-hint">↺ 캐시 가능</span>
         )}
       </div>
-      {lastNote && (
-        <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6 }}>
-          {lastNote}
-        </div>
-      )}
+      {lastNote && <div className="task-detail__organize-note">{lastNote}</div>}
       {error && (
-        <div className="task-detail__error" style={{ margin: '6px 0 0' }}>
+        <div className="task-detail__error task-detail__error--inline">
           {error}
         </div>
       )}

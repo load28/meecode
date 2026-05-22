@@ -433,3 +433,25 @@
   max-height: 120px;
   overflow: hidden;
 }
+
+/* OrganizeSection — 액션 행: 정리 버튼 / 취소 / 캐시 안내. */
+.task-detail__organize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-detail__organize-hint {
+  font-size: 10px;
+  color: #6e7681;
+}
+
+.task-detail__organize-note {
+  font-size: 11px;
+  color: #8b949e;
+  margin-top: 6px;
+}
+
+.task-detail__error--inline {
+  margin: 6px 0 0;
+}
