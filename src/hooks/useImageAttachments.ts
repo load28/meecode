@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { makeLocalId } from '../utils/localId'
 
 export interface PendingImage {
   id: string
@@ -17,7 +18,7 @@ async function ingestImageFile(file: File): Promise<PendingImage | null> {
   }
   const base64 = btoa(binary)
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: makeLocalId('img', 6),
     mediaType: file.type,
     data: base64,
     previewUrl: `data:${file.type};base64,${base64}`,

@@ -14,6 +14,7 @@ import {
 } from '../state/sessionStore'
 import { dispatchClientSlash, modeToClaude } from './clientSlash'
 import { logBackendError } from '../utils/log'
+import { makeLocalId } from '../utils/localId'
 
 export type { AgentInfo, McpServerInfo, TaskActivity, UsageStats }
 
@@ -81,9 +82,7 @@ export function useClaudeSession(
       text: string,
       images?: Array<{ media_type: string; data: string }>,
     ) => {
-      const localId = `local-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 6)}`
+      const localId = makeLocalId('local')
       const imageSegments =
         images?.map((img) => ({
           kind: 'image' as const,
@@ -132,7 +131,7 @@ export function useClaudeSession(
           queue: [
             ...s.queue,
             {
-              id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              id: makeLocalId('q'),
               text,
               images,
             },

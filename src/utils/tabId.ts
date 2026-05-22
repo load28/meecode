@@ -7,10 +7,12 @@
  * always falls back to `'main'`.
  */
 
+import { makeLocalId } from './localId'
+
 export const MAIN_TAB_ID = 'main'
 
 export function makeTabId(): string {
-  return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  return makeLocalId('tab')
 }
 
 /** Read `tab_id` off any event payload, defaulting to the main tab. */

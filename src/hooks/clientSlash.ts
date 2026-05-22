@@ -31,6 +31,7 @@ import {
 } from '../state/sessionStore'
 import { modeToClaude, parsePermissionsArg } from '../utils/permissionMode'
 import { logBackendError } from '../utils/log'
+import { makeLocalId } from '../utils/localId'
 
 // Re-exported so existing importers (useClaudeSession, tests) keep working
 // without having to update their paths.
@@ -143,9 +144,7 @@ function emitSyntheticPair(
   userText: string,
   assistantText: string,
 ): void {
-  const id = `local-slash-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 6)}`
+  const id = makeLocalId('local-slash')
   setTab(tabId, (s) => ({
     ...s,
     pairs: [
