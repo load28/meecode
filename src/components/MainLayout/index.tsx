@@ -1,9 +1,7 @@
 import { useMemo } from 'react'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
-import { InnerPanelGroup } from './InnerPanelGroup'
-import { TaskBrowser } from '../TaskBrowser'
+import { MainBody } from './MainBody'
 import { TaskPicker } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
 import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
@@ -161,60 +159,32 @@ export function MainLayout({
         turnError={turnError}
         onDismissRateLimit={dismissRateLimit}
       />
-      <div className="app__body">
-        {/*
-          Two nested PanelGroups so panel sizes can have different scopes:
-          - Outer group (app-wide): main content vs side panel (Tasks).
-            Resizing the side panel persists across tabs. The autoSaveId
-            keeps its historical "knowledge" name so existing users don't
-            lose their saved layout.
-          - Inner group (per-tab id): chat / expand / file. Each tab keeps
-            its own ratios as panels open and close. The library remembers
-            each panel-combination's layout separately keyed by the stable
-            `id` we hand each Panel.
-        */}
-        <PanelGroup
-          direction="horizontal"
-          autoSaveId="meecode.layout.knowledge"
-        >
-          <Panel id="main-content" order={1} minSize={30}>
-            <InnerPanelGroup
-              tabId={tabId}
-              projectPath={projectPath}
-              claudeReady={claudeReady}
-              claude={claude}
-              fileTabs={fileTabs}
-              recentUserTexts={recentUserTexts}
-              expandedPair={expanded.pair}
-              isExpandOpen={isOpen}
-              onToggleExpand={toggleOpen}
-              isDetached={isDetached}
-              onDetachFilePanel={() => {
-                void detach()
-              }}
-              selection={selection}
-              onCapture={capture.open}
-              onExpand={expanded.expand}
-              onOpenFile={handleOpenFile}
-              onOpenSettings={onOpenSettings}
-            />
-          </Panel>
-          {showTasks && (
-            <>
-              <PanelResizeHandle className="resize-handle" />
-              <Panel id="knowledge" order={2} defaultSize={28} minSize={20}>
-                <TaskBrowser
-                  onClose={onToggleTasks}
-                  sessionId={sessionId}
-                  attachedTaskIds={attachedTaskIds}
-                  onAttachTask={taskAttach.attach}
-                  onDetachTask={taskAttach.detach}
-                />
-              </Panel>
-            </>
-          )}
-        </PanelGroup>
-      </div>
+      <MainBody
+        tabId={tabId}
+        projectPath={projectPath}
+        claudeReady={claudeReady}
+        claude={claude}
+        fileTabs={fileTabs}
+        recentUserTexts={recentUserTexts}
+        expandedPair={expanded.pair}
+        isExpandOpen={isOpen}
+        onToggleExpand={toggleOpen}
+        isDetached={isDetached}
+        onDetachFilePanel={() => {
+          void detach()
+        }}
+        selection={selection}
+        onCapture={capture.open}
+        onExpand={expanded.expand}
+        onOpenFile={handleOpenFile}
+        onOpenSettings={onOpenSettings}
+        showTasks={showTasks}
+        onToggleTasks={onToggleTasks}
+        sessionId={sessionId}
+        attachedTaskIds={attachedTaskIds}
+        onAttachTask={taskAttach.attach}
+        onDetachTask={taskAttach.detach}
+      />
       {capture.draft && (
         <TaskPicker draft={capture.draft} onClose={capture.close} />
       )}
