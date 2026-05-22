@@ -8,6 +8,7 @@ import { useSlashMenu } from '../../hooks/useSlashMenu'
 import { useMentionMenu } from '../../hooks/useMentionMenu'
 import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
+import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -82,7 +83,8 @@ export function ChatComposer({
   const history = useTextHistory(recentUserTexts)
   const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const isComposingRef = useRef(false)
+  const ime = useImeComposingGuard()
+  const { isComposingRef } = ime
   // Registered selections by their inline number (1-based). The textarea
   // value carries `[코멘트 #N +M줄]` tokens; on submit each token expands
   // back into a fenced code block looked up from this map.
@@ -143,15 +145,10 @@ export function ChatComposer({
 
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // IME guard — only block Enter-like keys during composition. ESC must
-    // still pass through so we can cancel composition + interrupt.
-    const composing =
-      isComposingRef.current ||
-      e.keyCode === 229 ||
-      (e.nativeEvent as KeyboardEvent).isComposing
-    if (composing && e.key !== 'Escape') {
-      return
-    }
+    // IME 가드 — 조합 중일 때는 Enter류 키만 막고 ESC는 통과(조합 취소 +
+    // interrupt를 위해).
+    const composing = ime.isComposingEvent(e)
+    if (composing && e.key !== 'Escape') return
     // 멘션이 활성이면 그쪽이 우선 — 원래 slash 분기에 !mentionMenu.state
     // 가드가 있었던 것과 동일한 순서. 멘션이 비활성이고 슬래시가 열려있을
     // 때에만 슬래시 키 처리가 일어난다.
@@ -281,12 +278,8 @@ export function ChatComposer({
           onPaste={onPaste}
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
-          onCompositionStart={() => {
-            isComposingRef.current = true
-          }}
-          onCompositionEnd={() => {
-            isComposingRef.current = false
-          }}
+          onCompositionStart={ime.onCompositionStart}
+          onCompositionEnd={ime.onCompositionEnd}
           placeholder={
             !claudeReady
               ? 'Claude CLI 경로를 먼저 설정해주세요…'
