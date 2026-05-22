@@ -5,6 +5,7 @@ import type {
   MarkdownView,
 } from '../../hooks/useFileTabs'
 import type { CodeSnippet } from '../../types/composer'
+import { LOADING } from '../../utils/messages'
 import { highlight } from './highlight'
 import { FileTabsBar } from './FileTabsBar'
 import { FileBodyViewer } from './FileBodyViewer'
@@ -108,7 +109,7 @@ export function FilePanel({
             onSetMarkdownView={onSetMarkdownView}
           />
           {active.loading && (
-            <div className="file-panel__loading">불러오는 중…</div>
+            <div className="file-panel__loading">{LOADING}</div>
           )}
           {active.error && (
             <div className="file-panel__error">⚠ {active.error}</div>

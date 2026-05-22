@@ -5,6 +5,7 @@ import {
   useTaskOrganize,
   useTaskWiki,
 } from '../../hooks/useTasks'
+import { LOADING } from '../../utils/messages'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
 import { AttachTaskRow } from './AttachTaskRow'
@@ -85,7 +86,7 @@ export function TaskDetail({
   return (
     <div className="task-panel">
       <TaskDetailHeader
-        title={task?.name ?? (loading ? '불러오는 중...' : 'Task')}
+        title={task?.name ?? (loading ? LOADING : 'Task')}
         onBack={onBack}
         onClose={onClose}
       />

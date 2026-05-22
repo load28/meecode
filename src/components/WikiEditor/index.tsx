@@ -1,4 +1,5 @@
 import { renderMarkdown } from '../MessageBubble'
+import { LOADING } from '../../utils/messages'
 import { useWikiBuffer } from './useWikiBuffer'
 import './WikiEditor.css'
 
@@ -64,7 +65,7 @@ export function WikiEditor({
       </div>
       <div className="wiki-editor__body">
         {buf.loading ? (
-          <div className="wiki-editor__rendered">불러오는 중...</div>
+          <div className="wiki-editor__rendered">{LOADING}</div>
         ) : buf.mode === 'read' ? (
           buf.hasContent ? (
             <div

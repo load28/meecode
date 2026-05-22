@@ -1,4 +1,5 @@
 import type { TaskSummary } from '../../types/task'
+import { LOADING } from '../../utils/messages'
 
 const PREVIEW_MAX_CHARS = 80
 
@@ -34,7 +35,7 @@ export function TaskList({
   onPick,
 }: Props) {
   if (!loaded) {
-    return <div className="task-picker__empty">불러오는 중...</div>
+    return <div className="task-picker__empty">{LOADING}</div>
   }
   if (filtered.length === 0) {
     return (

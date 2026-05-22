@@ -2,6 +2,7 @@ import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useFileTabs } from '../../hooks/useFileTabs'
 import type { CodeSnippet } from '../../types/composer'
+import { LOADING } from '../../utils/messages'
 import { FilePanel } from '../FilePanel'
 import {
   useDetachedFileEvents,
@@ -27,7 +28,7 @@ export function DetachedFileWindow() {
   return (
     <div className="detached-file-window">
       {!hydrated && fileTabs.tabs.length === 0 && (
-        <div className="detached-file-window__loading">불러오는 중…</div>
+        <div className="detached-file-window__loading">{LOADING}</div>
       )}
       <FilePanel
         tabs={fileTabs.tabs}

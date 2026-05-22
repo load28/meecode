@@ -1,4 +1,5 @@
 import { relativeTimeKr } from '../../utils/format'
+import { LOADING } from '../../utils/messages'
 
 export interface ProjectInfo {
   path: string
@@ -25,7 +26,7 @@ export function RecentProjectsList({
 }: Props) {
   return (
     <ul className="project-switcher__list">
-      {loading && <li className="project-switcher__empty">불러오는 중…</li>}
+      {loading && <li className="project-switcher__empty">{LOADING}</li>}
       {!loading && projects.length === 0 && (
         <li className="project-switcher__empty">최근 프로젝트가 없습니다.</li>
       )}

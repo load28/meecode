@@ -1,5 +1,6 @@
 import type { TaskSummary } from '../../types/task'
 import { relativeTimeKr } from '../../utils/format'
+import { LOADING } from '../../utils/messages'
 
 interface Props {
   loaded: boolean
@@ -21,7 +22,7 @@ export function TaskBrowserList({
   if (!loaded) {
     return (
       <div className="task-panel__empty">
-        <p>불러오는 중...</p>
+        <p>{LOADING}</p>
       </div>
     )
   }

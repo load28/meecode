@@ -8,3 +8,9 @@
  */
 
 export const INTERRUPTED_BY_USER = '사용자에 의해 응답이 중단됨'
+
+/**
+ * 비동기 로딩 인디케이터 텍스트. ASCII '...'와 unicode '…' 글리프가
+ * 코드베이스에 섞여 있어 시각적 일관성을 위해 unicode로 통일.
+ */
+export const LOADING = '불러오는 중…'

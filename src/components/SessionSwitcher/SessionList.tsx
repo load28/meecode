@@ -1,4 +1,5 @@
 import { relativeTimeKr } from '../../utils/format'
+import { LOADING } from '../../utils/messages'
 
 export interface SessionInfo {
   session_id: string
@@ -22,7 +23,7 @@ interface Props {
 export function SessionList({ loading, sessions, currentSessionId, onPick }: Props) {
   return (
     <ul className="session-switcher__list">
-      {loading && <li className="session-switcher__empty">불러오는 중…</li>}
+      {loading && <li className="session-switcher__empty">{LOADING}</li>}
       {!loading && sessions.length === 0 && (
         <li className="session-switcher__empty">아직 세션이 없습니다.</li>
       )}
