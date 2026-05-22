@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { ChatStream } from '../ChatStream'
-import { ChatComposer } from '../ChatComposer'
 import { ExpandPane } from '../ExpandPane'
 import { FilePanel } from '../FilePanel'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
-import { QueueList } from './QueueList'
+import { ChatColumn } from './ChatColumn'
 import { TaskBrowser } from '../TaskBrowser'
 import { TaskPicker, type CaptureDraft } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
@@ -70,34 +68,25 @@ export function MainLayout({
   onToggleTasks,
   visible,
 }: MainLayoutProps) {
+  const claude = useClaudeSession(tabId, visible)
   const {
     pairs,
-    mode,
-    sendUserMessage,
-    cycleMode,
-    pendingTool,
-    respondTool,
     hookActivity,
     taskActivity,
     rateLimit,
     turnError,
-    turnInProgress,
     dismissRateLimit,
-    slashCommands,
     model,
-    interrupt,
     usage,
     setModel,
-    clearConversation,
     sessionId,
     cwd,
     mcpServers,
     agents,
     tools,
-    queue,
-    removeQueued,
+    sendUserMessage,
     sessionTitle,
-  } = useClaudeSession(tabId, visible)
+  } = claude
   const { tasks } = useTasks()
   const sessionBindings = useSessionBindings(sessionId)
   const attachedTaskIds = useMemo(
@@ -254,50 +243,19 @@ export function MainLayout({
                 )}
                 minSize={25}
               >
-                <div className="app__chat">
-                  <ChatStream
-                    pairs={pairs}
-                    onExpand={handleExpand}
-                    pendingTool={pendingTool}
-                    onOpenFile={handleOpenFile}
-                    taskActivity={taskActivity}
-                    hookActivity={hookActivity}
-                    turnInProgress={turnInProgress}
-                    onAddComment={selection.addComment}
-                    onCapture={handleCapture}
-                    onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
-                      const effective =
-                        allow && (updatedInput === undefined || updatedInput === null)
-                          ? pendingTool?.input ?? {}
-                          : updatedInput
-                      respondTool(reqId, allow, tuId, effective, denialMessage)
-                    }}
-                  />
-                  <QueueList queue={queue} onRemove={removeQueued} />
-                  <ChatComposer
-                    mode={mode}
-                    disabled={pendingTool !== null}
-                    sendUserMessage={sendUserMessage}
-                    cycleMode={cycleMode}
-                    slashCommands={slashCommands}
-                    model={model}
-                    // CLI parity (CancelRequestHandler.canCancelRunningTask):
-                    // the stop affordance is active iff a turn is currently
-                    // running. Queued messages have their own X-buttons in the
-                    // queue list and auto-drain once the turn settles.
-                    busy={turnInProgress}
-                    projectPath={projectPath}
-                    recentUserTexts={recentUserTexts}
-                    onClearConversation={clearConversation}
-                    pendingSelection={selection.pending}
-                    onSelectionConsumed={selection.consume}
-                    onInterrupt={() => {
-                      interrupt().catch(() => {})
-                    }}
-                    claudeReady={claudeReady}
-                    onOpenSettings={onOpenSettings}
-                  />
-                </div>
+                <ChatColumn
+                  claude={claude}
+                  projectPath={projectPath}
+                  recentUserTexts={recentUserTexts}
+                  claudeReady={claudeReady}
+                  pendingSelection={selection.pending}
+                  onSelectionConsumed={selection.consume}
+                  onAddComment={selection.addComment}
+                  onCapture={handleCapture}
+                  onExpand={handleExpand}
+                  onOpenFile={handleOpenFile}
+                  onOpenSettings={onOpenSettings}
+                />
               </Panel>
               {isOpen && (
                 <>
@@ -309,8 +267,8 @@ export function MainLayout({
                       onToggle={toggleOpen}
                       onOpenFile={handleOpenFile}
                       pairs={pairs}
-                      pendingTool={pendingTool}
-                      turnInProgress={turnInProgress}
+                      pendingTool={claude.pendingTool}
+                      turnInProgress={claude.turnInProgress}
                       taskActivity={taskActivity}
                       hookActivity={hookActivity}
                       onAddComment={selection.addComment}
