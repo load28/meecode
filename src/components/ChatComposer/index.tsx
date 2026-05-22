@@ -15,6 +15,7 @@ import { SlashMenu } from './SlashMenu'
 import { MentionMenu } from './MentionMenu'
 import { ClaudeWarning } from './ClaudeWarning'
 import { tryNewlineInsert } from './newlineInsert'
+import { handleEscape } from './escapeHandler'
 import './ChatComposer.css'
 
 interface Props {
@@ -170,34 +171,22 @@ export function ChatComposer({
     if (history.tryNavigate(e, textareaRef.current, value, setValue)) {
       return
     }
-    if (e.key === 'Escape') {
-      if (mentionMenu.state) {
-        e.preventDefault()
-        mentionMenu.close()
-        escClear.reset()
-        return
-      }
-      // While the agent is busy, ESC always interrupts first (CLI parity:
-      // PromptInput.tsx treats key.escape during loading as the cancel
-      // shortcut). The double-press clear is only available when idle.
-      if (busy && onInterrupt) {
-        e.preventDefault()
-        onInterrupt()
-        escClear.reset()
-        return
-      }
-      // Double-press ESC to clear (CLI's useTextInput handleEscape via
-      // useDoublePress): first press arms + shows hint, second press
-      // within the window clears the input and saves it to history.
-      if (value.length > 0) {
-        e.preventDefault()
-        if (escClear.press()) {
+    if (
+      handleEscape(e, {
+        mentionActive: !!mentionMenu.state,
+        closeMention: mentionMenu.close,
+        busy: !!busy,
+        onInterrupt,
+        escClear,
+        hasInput: value.length > 0,
+        onConfirmedClear: () => {
           setValue('')
           history.reset()
           selections.clear()
-        }
-        return
-      }
+        },
+      })
+    ) {
+      return
     }
     if (composing) return
     // Enter 줄바꿈 삽입(backslash+Enter / Alt+Enter / Meta+Enter)을 먼저
