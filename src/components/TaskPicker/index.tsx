@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Source, TaskSummary } from '../../types/task'
 import { TaskList } from './TaskList'
+import { PickerHeader } from './PickerHeader'
+import { CreateTaskRow } from './CreateTaskRow'
 import { useTaskCapture } from './useTaskCapture'
 import { useTaskFilter } from './useTaskFilter'
 import './TaskPicker.css'
@@ -20,11 +22,6 @@ interface Props {
   draft: CaptureDraft
   onClose: () => void
   onCaptured?: (source: Source, task: TaskSummary) => void
-}
-
-function previewLine(text: string): string {
-  const first = text.split('\n').find((l) => l.trim()) ?? text
-  return first.length > 80 ? `${first.slice(0, 80)}…` : first
 }
 
 export function TaskPicker({ draft, onClose, onCaptured }: Props) {
@@ -85,25 +82,7 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
         aria-label="Task 선택"
         onKeyDown={onKeyDown}
       >
-        <div className="task-picker__header">
-          <h2 className="task-picker__title">Task에 캡처</h2>
-          {draft.content && (
-            <span
-              className="task-picker__preview"
-              title={draft.content.slice(0, 240)}
-            >
-              {previewLine(draft.content)}
-            </span>
-          )}
-          <button
-            type="button"
-            className="task-picker__close"
-            onClick={onClose}
-            aria-label="닫기"
-          >
-            ×
-          </button>
-        </div>
+        <PickerHeader previewText={draft.content || null} onClose={onClose} />
         <input
           ref={searchRef}
           className="task-picker__search"
@@ -123,33 +102,12 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
             onPick={(id) => void captureInto(id)}
           />
         </div>
-        <div className="task-picker__create">
-          <div className="task-picker__create-row">
-            <input
-              className="task-picker__create-input"
-              placeholder="+ 새 Task 이름"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void createAndCapture(newName)
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="task-picker__create-btn"
-              onClick={() => void createAndCapture(newName)}
-              disabled={submitting || !newName.trim()}
-            >
-              {submitting ? '...' : '생성 + 캡처'}
-            </button>
-          </div>
-          <p className="task-picker__hint">
-            ↑↓ 이동 · Enter 캡처 · Esc 닫기
-          </p>
-        </div>
+        <CreateTaskRow
+          name={newName}
+          submitting={submitting}
+          onNameChange={setNewName}
+          onSubmit={() => void createAndCapture(newName)}
+        />
       </div>
     </div>
   )
