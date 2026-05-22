@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ChatStream } from '../ChatStream'
 import { ChatComposer } from '../ChatComposer'
@@ -15,6 +14,7 @@ import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
 import { useSessionBindings } from '../../hooks/useSessionBindings'
 import { useTaskAttach } from '../../hooks/useTaskAttach'
+import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
 
@@ -148,11 +148,7 @@ export function MainLayout({
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
   // panel (so the expanded block can carry a `// path:lines` header).
-  const [pendingSelection, setPendingSelection] = useState<{
-    id: number
-    text: string
-    source?: string
-  } | null>(null)
+  const selection = usePendingSelection()
   // QaCard's capture button / CommentFloat's 📥 button push a draft here;
   // TaskPicker (mounted below) reads it and writes the resulting Source.
   // null = picker hidden.
@@ -184,53 +180,6 @@ export function MainLayout({
   ) => {
     openFile(path, opts)
   }
-  const handleAddSnippet = (snippet: {
-    text: string
-    path: string
-    startLine: number
-    endLine: number
-  }) => {
-    const range =
-      snippet.startLine === snippet.endLine
-        ? `:${snippet.startLine}`
-        : `:${snippet.startLine}-${snippet.endLine}`
-    setPendingSelection({
-      id: Date.now(),
-      text: snippet.text,
-      source: `${snippet.path}${range}`,
-    })
-  }
-
-  const handleAddComment = (text: string) => {
-    setPendingSelection({ id: Date.now(), text })
-  }
-
-  // The detached window can't reach our composer state directly, so it
-  // forwards selection snippets through this event. Treat them exactly like
-  // an inline add-context click.
-  useEffect(() => {
-    let unlisten: (() => void) | null = null
-    let mounted = true
-    void listen<{
-      text: string
-      path: string
-      startLine: number
-      endLine: number
-    }>('composer:add-context', (e) => {
-      handleAddSnippet(e.payload)
-    }).then((u) => {
-      if (!mounted) {
-        u()
-        return
-      }
-      unlisten = u
-    })
-    return () => {
-      mounted = false
-      unlisten?.()
-    }
-  }, [])
-
   const expandedPair = useMemo(
     () => pairs.find((p) => p.id === expandedId) ?? null,
     [pairs, expandedId]
@@ -313,7 +262,7 @@ export function MainLayout({
                     taskActivity={taskActivity}
                     hookActivity={hookActivity}
                     turnInProgress={turnInProgress}
-                    onAddComment={handleAddComment}
+                    onAddComment={selection.addComment}
                     onCapture={handleCapture}
                     onRespondTool={(reqId, allow, tuId, updatedInput, denialMessage) => {
                       const effective =
@@ -358,8 +307,8 @@ export function MainLayout({
                     projectPath={projectPath}
                     recentUserTexts={recentUserTexts}
                     onClearConversation={clearConversation}
-                    pendingSelection={pendingSelection}
-                    onSelectionConsumed={() => setPendingSelection(null)}
+                    pendingSelection={selection.pending}
+                    onSelectionConsumed={selection.consume}
                     onInterrupt={() => {
                       interrupt().catch(() => {})
                     }}
@@ -382,7 +331,7 @@ export function MainLayout({
                       turnInProgress={turnInProgress}
                       taskActivity={taskActivity}
                       hookActivity={hookActivity}
-                      onAddComment={handleAddComment}
+                      onAddComment={selection.addComment}
                       onCapture={handleCapture}
                     />
                   </Panel>
@@ -400,7 +349,7 @@ export function MainLayout({
                       onCloseAll={fileTabs.closeAll}
                       onSetViewMode={fileTabs.setViewMode}
                       onSetMarkdownView={fileTabs.setMarkdownView}
-                      onAddSelectionToComposer={handleAddSnippet}
+                      onAddSelectionToComposer={selection.addSnippet}
                       onDetach={() => {
                         void detach()
                       }}
