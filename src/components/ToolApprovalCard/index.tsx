@@ -7,6 +7,7 @@ import { buildOptions, type ApprovalKey } from './options'
 import { ApprovalOptions } from './ApprovalOptions'
 import { DenyMessageForm } from './DenyMessageForm'
 import { useApprovalKeyboard } from './useApprovalKeyboard'
+import { ApprovalCardHeader } from './ApprovalCardHeader'
 import './ToolApprovalCard.css'
 
 interface Props {
@@ -74,22 +75,7 @@ export function ToolApprovalCard({ request, onRespond }: Props) {
       aria-label="도구 승인 요청"
       tabIndex={-1}
     >
-      <header className="tool-approval-card__header">
-        <span className="tool-approval-card__icon" aria-hidden="true">
-          {preview ? '✎' : '⚙'}
-        </span>
-        <span className="tool-approval-card__name">
-          {request.title || request.tool_name}
-        </span>
-        {preview && (
-          <span className="tool-approval-card__path" title={preview.filePath}>
-            {preview.filePath}
-          </span>
-        )}
-        {preview && preview.parts > 1 && (
-          <span className="tool-approval-card__hint">{preview.parts}개 변경</span>
-        )}
-      </header>
+      <ApprovalCardHeader request={request} preview={preview} />
 
       {preview ? (
         <div className="tool-approval-card__diff-wrap">
