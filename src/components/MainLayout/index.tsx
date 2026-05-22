@@ -16,6 +16,7 @@ import { useExpandPanel } from '../../hooks/useExpandPanel'
 import { useSessionSwitchOnMount } from '../../hooks/useSessionSwitchOnMount'
 import { useSyncEffect } from '../../hooks/useSyncEffect'
 import { useCapturePicker } from '../../hooks/useCapturePicker'
+import { useExpandedPair } from '../../hooks/useExpandedPair'
 
 export interface MainLayoutProps {
   tabId: string
@@ -119,15 +120,13 @@ export function MainLayout({
   ) => {
     openFile(path, opts)
   }
-  const expandedPair = useMemo(
-    () => pairs.find((p) => p.id === expandedId) ?? null,
-    [pairs, expandedId]
-  )
-
-  const handleExpand = (id: string) => {
-    setExpandedId(id)
-    if (!isOpen) toggleOpen()
-  }
+  const expanded = useExpandedPair({
+    pairs,
+    expandedId,
+    setExpandedId,
+    isOpen,
+    toggleOpen,
+  })
 
   return (
     <div className="app">
@@ -186,7 +185,7 @@ export function MainLayout({
               claude={claude}
               fileTabs={fileTabs}
               recentUserTexts={recentUserTexts}
-              expandedPair={expandedPair}
+              expandedPair={expanded.pair}
               isExpandOpen={isOpen}
               onToggleExpand={toggleOpen}
               isDetached={isDetached}
@@ -195,7 +194,7 @@ export function MainLayout({
               }}
               selection={selection}
               onCapture={capture.open}
-              onExpand={handleExpand}
+              onExpand={expanded.expand}
               onOpenFile={handleOpenFile}
               onOpenSettings={onOpenSettings}
             />
