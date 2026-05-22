@@ -21,6 +21,31 @@
   --font-size-sm: 12px;
   --font-size-xs: 11px;
   --line-height-base: 1.6;
+
+  /*
+   * 색상 — GitHub 다크 팔레트와 같은 어휘를 사용한다. CSS 파일에서
+   * hex 리터럴을 직접 쓰는 대신 이 토큰을 참조하면 한 번에 테마를 바꿀
+   * 수 있다. (기존 hex 리터럴은 점진적으로 마이그레이션 중.)
+   */
+  /* 배경 — 가장 어두운 것부터 위로 */
+  --color-bg-base: #0d1117;
+  --color-bg-elevated: #161b22;
+  --color-bg-accent-subtle: #1f3a5f;
+  /* 보더 */
+  --color-border-default: #30363d;
+  --color-border-muted: #21262d;
+  /* 텍스트 — 강한 것부터 약한 것 */
+  --color-text-strong: #e6edf3;
+  --color-text-default: #c9d1d9;
+  --color-text-muted: #8b949e;
+  --color-text-subtle: #6e7681;
+  /* 강조 색상 */
+  --color-accent-blue: #1f6feb;
+  --color-accent-blue-soft: #58a6ff;
+  --color-accent-blue-pale: #79c0ff;
+  --color-accent-yellow: #d29922;
+  --color-accent-green: #2ea043;
+  --color-danger: #f85149;
 }
 
 html,
