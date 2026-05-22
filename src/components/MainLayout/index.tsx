@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { ExpandPane } from '../ExpandPane'
-import { FilePanel } from '../FilePanel'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
-import { ChatColumn } from './ChatColumn'
+import { InnerPanelGroup } from './InnerPanelGroup'
 import { TaskBrowser } from '../TaskBrowser'
 import { TaskPicker, type CaptureDraft } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
@@ -16,21 +14,6 @@ import { useTaskAttach } from '../../hooks/useTaskAttach'
 import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
-
-/**
- * How wide the chat column should sit at, in % of its row. The chat row
- * is shared with two optional siblings — the expand pane and the file
- * pane. With one sibling visible we leave a ~45% margin for it; with
- * both, ~60%; on its own, the chat takes the whole row.
- */
-function chatPanelDefaultSize(
-  expandOpen: boolean,
-  fileTabsOpen: boolean,
-): number {
-  if (expandOpen && fileTabsOpen) return 40
-  if (expandOpen || fileTabsOpen) return 55
-  return 100
-}
 
 export interface MainLayoutProps {
   tabId: string
@@ -72,7 +55,6 @@ export function MainLayout({
   const {
     pairs,
     hookActivity,
-    taskActivity,
     rateLimit,
     turnError,
     dismissRateLimit,
@@ -230,74 +212,26 @@ export function MainLayout({
           autoSaveId="meecode.layout.knowledge"
         >
           <Panel id="main-content" order={1} minSize={30}>
-            <PanelGroup
-              direction="horizontal"
-              autoSaveId={`meecode.layout.tab.${tabId}`}
-            >
-              <Panel
-                id="chat"
-                order={1}
-                defaultSize={chatPanelDefaultSize(
-                  isOpen,
-                  fileTabs.tabs.length > 0,
-                )}
-                minSize={25}
-              >
-                <ChatColumn
-                  claude={claude}
-                  projectPath={projectPath}
-                  recentUserTexts={recentUserTexts}
-                  claudeReady={claudeReady}
-                  pendingSelection={selection.pending}
-                  onSelectionConsumed={selection.consume}
-                  onAddComment={selection.addComment}
-                  onCapture={handleCapture}
-                  onExpand={handleExpand}
-                  onOpenFile={handleOpenFile}
-                  onOpenSettings={onOpenSettings}
-                />
-              </Panel>
-              {isOpen && (
-                <>
-                  <PanelResizeHandle className="resize-handle" />
-                  <Panel id="expand" order={2} defaultSize={30} minSize={20}>
-                    <ExpandPane
-                      pair={expandedPair}
-                      isOpen={isOpen}
-                      onToggle={toggleOpen}
-                      onOpenFile={handleOpenFile}
-                      pairs={pairs}
-                      pendingTool={claude.pendingTool}
-                      turnInProgress={claude.turnInProgress}
-                      taskActivity={taskActivity}
-                      hookActivity={hookActivity}
-                      onAddComment={selection.addComment}
-                      onCapture={handleCapture}
-                    />
-                  </Panel>
-                </>
-              )}
-              {!isDetached && fileTabs.tabs.length > 0 && (
-                <>
-                  <PanelResizeHandle className="resize-handle" />
-                  <Panel id="file" order={3} defaultSize={35} minSize={20}>
-                    <FilePanel
-                      tabs={fileTabs.tabs}
-                      activePath={fileTabs.activePath}
-                      onSelect={fileTabs.setActive}
-                      onClose={fileTabs.close}
-                      onCloseAll={fileTabs.closeAll}
-                      onSetViewMode={fileTabs.setViewMode}
-                      onSetMarkdownView={fileTabs.setMarkdownView}
-                      onAddSelectionToComposer={selection.addSnippet}
-                      onDetach={() => {
-                        void detach()
-                      }}
-                    />
-                  </Panel>
-                </>
-              )}
-            </PanelGroup>
+            <InnerPanelGroup
+              tabId={tabId}
+              projectPath={projectPath}
+              claudeReady={claudeReady}
+              claude={claude}
+              fileTabs={fileTabs}
+              recentUserTexts={recentUserTexts}
+              expandedPair={expandedPair}
+              isExpandOpen={isOpen}
+              onToggleExpand={toggleOpen}
+              isDetached={isDetached}
+              onDetachFilePanel={() => {
+                void detach()
+              }}
+              selection={selection}
+              onCapture={handleCapture}
+              onExpand={handleExpand}
+              onOpenFile={handleOpenFile}
+              onOpenSettings={onOpenSettings}
+            />
           </Panel>
           {showTasks && (
             <>
