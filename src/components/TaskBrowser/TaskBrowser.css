@@ -366,3 +366,70 @@
   color: #79c0ff;
   vertical-align: middle;
 }
+
+/* TaskDetail/SourcesSection — section-empty 내부의 추가 안내 텍스트. */
+.task-detail__section-empty-hint {
+  font-size: 11px;
+}
+
+/* SourcesSection 리스트 — 빈 ul 기본 indent/marker 제거. */
+.task-detail__source-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 한 Source 행. processed 여부에 따라 배경/테두리가 바뀐다. */
+.task-detail__source-item {
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #c9d1d9;
+  background: #10171f;
+  border: 1px solid #1f3a5f;
+}
+
+.task-detail__source-item.is-processed {
+  background: #0d1117;
+  border-color: #21262d;
+}
+
+.task-detail__source-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #6e7681;
+  margin-bottom: 4px;
+}
+
+.task-detail__source-meta-text {
+  flex: 1;
+}
+
+.task-detail__source-badge--ok {
+  margin-left: 6px;
+  color: #79c0ff;
+}
+
+.task-detail__source-badge--pending {
+  margin-left: 6px;
+  color: #d29922;
+}
+
+.task-detail__source-delete {
+  background: none;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.task-detail__source-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: hidden;
+}
