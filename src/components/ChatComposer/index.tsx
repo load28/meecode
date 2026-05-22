@@ -13,6 +13,7 @@ import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
 import { MentionMenu } from './MentionMenu'
 import { ClaudeWarning } from './ClaudeWarning'
+import { tryNewlineInsert } from './newlineInsert'
 import './ChatComposer.css'
 
 interface Props {
@@ -201,43 +202,13 @@ export function ChatComposer({
         return
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.altKey && !composing) {
-      // Backslash+Enter inserts a newline (CLI parity, useTextInput
-      // handleEnter): when the char immediately before the caret is `\`,
-      // consume that backslash and insert a `\n` instead of submitting.
-      const ta = textareaRef.current
-      const caret = ta?.selectionStart ?? value.length
-      if (caret > 0 && value[caret - 1] === '\\') {
-        e.preventDefault()
-        const next = value.slice(0, caret - 1) + '\n' + value.slice(caret)
-        setValue(next)
-        requestAnimationFrame(() => {
-          if (ta) {
-            ta.focus()
-            ta.setSelectionRange(caret, caret)
-          }
-        })
-        return
-      }
+    if (composing) return
+    // Enter 줄바꿈 삽입(backslash+Enter / Alt+Enter / Meta+Enter)을 먼저
+    // 시도 — 처리된 경우 submit으로 흘러가지 않는다.
+    if (tryNewlineInsert(e, textareaRef.current, value, setValue)) return
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
       submit()
-      return
-    }
-    // Alt/Meta+Enter inserts a newline like Shift+Enter. The browser's
-    // default Shift+Enter behavior already inserts a newline, but Alt/Meta
-    // doesn't — handle it explicitly to match the CLI.
-    if (e.key === 'Enter' && (e.altKey || e.metaKey) && !composing) {
-      e.preventDefault()
-      const ta = textareaRef.current
-      const caret = ta?.selectionStart ?? value.length
-      const next = value.slice(0, caret) + '\n' + value.slice(caret)
-      setValue(next)
-      requestAnimationFrame(() => {
-        if (ta) {
-          ta.focus()
-          ta.setSelectionRange(caret + 1, caret + 1)
-        }
-      })
       return
     }
   }
