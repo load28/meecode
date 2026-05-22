@@ -6,7 +6,7 @@
 .session-info__toggle {
   background: transparent;
   border: 1px solid var(--color-border-default);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   color: var(--color-text-muted);
   font-size: 11px;
@@ -37,7 +37,7 @@
   margin-top: 4px;
   background: var(--color-bg-base);
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
   width: 360px;
   max-width: 90vw;
@@ -100,7 +100,7 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-text-subtle);
 }
 
@@ -133,7 +133,7 @@
 .session-info__tool {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-muted);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
   color: var(--color-accent-blue-pale);
   font-size: 11px;

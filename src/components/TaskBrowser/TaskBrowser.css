@@ -240,7 +240,7 @@
   border: 1px solid transparent;
   width: 100%;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -262,7 +262,7 @@
   border: 1px solid transparent;
   width: 100%;
   padding: 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   box-sizing: border-box;
   resize: vertical;
@@ -308,7 +308,7 @@
   text-align: center;
   background: var(--color-bg-base);
   border: 1px dashed var(--color-border-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .task-detail__footer {
@@ -324,7 +324,7 @@
   border: 1px solid #5a1f1f;
   color: #f78166;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   margin: 12px 14px;
 }
@@ -361,7 +361,7 @@
   margin-left: 6px;
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--color-bg-accent-subtle);
   color: var(--color-accent-blue-pale);
   vertical-align: middle;
@@ -381,7 +381,7 @@
 
 /* 한 Source 행. processed 여부에 따라 배경/테두리가 바뀐다. */
 .task-detail__source-item {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px;
   margin-bottom: 6px;
   font-size: 12px;
@@ -488,7 +488,7 @@
 .task-detail__wiki-item {
   display: flex;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 2px;
   background: transparent;
 }

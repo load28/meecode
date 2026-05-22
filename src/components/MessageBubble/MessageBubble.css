@@ -1,7 +1,7 @@
 .message-bubble__plan {
   border: 1px solid var(--color-border-default);
   border-left: 3px solid var(--color-accent-yellow);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 16px;
   background: var(--color-bg-elevated);
 }
@@ -28,7 +28,7 @@
   */
   border: 1px solid var(--color-border-muted);
   border-left: 3px solid var(--color-text-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0f141b;
   margin: 6px 0;
 }
@@ -39,7 +39,7 @@
 .message-bubble__skill-body {
   border: 1px solid var(--color-border-muted);
   border-left: 3px solid var(--color-text-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0f141b;
   margin: 6px 0;
 }
@@ -175,7 +175,7 @@
 
 .message-bubble__tool {
   border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0f141b;
   font-size: 12px;
 }
@@ -234,7 +234,7 @@
 .message-bubble__image img {
   max-width: 280px;
   max-height: 220px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border-default);
   display: block;
 }
@@ -246,7 +246,7 @@
   font-size: 12px;
   color: var(--color-text-muted);
   background: rgba(110, 118, 129, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   margin: 4px 0;
   align-self: flex-start;
@@ -258,7 +258,7 @@
   color: var(--color-text-muted);
   background: #11161d;
   border: 1px dashed var(--color-border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 12px;
   margin: 4px 0;
   font-style: italic;
@@ -267,7 +267,7 @@
 .message-bubble__tool-result {
   border: 1px solid #1f2a37;
   border-left: 3px solid var(--color-accent-green);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #0a1410;
   font-size: 12px;
   margin: 4px 0 8px 14px;
@@ -395,7 +395,7 @@
 .message-bubble__content code {
   background: var(--color-bg-elevated);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--color-accent-blue-pale);
@@ -404,7 +404,7 @@
 .message-bubble__content pre {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   overflow-x: auto;
   position: relative;
@@ -417,7 +417,7 @@
   right: 6px;
   background: var(--color-border-muted);
   border: 1px solid var(--color-border-default);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--color-text-default);
   font-size: 12px;
   cursor: pointer;

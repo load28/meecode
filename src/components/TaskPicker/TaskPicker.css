@@ -65,7 +65,7 @@
 .task-picker__search {
   background: var(--color-bg-base);
   border: 1px solid var(--color-border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--color-text-default);
   font-size: 13px;
   padding: 8px 10px;

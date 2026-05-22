@@ -3,7 +3,7 @@
      the diff or summary inside provides the visual weight. */
   border: 1px solid var(--color-border-default);
   border-left: 3px solid var(--color-accent-yellow);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--color-bg-base);
   padding: 12px 14px;
   margin: 12px 8px;
@@ -66,7 +66,7 @@
 
 .tool-approval-card__diff-wrap {
   border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   max-height: 360px;
   overflow-y: auto;
@@ -78,7 +78,7 @@
   padding: 8px 10px;
   background: #010409;
   border: 1px solid var(--color-border-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--color-text-default);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -92,7 +92,7 @@
   color: var(--color-accent-yellow);
   padding: 6px 8px;
   background: #1a1408;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border-left: 2px solid var(--color-accent-yellow);
 }
 
@@ -101,7 +101,7 @@
   color: var(--color-danger);
   padding: 6px 8px;
   background: #1a0d0e;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border-left: 2px solid var(--color-danger);
   font-family: var(--font-mono);
 }
@@ -121,7 +121,7 @@
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
@@ -146,7 +146,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--color-border-muted);
   color: var(--color-text-muted);
   font-size: 11px;
@@ -190,7 +190,7 @@
   flex-direction: column;
   gap: 8px;
   border: 1px solid var(--color-danger);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px;
   background: rgba(248, 81, 73, 0.04);
 }
@@ -207,7 +207,7 @@
   padding: 8px 10px;
   background: var(--color-bg-base);
   border: 1px solid var(--color-border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--color-text-strong);
   font-size: 13px;
   font-family: var(--font-ui);
@@ -230,7 +230,7 @@
 .tool-approval-card__deny-cancel,
 .tool-approval-card__deny-submit {
   border: 1px solid var(--color-border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 14px;
   font-size: 13px;
   cursor: pointer;

@@ -24,7 +24,7 @@
   background: var(--color-bg-elevated);
   color: var(--color-text-default);
   border: 1px solid var(--color-border-default);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   cursor: pointer;
   font-size: 12px;
@@ -76,7 +76,7 @@
 .expand-pane__question {
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 16px;
   margin-bottom: 16px;
 }

@@ -46,6 +46,15 @@
   --color-accent-yellow: #d29922;
   --color-accent-green: #2ea043;
   --color-danger: #f85149;
+
+  /*
+   * 둥근 모서리 — 카드와 인풋은 'md', 작은 chip/badge는 'sm', 풀-라운드
+   * 토글은 'pill'. 14개 CSS 파일에 동일 값이 반복되므로 토큰화.
+   */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
 }
 
 html,
