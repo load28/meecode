@@ -14,8 +14,7 @@ import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
 import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
 import { useSessionBindings } from '../../hooks/useSessionBindings'
-import { buildTaskContextMessage } from '../../utils/taskContext'
-import type { Source, Task } from '../../types/task'
+import { useTaskAttach } from '../../hooks/useTaskAttach'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
 
@@ -173,41 +172,11 @@ export function MainLayout({
     })
   }
 
-  const handleAttachTask = async (taskId: string) => {
-    if (!sessionId) return
-    // 1. Persist the binding first so the UI flips immediately and the
-    //    binding survives even if the inject step below errors out.
-    const binding = await sessionBindings.attach(taskId)
-    if (!binding) return
-    // 2. Pull the task + sources from the backend on demand. The browser
-    //    list already has a TaskSummary but lacks `description` (it does
-    //    in fact, but we still need sources separately), and the source
-    //    list isn't cached anywhere — go to the source of truth.
-    try {
-      const [task, sources] = await Promise.all([
-        invoke<Task>('get_task', { taskId }),
-        invoke<Source[]>('list_task_sources', { taskId }),
-      ])
-      const message = buildTaskContextMessage(task, sources)
-      if (!message) {
-        // Empty task — attach succeeded but nothing to inject. Show a
-        // light note so the user understands why the chat didn't get a
-        // new turn. `window.alert` is intentionally plain for now; a
-        // proper toast lands with the next polish pass.
-        console.info(
-          `[tasks] attached "${task.name}" but it has no content to inject.`,
-        )
-        return
-      }
-      await sendUserMessage(message)
-    } catch (e) {
-      console.warn('[tasks] context injection failed', e)
-    }
-  }
-
-  const handleDetachTask = async (taskId: string) => {
-    await sessionBindings.detach(taskId)
-  }
+  const taskAttach = useTaskAttach({
+    sessionId,
+    sessionBindings,
+    sendUserMessage,
+  })
 
   const handleOpenFile = (
     path: string,
@@ -449,8 +418,8 @@ export function MainLayout({
                   onClose={onToggleTasks}
                   sessionId={sessionId}
                   attachedTaskIds={attachedTaskIds}
-                  onAttachTask={handleAttachTask}
-                  onDetachTask={handleDetachTask}
+                  onAttachTask={taskAttach.attach}
+                  onDetachTask={taskAttach.detach}
                 />
               </Panel>
             </>
