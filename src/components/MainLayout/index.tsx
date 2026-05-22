@@ -5,10 +5,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ChatStream } from '../ChatStream'
 import { ChatComposer } from '../ChatComposer'
 import { ExpandPane } from '../ExpandPane'
-import { SessionInfoBar } from '../SessionInfoBar'
-import { ProjectSwitcher } from '../ProjectSwitcher'
-import { SessionSwitcher } from '../SessionSwitcher'
 import { FilePanel } from '../FilePanel'
+import { MainHeader } from './MainHeader'
 import { TaskBrowser } from '../TaskBrowser'
 import { TaskPicker, type CaptureDraft } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
@@ -275,92 +273,31 @@ export function MainLayout({
 
   return (
     <div className="app">
-      <div className="app__header">
-        <ProjectSwitcher currentPath={projectPath} onSwitch={onSwitchProject} />
-        <SessionSwitcher
-          projectPath={projectPath}
-          currentSessionId={sessionId}
-          onSwitch={onSwitchSession}
-        />
-        {!isOpen && expandedId !== null && (
-          <button
-            type="button"
-            className="app__reopen-btn"
-            aria-label="펼쳐보기 패널 열기"
-            onClick={toggleOpen}
-          >
-            ◀ 패널 열기
-          </button>
-        )}
-        <button
-          type="button"
-          className={`app__knowledge-btn${showTasks ? ' is-active' : ''}`}
-          onClick={onToggleTasks}
-          title={
-            attachedTaskIds.size > 0
-              ? `Tasks (${tasks.length}개 · ${attachedTaskIds.size}개 attach됨)`
-              : `Tasks (${tasks.length}개)`
-          }
-        >
-          📋 Tasks ({tasks.length})
-          {attachedTaskIds.size > 0 && (
-            <span className="app__attached-count">
-              📎 {attachedTaskIds.size}
-            </span>
-          )}
-        </button>
-        <label className="app__auto-toggle">
-          <input
-            type="checkbox"
-            checked={autoExpand}
-            onChange={(e) => setAutoExpand(e.target.checked)}
-          />
-          긴 답변 자동 펼침
-        </label>
-        {usage.turnCount > 0 && (
-          <span
-            className="app__usage"
-            title={
-              `${usage.turnCount} turns · ${usage.inputTokens}↑ ${usage.outputTokens}↓ tokens` +
-              (usage.cacheReadTokens || usage.cacheCreationTokens
-                ? ` · cache ${usage.cacheReadTokens}↺/${usage.cacheCreationTokens}✦`
-                : '')
-            }
-          >
-            ${usage.totalCostUsd.toFixed(4)} · {(usage.totalDurationMs / 1000).toFixed(1)}s
-          </span>
-        )}
-        <SessionInfoBar
-          sessionId={sessionId}
-          cwd={cwd}
-          mcpServers={mcpServers}
-          agents={agents}
-          tools={tools}
-        />
-        <select
-          className="app__model-picker"
-          value={model ?? ''}
-          onChange={(e) => {
-            const v = e.target.value
-            setModel(v === '' ? null : v).catch(() => {})
-          }}
-          title="모델 선택"
-        >
-          <option value="">기본</option>
-          <option value="claude-opus-4-7">Opus 4.7</option>
-          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-          <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
-        </select>
-        <button
-          type="button"
-          className="app__settings-btn"
-          onClick={onOpenSettings}
-          title="설정"
-          aria-label="설정"
-        >
-          ⚙
-        </button>
-      </div>
+      <MainHeader
+        projectPath={projectPath}
+        sessionId={sessionId}
+        cwd={cwd}
+        mcpServers={mcpServers}
+        agents={agents}
+        tools={tools}
+        model={model}
+        usage={usage}
+        showTasks={showTasks}
+        tasksCount={tasks.length}
+        attachedTasksCount={attachedTaskIds.size}
+        isExpandOpen={isOpen}
+        hasExpanded={expandedId !== null}
+        autoExpand={autoExpand}
+        onSwitchProject={onSwitchProject}
+        onSwitchSession={onSwitchSession}
+        onToggleExpandOpen={toggleOpen}
+        onToggleTasks={onToggleTasks}
+        onAutoExpandChange={setAutoExpand}
+        onModelChange={(m) => {
+          setModel(m).catch(() => {})
+        }}
+        onOpenSettings={onOpenSettings}
+      />
       <div className="app__banners">
         {hookActivity && (
           <div className="app__hook-banner">⚙ {hookActivity}</div>
