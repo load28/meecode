@@ -92,7 +92,7 @@ body,
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
 }
 
 .folder-picker__btn:hover:not(:disabled) {
@@ -388,7 +388,7 @@ body,
   width: 4px;
   background: var(--color-border-muted);
   cursor: col-resize;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
   flex-shrink: 0;
 }
 

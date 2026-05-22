@@ -69,7 +69,7 @@
   margin-left: auto;
   color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .message-bubble__skill-body[open] > .message-bubble__skill-body-summary::after {
@@ -203,7 +203,7 @@
   content: '▸';
   color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .message-bubble__tool[open] > .message-bubble__tool-summary::before {
@@ -297,7 +297,7 @@
   content: '▸';
   color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .message-bubble__tool-result[open] > .message-bubble__tool-result-summary::before {
@@ -426,7 +426,7 @@
   line-height: 22px;
   padding: 0;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
+  transition: opacity var(--duration-normal), background var(--duration-normal);
 }
 
 pre:hover .markdown-copy-btn {

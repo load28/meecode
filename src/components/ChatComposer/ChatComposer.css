@@ -135,7 +135,7 @@
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
 }
 
 .chat-composer__card:focus-within {
@@ -237,7 +237,7 @@
   cursor: pointer;
   font-size: 14px;
   padding: 0;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 
 .chat-composer__icon-btn:hover:not(:disabled) {
@@ -264,7 +264,7 @@
   align-items: center;
   gap: 4px;
   height: 24px;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
 
 .chat-composer__chip:hover:not(:disabled) {
@@ -307,7 +307,7 @@
   cursor: pointer;
   font-size: 14px;
   padding: 0;
-  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  transition: background var(--duration-fast), border-color var(--duration-fast), opacity var(--duration-fast);
 }
 
 .chat-composer__send:hover:not(:disabled) {

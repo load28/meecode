@@ -274,7 +274,7 @@ button.tool-view__path-link:hover {
   margin-right: 6px;
   color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .tool-view__subagent[open] > .tool-view__subagent-summary::before {
@@ -395,7 +395,7 @@ button.tool-view__path-link:hover {
   content: '▸';
   color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .tool-view--generic[open] > .tool-view__generic-summary::before {
