@@ -1,4 +1,5 @@
 import type { ToolRequest } from '../../types'
+import { pickArray, pickString } from '../../utils/inputAccess'
 
 /**
  * Edit 미리보기에 필요한 정규화된 형태. Edit / Write / MultiEdit /
@@ -12,18 +13,6 @@ export interface EditPreview {
   kind: 'edit' | 'write' | 'multiedit' | 'notebookedit'
   /** MultiEdit의 총 edit 개수. Edit/Write는 1. */
   parts: number
-}
-
-function pickString(input: unknown, key: string): string {
-  if (!input || typeof input !== 'object') return ''
-  const v = (input as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : ''
-}
-
-function pickArray(input: unknown, key: string): unknown[] {
-  if (!input || typeof input !== 'object') return []
-  const v = (input as Record<string, unknown>)[key]
-  return Array.isArray(v) ? v : []
 }
 
 /**

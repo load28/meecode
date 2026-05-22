@@ -2,6 +2,10 @@ import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
 import { logBackendError } from '../../utils/log'
+import { pickArray, pickString } from '../../utils/inputAccess'
+
+// 다른 파일들이 ToolViews barrel에서 import하던 패턴을 깨지 않게 re-export.
+export { pickArray, pickString }
 
 export interface OpenFileOptions {
   pending?: PendingEdit | null
@@ -32,18 +36,6 @@ export function withPending(
   if (!onOpen) return undefined
   if (!pending) return onOpen
   return (path) => onOpen(path, { pending })
-}
-
-export function pickString(input: unknown, key: string): string {
-  if (!input || typeof input !== 'object') return ''
-  const v = (input as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : ''
-}
-
-export function pickArray(input: unknown, key: string): unknown[] {
-  if (!input || typeof input !== 'object') return []
-  const v = (input as Record<string, unknown>)[key]
-  return Array.isArray(v) ? v : []
 }
 
 export function FilePath({

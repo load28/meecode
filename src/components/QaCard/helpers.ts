@@ -1,5 +1,6 @@
 import type { AssistantSegment, QaPair } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
+import { pickArray, pickString } from '../../utils/inputAccess'
 
 /** summary가 파일 경로인 도구 — 단계 행에서 클릭 가능한 링크로 렌더한다. */
 export const FILE_PATH_TOOLS = new Set([
@@ -15,18 +16,6 @@ export const FILE_PATH_TOOLS = new Set([
  * 콤팩트하게 보이면서, 그 이상은 더 보기로 펼치도록 한다.
  */
 export const ANSWER_MAX_HEIGHT_PX = 180
-
-function pickString(input: unknown, key: string): string {
-  if (!input || typeof input !== 'object') return ''
-  const v = (input as Record<string, unknown>)[key]
-  return typeof v === 'string' ? v : ''
-}
-
-function pickArray(input: unknown, key: string): unknown[] {
-  if (!input || typeof input !== 'object') return []
-  const v = (input as Record<string, unknown>)[key]
-  return Array.isArray(v) ? v : []
-}
 
 /**
  * Edit/Write/MultiEdit/NotebookEdit tool_use에서 PendingEdit을 복원해
