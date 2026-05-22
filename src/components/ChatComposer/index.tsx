@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Mode, SlashCommand } from '../../types'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
@@ -7,6 +7,7 @@ import { useSelectionPlaceholders } from '../../hooks/useSelectionPlaceholders'
 import { useSlashMenu } from '../../hooks/useSlashMenu'
 import { useMentionMenu } from '../../hooks/useMentionMenu'
 import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
+import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -106,23 +107,12 @@ export function ChatComposer({
 
   useTextareaAutoGrow(textareaRef, value)
 
-  // Global ESC interrupt — fires when focus is NOT on the textarea, so
-  // ESC still cancels a turn even when the user clicked elsewhere (a
-  // tool-approval card, the file panel, etc.). Skip when the event target
-  // is the textarea itself: that path runs through the local onKeyDown
-  // (which also handles slash/mention palette dismissal first).
-  useEffect(() => {
-    if (!busy || !onInterrupt) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (isComposingRef.current) return
-      if (e.target === textareaRef.current) return
-      e.preventDefault()
-      onInterrupt()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [busy, onInterrupt])
+  useGlobalEscapeInterrupt({
+    active: !!busy,
+    onInterrupt,
+    isComposingRef,
+    excludeTargetRef: textareaRef,
+  })
 
   const submit = async () => {
     // CLI parity: trim trailing whitespace before submit. Empty input with
