@@ -9,6 +9,7 @@ import { useMentionMenu } from '../../hooks/useMentionMenu'
 import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
+import { useComposerSubmit } from '../../hooks/useComposerSubmit'
 import { ComposerCard } from './ComposerCard'
 import { ComposerNotices } from './ComposerNotices'
 import { ComposerMenus } from './ComposerMenus'
@@ -69,7 +70,6 @@ export function ChatComposer({
 }: Props) {
   const composerDisabled = (disabled && !busy) || !claudeReady
   const [value, setValue] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const {
     pendingImages,
     fileInputRef,
@@ -117,31 +117,20 @@ export function ChatComposer({
     excludeTargetRef: textareaRef,
   })
 
-  const submit = async () => {
-    // CLI parity: trim trailing whitespace before submit. Empty input with
-    // no attachments is a no-op (matches `onSubmit` in PromptInput.tsx).
-    // Selection placeholders expand into fenced code blocks here, mirroring
-    // how Claude Code substitutes pasted-text tokens at send time.
-    const expanded = selections.expand(value)
-    const trimmed = expanded.trimEnd()
-    if (!trimmed && pendingImages.length === 0) return
-    const images = pendingImages.map((p) => ({
-      media_type: p.mediaType,
-      data: p.data,
-    }))
-    setError(null)
-    try {
-      await sendUserMessage(trimmed, images.length > 0 ? images : undefined)
-      setValue('')
+  const { error, submit } = useComposerSubmit({
+    value,
+    setValue,
+    expandSelections: selections.expand,
+    pendingImages,
+    sendUserMessage,
+    onAfterSubmit: () => {
       clearImages()
       slashMenu.setShow(false)
       mentionMenu.close()
       history.reset()
       selections.clear()
-    } catch (e) {
-      setError(String(e))
-    }
-  }
+    },
+  })
 
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
