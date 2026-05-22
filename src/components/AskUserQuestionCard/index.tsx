@@ -1,11 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { QuestionOptions } from './QuestionOptions'
+import { useAskAnswers } from './useAskAnswers'
 import './AskUserQuestionCard.css'
-
-// Auto-advance to the *next* question on a single-select pick. We never
-// auto-submit the final question — the user must press 답변 전송 explicitly
-// so they have a chance to review the whole set before sending.
-const AUTO_ADVANCE_MS = 220
 
 export interface AskOption {
   label: string
@@ -28,42 +24,10 @@ interface Props {
   onRespond: (allow: boolean, updatedInput: AskInput | null) => void
 }
 
-interface AnswersState {
-  [question: string]: { picks: Set<string>; otherText: string }
-}
-
-function blankAnswers(qs: AskQuestion[]): AnswersState {
-  const out: AnswersState = {}
-  for (const q of qs) out[q.question] = { picks: new Set(), otherText: '' }
-  return out
-}
-
-function joinAnswer(state: { picks: Set<string>; otherText: string }): string {
-  const arr = Array.from(state.picks)
-  if (arr.includes('Other') && state.otherText.trim()) {
-    const rest = arr.filter((x) => x !== 'Other')
-    rest.push(state.otherText.trim())
-    return rest.join(', ')
-  }
-  return arr.join(', ')
-}
-
 export function AskUserQuestionCard({ input, onRespond }: Props) {
   const questions = input.questions ?? []
-  const [active, setActive] = useState(0)
-  const [answers, setAnswers] = useState<AnswersState>(() => blankAnswers(questions))
   const containerRef = useRef<HTMLElement | null>(null)
-
-  // Hold the auto-advance timer so a fast second click cancels the pending
-  // navigation instead of jumping past the user's correction.
-  const advanceTimer = useRef<number | null>(null)
-  const clearAdvance = () => {
-    if (advanceTimer.current !== null) {
-      window.clearTimeout(advanceTimer.current)
-      advanceTimer.current = null
-    }
-  }
-  useEffect(() => clearAdvance, [])
+  const ans = useAskAnswers(questions)
 
   if (questions.length === 0) {
     return (
@@ -73,73 +37,18 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
     )
   }
 
-  const q = questions[active]
-  const state = answers[q.question] ?? { picks: new Set(), otherText: '' }
-  const isLast = active === questions.length - 1
+  const q = questions[ans.active]
 
-  const submitWith = (a: AnswersState) => {
-    const payloadAnswers: Record<string, string> = {}
-    for (const qq of questions) {
-      const s = a[qq.question]
-      if (s && s.picks.size > 0) {
-        payloadAnswers[qq.question] = joinAnswer(s)
-      }
-    }
-    onRespond(true, { questions, ...({ answers: payloadAnswers } as object) } as AskInput)
-  }
-
-  const submit = () => submitWith(answers)
-
-  const goNext = () => {
-    if (!isLast) setActive(active + 1)
-  }
-
-  const toggle = (label: string) => {
-    clearAdvance()
-    let nextAnswers!: AnswersState
-    setAnswers((prev) => {
-      const next = { ...prev }
-      const slot = { ...next[q.question], picks: new Set(next[q.question].picks) }
-      if (q.multiSelect) {
-        if (slot.picks.has(label)) slot.picks.delete(label)
-        else slot.picks.add(label)
-      } else {
-        slot.picks = new Set([label])
-      }
-      next[q.question] = slot
-      nextAnswers = next
-      return next
-    })
-
-    // Auto-advance to the next question only — never the final submit.
-    // "Other" expands an inline text field, so leave focus alone. Multi-select
-    // stays manual because there's no signal that the user is done picking.
-    if (!isLast && !q.multiSelect && label !== 'Other') {
-      advanceTimer.current = window.setTimeout(() => {
-        advanceTimer.current = null
-        // Use snapshot so navigation reflects the just-applied pick.
-        void nextAnswers
-        goNext()
-      }, AUTO_ADVANCE_MS)
-    }
-  }
-
-  const setOther = (text: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [q.question]: { ...prev[q.question], otherText: text },
-    }))
+  const submit = () => {
+    onRespond(true, {
+      questions,
+      ...({ answers: ans.buildPayload() } as object),
+    } as AskInput)
   }
 
   const skip = () => {
-    clearAdvance()
     onRespond(false, null)
   }
-
-  const everyAnswered = questions.every(
-    (qq) => (answers[qq.question]?.picks.size ?? 0) > 0,
-  )
-  const currentAnswered = (state.picks.size ?? 0) > 0
 
   // Plugin-style keyboard nav: digits 1-9 pick the corresponding option,
   // Enter advances (or submits on the final question). Listening on the card
@@ -154,14 +63,14 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
       if (idx >= 0 && idx < total) {
         e.preventDefault()
         const label = idx < q.options.length ? q.options[idx].label : 'Other'
-        toggle(label)
+        ans.toggle(label)
       }
       return
     }
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (isLast && everyAnswered) submit()
-      else if (!isLast && currentAnswered) goNext()
+      if (ans.isLast && ans.everyAnswered) submit()
+      else if (!ans.isLast && ans.currentAnswered) ans.goNext()
     } else if (e.key === 'Escape') {
       e.preventDefault()
       skip()
@@ -180,20 +89,17 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
       {questions.length > 1 && (
         <header className="ask-question-card__nav">
           {questions.map((qq, i) => {
-            const answered = (answers[qq.question]?.picks.size ?? 0) > 0
+            const answered = (ans.answers[qq.question]?.picks.size ?? 0) > 0
             return (
               <button
                 key={i}
                 type="button"
                 className={
                   'ask-question-card__tab' +
-                  (i === active ? ' is-active' : '') +
+                  (i === ans.active ? ' is-active' : '') +
                   (answered ? ' is-answered' : '')
                 }
-                onClick={() => {
-                  clearAdvance()
-                  setActive(i)
-                }}
+                onClick={() => ans.goTo(i)}
               >
                 {qq.header || `Q${i + 1}`}
                 {answered && <span className="ask-question-card__check">✓</span>}
@@ -207,22 +113,22 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
 
       <QuestionOptions
         question={q}
-        activeIndex={active}
-        picks={state.picks}
-        otherText={state.otherText}
-        onToggle={toggle}
-        onOtherChange={setOther}
-        onOtherEnter={() => (isLast ? submit() : goNext())}
+        activeIndex={ans.active}
+        picks={ans.current.picks}
+        otherText={ans.current.otherText}
+        onToggle={ans.toggle}
+        onOtherChange={ans.setOther}
+        onOtherEnter={() => (ans.isLast ? submit() : ans.goNext())}
       />
 
       <div className="ask-question-card__hint" aria-hidden="true">
-        숫자 키로 선택 · Enter로 {isLast ? '전송' : '다음'} · Esc로 건너뛰기
+        숫자 키로 선택 · Enter로 {ans.isLast ? '전송' : '다음'} · Esc로 건너뛰기
       </div>
 
       <div className="ask-question-card__footer">
         {questions.length > 1 && (
           <span className="ask-question-card__counter">
-            {active + 1} / {questions.length}
+            {ans.active + 1} / {questions.length}
           </span>
         )}
         <button
@@ -232,12 +138,12 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
         >
           건너뛰기
         </button>
-        {isLast ? (
+        {ans.isLast ? (
           <button
             type="button"
             className="ask-question-card__submit"
             onClick={submit}
-            disabled={!everyAnswered}
+            disabled={!ans.everyAnswered}
           >
             답변 전송
           </button>
@@ -245,11 +151,8 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
           <button
             type="button"
             className="ask-question-card__submit"
-            onClick={() => {
-              clearAdvance()
-              goNext()
-            }}
-            disabled={!currentAnswered}
+            onClick={() => ans.goNext()}
+            disabled={!ans.currentAnswered}
           >
             다음 →
           </button>
