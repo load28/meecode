@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import type { Mode, SlashCommand } from '../../types'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { useTextHistory } from '../../hooks/useTextHistory'
 import { useSelectionPlaceholders } from '../../hooks/useSelectionPlaceholders'
 import { useSlashMenu } from '../../hooks/useSlashMenu'
+import { useMentionMenu } from '../../hooks/useMentionMenu'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -45,11 +45,6 @@ interface Props {
   onOpenSettings?: () => void
 }
 
-interface MentionState {
-  startIndex: number
-  query: string
-}
-
 export function ChatComposer({
   mode,
   disabled,
@@ -70,9 +65,6 @@ export function ChatComposer({
   const composerDisabled = (disabled && !busy) || !claudeReady
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [mention, setMention] = useState<MentionState | null>(null)
-  const [mentionResults, setMentionResults] = useState<string[]>([])
-  const [mentionIdx, setMentionIdx] = useState(0)
   const {
     pendingImages,
     fileInputRef,
@@ -87,7 +79,6 @@ export function ChatComposer({
   const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
-  const mentionListRef = useRef<HTMLUListElement | null>(null)
   // Registered selections by their inline number (1-based). The textarea
   // value carries `[코멘트 #N +M줄]` tokens; on submit each token expands
   // back into a fenced code block looked up from this map.
@@ -104,16 +95,12 @@ export function ChatComposer({
     setValue,
     serverCommands: slashCommands,
   })
-
-  useEffect(() => {
-    if (!mention) return
-    const list = mentionListRef.current
-    if (!list) return
-    const item = list.children[mentionIdx] as HTMLElement | undefined
-    if (item && typeof item.scrollIntoView === 'function') {
-      item.scrollIntoView({ block: 'nearest' })
-    }
-  }, [mentionIdx, mention])
+  const mentionMenu = useMentionMenu({
+    value,
+    setValue,
+    textareaRef,
+    projectPath,
+  })
 
   // Auto-grow the textarea up to a max height.
   useEffect(() => {
@@ -160,7 +147,7 @@ export function ChatComposer({
       setValue('')
       clearImages()
       slashMenu.setShow(false)
-      setMention(null)
+      mentionMenu.close()
       history.reset()
       selections.clear()
     } catch (e) {
@@ -168,45 +155,6 @@ export function ChatComposer({
     }
   }
 
-  const detectMention = (text: string, caret: number): MentionState | null => {
-    if (caret === 0) return null
-    let i = caret - 1
-    while (i >= 0) {
-      const ch = text[i]
-      if (ch === '@') {
-        const before = i === 0 ? ' ' : text[i - 1]
-        if (before === ' ' || before === '\n' || i === 0) {
-          return { startIndex: i, query: text.slice(i + 1, caret) }
-        }
-        return null
-      }
-      if (ch === ' ' || ch === '\n' || ch === '\t') return null
-      i--
-    }
-    return null
-  }
-
-  useEffect(() => {
-    if (!mention || !projectPath) {
-      setMentionResults([])
-      return
-    }
-    let alive = true
-    const run = async () => {
-      try {
-        const results = await invoke<string[]>('search_files', {
-          args: { project_path: projectPath, query: mention.query },
-        })
-        if (alive) setMentionResults(results)
-      } catch {
-        if (alive) setMentionResults([])
-      }
-    }
-    run()
-    return () => {
-      alive = false
-    }
-  }, [mention, projectPath])
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // IME guard — only block Enter-like keys during composition. ESC must
@@ -218,7 +166,7 @@ export function ChatComposer({
     if (composing && e.key !== 'Escape') {
       return
     }
-    if (slashMenu.show && slashMenu.items.length > 0 && !mention) {
+    if (slashMenu.show && slashMenu.items.length > 0 && !mentionMenu.state) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         slashMenu.setSelectedIndex((i) =>
@@ -246,21 +194,26 @@ export function ChatComposer({
         return
       }
     }
-    if (mention && mentionResults.length > 0) {
+    if (mentionMenu.state && mentionMenu.results.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setMentionIdx((i) => Math.min(i + 1, mentionResults.length - 1))
+        mentionMenu.setSelectedIndex((i) =>
+          Math.min(i + 1, mentionMenu.results.length - 1),
+        )
         return
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setMentionIdx((i) => Math.max(i - 1, 0))
+        mentionMenu.setSelectedIndex((i) => Math.max(i - 1, 0))
         return
       }
       if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
         e.preventDefault()
-        const pick = mentionResults[Math.min(mentionIdx, mentionResults.length - 1)]
-        if (pick) onSelectMention(pick)
+        const pick =
+          mentionMenu.results[
+            Math.min(mentionMenu.selectedIndex, mentionMenu.results.length - 1)
+          ]
+        if (pick) mentionMenu.select(pick)
         return
       }
     }
@@ -281,9 +234,9 @@ export function ChatComposer({
       return
     }
     if (e.key === 'Escape') {
-      if (mention) {
+      if (mentionMenu.state) {
         e.preventDefault()
-        setMention(null)
+        mentionMenu.close()
         escClear.reset()
         return
       }
@@ -356,29 +309,10 @@ export function ChatComposer({
     setValue(v)
     slashMenu.setShow(v.startsWith('/'))
     slashMenu.setSelectedIndex(0)
-    setMention(detectMention(v, caret))
-    setMentionIdx(0)
+    mentionMenu.detect(v, caret)
     history.reset()
     // Any further typing disarms the double-ESC clear (CLI parity).
     escClear.reset()
-  }
-
-  const onSelectMention = (path: string) => {
-    if (!mention) return
-    const before = value.slice(0, mention.startIndex)
-    const after = value.slice(mention.startIndex + 1 + mention.query.length)
-    const inserted = `@${path} `
-    const next = before + inserted + after
-    setValue(next)
-    setMention(null)
-    const ta = textareaRef.current
-    if (ta) {
-      const pos = (before + inserted).length
-      requestAnimationFrame(() => {
-        ta.focus()
-        ta.setSelectionRange(pos, pos)
-      })
-    }
   }
 
   const hasContent = value.trim().length > 0 || pendingImages.length > 0
@@ -403,7 +337,7 @@ export function ChatComposer({
           Esc 한 번 더 누르면 입력이 지워집니다
         </div>
       )}
-      {slashMenu.show && slashMenu.items.length > 0 && !mention && (
+      {slashMenu.show && slashMenu.items.length > 0 && !mentionMenu.state && (
         <SlashMenu
           ref={slashMenu.listRef}
           items={slashMenu.items}
@@ -412,13 +346,13 @@ export function ChatComposer({
           onSelect={slashMenu.select}
         />
       )}
-      {mention && mentionResults.length > 0 && (
+      {mentionMenu.state && mentionMenu.results.length > 0 && (
         <MentionMenu
-          ref={mentionListRef}
-          results={mentionResults}
-          selectedIndex={mentionIdx}
-          onHover={setMentionIdx}
-          onSelect={onSelectMention}
+          ref={mentionMenu.listRef}
+          results={mentionMenu.results}
+          selectedIndex={mentionMenu.selectedIndex}
+          onHover={mentionMenu.setSelectedIndex}
+          onSelect={mentionMenu.select}
         />
       )}
       <div
