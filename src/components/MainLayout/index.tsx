@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { useMemo, useState } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
@@ -14,6 +13,8 @@ import { useTaskAttach } from '../../hooks/useTaskAttach'
 import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
+import { useSessionSwitchOnMount } from '../../hooks/useSessionSwitchOnMount'
+import { useSyncEffect } from '../../hooks/useSyncEffect'
 
 export interface MainLayoutProps {
   tabId: string
@@ -76,28 +77,8 @@ export function MainLayout({
     [sessionBindings.bindings],
   )
 
-  const titleCbRef = useRef(onSessionTitleChange)
-  titleCbRef.current = onSessionTitleChange
-  useEffect(() => {
-    titleCbRef.current(sessionTitle)
-  }, [sessionTitle])
-
-  // The parent forces a remount on every switch by bumping the component
-  // key, so this effect re-fires only for genuine switches. Listener race
-  // is no longer an issue: the store registers listeners once at page
-  // load, so backend emits can never be lost between mount/cleanup cycles.
-  const switchedRef = useRef(false)
-  useEffect(() => {
-    if (!needsSwitch) return
-    if (switchedRef.current) return
-    switchedRef.current = true
-    invoke('switch_session', {
-      path: projectPath,
-      sessionId: pendingSessionId,
-      tabId,
-    }).catch((e) => console.warn('[meecode] switch_session failed', e))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  useSyncEffect(onSessionTitleChange, sessionTitle)
+  useSessionSwitchOnMount({ tabId, projectPath, pendingSessionId, needsSwitch })
 
   const recentUserTexts = useMemo(() => {
     return pairs
