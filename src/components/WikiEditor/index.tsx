@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import { renderMarkdown } from '../MessageBubble'
+import { useWikiBuffer } from './useWikiBuffer'
 import './WikiEditor.css'
 
 interface Props {
@@ -12,8 +12,6 @@ interface Props {
   deleteFile: (name: string) => Promise<void>
 }
 
-type Mode = 'read' | 'edit'
-
 export function WikiEditor({
   taskId,
   name,
@@ -22,54 +20,14 @@ export function WikiEditor({
   writeFile,
   deleteFile,
 }: Props) {
-  const [mode, setMode] = useState<Mode>('read')
-  const [original, setOriginal] = useState('')
-  const [draft, setDraft] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-
-  // Reload on file change. `taskId` is in the dep list so switching
-  // detail views also re-fetches.
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    void readFile(name).then((body) => {
-      if (cancelled) return
-      setOriginal(body)
-      setDraft(body)
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [taskId, name, readFile])
-
-  const dirty = draft !== original
-  const hasContent = draft.trim().length > 0 || original.trim().length > 0
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const ok = await writeFile(name, draft)
-      if (ok) {
-        setOriginal(draft)
-        setMode('read')
-      }
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleRevert = () => {
-    setDraft(original)
-    setMode('read')
-  }
-
-  const handleDelete = async () => {
-    if (!confirm(`위키 파일 "${name}"을(를) 삭제하시겠습니까?`)) return
-    await deleteFile(name)
-    onClose()
-  }
+  const buf = useWikiBuffer({
+    taskId,
+    name,
+    readFile,
+    writeFile,
+    deleteFile,
+    onDeleted: onClose,
+  })
 
   return (
     <div className="wiki-editor">
@@ -78,15 +36,19 @@ export function WikiEditor({
         <div className="wiki-editor__mode" role="group" aria-label="모드 전환">
           <button
             type="button"
-            className={`wiki-editor__mode-btn${mode === 'read' ? ' is-active' : ''}`}
-            onClick={() => setMode('read')}
+            className={`wiki-editor__mode-btn${
+              buf.mode === 'read' ? ' is-active' : ''
+            }`}
+            onClick={() => buf.setMode('read')}
           >
             읽기
           </button>
           <button
             type="button"
-            className={`wiki-editor__mode-btn${mode === 'edit' ? ' is-active' : ''}`}
-            onClick={() => setMode('edit')}
+            className={`wiki-editor__mode-btn${
+              buf.mode === 'edit' ? ' is-active' : ''
+            }`}
+            onClick={() => buf.setMode('edit')}
           >
             편집
           </button>
@@ -94,25 +56,20 @@ export function WikiEditor({
         <button
           type="button"
           className="wiki-editor__close"
-          onClick={() => {
-            if (dirty && !confirm('저장하지 않은 변경 사항이 있습니다. 닫으시겠습니까?')) {
-              return
-            }
-            onClose()
-          }}
+          onClick={() => buf.confirmCloseIfDirty(onClose)}
           aria-label="닫기"
         >
           ×
         </button>
       </div>
       <div className="wiki-editor__body">
-        {loading ? (
+        {buf.loading ? (
           <div className="wiki-editor__rendered">불러오는 중...</div>
-        ) : mode === 'read' ? (
-          hasContent ? (
+        ) : buf.mode === 'read' ? (
+          buf.hasContent ? (
             <div
               className="wiki-editor__rendered message-bubble__content"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(draft) }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(buf.draft) }}
             />
           ) : (
             <div className="wiki-editor__rendered" style={{ color: '#6e7681' }}>
@@ -122,44 +79,44 @@ export function WikiEditor({
         ) : (
           <textarea
             className="wiki-editor__textarea"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            value={buf.draft}
+            onChange={(e) => buf.setDraft(e.target.value)}
             spellCheck={false}
           />
         )}
       </div>
       <div className="wiki-editor__footer">
         <span className="wiki-editor__hint">
-          {dirty ? (
+          {buf.dirty ? (
             <span className="wiki-editor__dirty">● 저장되지 않은 변경</span>
           ) : (
-            <span>{original.length}자</span>
+            <span>{buf.original.length}자</span>
           )}
         </span>
-        {mode === 'edit' && (
+        {buf.mode === 'edit' && (
           <>
             <button
               type="button"
               className="task-panel__btn"
-              onClick={handleRevert}
-              disabled={saving}
+              onClick={buf.revert}
+              disabled={buf.saving}
             >
               취소
             </button>
             <button
               type="button"
               className="task-panel__btn task-panel__btn--primary"
-              onClick={handleSave}
-              disabled={saving || !dirty}
+              onClick={buf.save}
+              disabled={buf.saving || !buf.dirty}
             >
-              {saving ? '저장 중...' : '저장'}
+              {buf.saving ? '저장 중...' : '저장'}
             </button>
           </>
         )}
         <button
           type="button"
           className="task-panel__btn task-panel__btn--danger"
-          onClick={handleDelete}
+          onClick={buf.remove}
         >
           삭제
         </button>
