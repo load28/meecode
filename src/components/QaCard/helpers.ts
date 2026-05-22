@@ -1,15 +1,11 @@
 import type { AssistantSegment, QaPair } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
 import { pickArray, pickString } from '../../utils/inputAccess'
+import { FILE_PATH_TOOLS, thinkingLabel } from '../../utils/assistantSegment'
 
-/** summary가 파일 경로인 도구 — 단계 행에서 클릭 가능한 링크로 렌더한다. */
-export const FILE_PATH_TOOLS = new Set([
-  'Read',
-  'Edit',
-  'Write',
-  'MultiEdit',
-  'NotebookEdit',
-])
+// utils로 이전됐지만 외부에서 `./helpers`로 import하던 사이트(QaSegmentView,
+// StepRow) 호환을 위해 re-export.
+export { FILE_PATH_TOOLS, thinkingLabel }
 
 /**
  * Q&A 본문 영역을 접는 임계 높이(px). 6~7줄 정도면 카드가 여전히
@@ -64,19 +60,6 @@ export function pendingFromSegment(
   }
 }
 
-/**
- * thinking 세그먼트의 상단 라벨. streaming 중에는 트레일링 "…"를 빼고,
- * partial이 끝나면 측정된 duration을 'Thought for Ns'로 표시.
- */
-export function thinkingLabel(
-  seg: Extract<AssistantSegment, { kind: 'thinking' }>,
-): string {
-  if (seg.partial) return 'Thinking'
-  if (typeof seg.duration_ms === 'number') {
-    return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
-  }
-  return 'Thinking'
-}
 
 /**
  * 한 Q&A 턴을 플레인 텍스트 블록으로 직렬화. Source로 저장될 때나

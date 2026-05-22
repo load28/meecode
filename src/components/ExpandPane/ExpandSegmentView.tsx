@@ -1,24 +1,7 @@
 import type { AssistantSegment } from '../../types'
 import { SegmentView } from '../MessageBubble'
 import { FilePath, type OpenFileFn } from '../ToolViews'
-
-const FILE_PATH_TOOLS = new Set([
-  'Read',
-  'Edit',
-  'Write',
-  'MultiEdit',
-  'NotebookEdit',
-])
-
-function thinkingLabel(seg: Extract<AssistantSegment, { kind: 'thinking' }>): string {
-  // QaCard와 동일 — partial 동안엔 트레일링 "…"를 빼고, 끝나면 측정된
-  // duration을 "Thought for Ns"로 표기.
-  if (seg.partial) return 'Thinking'
-  if (typeof seg.duration_ms === 'number') {
-    return `Thought for ${Math.max(1, Math.round(seg.duration_ms / 1000))}s`
-  }
-  return 'Thinking'
-}
+import { FILE_PATH_TOOLS, thinkingLabel } from '../../utils/assistantSegment'
 
 interface Props {
   segment: AssistantSegment
