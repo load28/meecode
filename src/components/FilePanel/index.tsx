@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import type {
   FileTab,
   FileViewMode,
@@ -7,8 +7,9 @@ import type {
 import { DiffView } from '../DiffView'
 import { MarkdownContent } from '../MessageBubble/MarkdownContent'
 import { highlight, langForPrism } from './highlight'
-import { formatBytes, offsetWithin } from './utils'
+import { formatBytes } from './utils'
 import { FileTabsBar } from './FileTabsBar'
+import { useCodeSelection } from './useCodeSelection'
 import './FilePanel.css'
 
 interface Props {
@@ -32,13 +33,6 @@ interface Props {
   onDock?: () => void
 }
 
-interface SelectionState {
-  text: string
-  startLine: number
-  endLine: number
-  rect: { top: number; left: number }
-}
-
 export function FilePanel({
   tabs,
   activePath,
@@ -51,13 +45,17 @@ export function FilePanel({
   onDetach,
   onDock,
 }: Props) {
-  const codeRef = useRef<HTMLDivElement | null>(null)
-  const [selection, setSelection] = useState<SelectionState | null>(null)
-
   const active = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
     [tabs, activePath],
   )
+
+  const {
+    selection,
+    codeRef,
+    handleMouseUp,
+    clear: clearSelection,
+  } = useCodeSelection(activePath)
 
   const highlighted = useMemo(() => {
     if (!active) return ''
@@ -73,51 +71,6 @@ export function FilePanel({
     if (!active) return 0
     return active.content.split('\n').length
   }, [active])
-
-  useEffect(() => {
-    // Selection lives only for the current tab.
-    setSelection(null)
-  }, [activePath])
-
-  const handleMouseUp = () => {
-    const sel = window.getSelection()
-    if (!sel || sel.isCollapsed) {
-      setSelection(null)
-      return
-    }
-    const text = sel.toString()
-    if (!text.trim()) {
-      setSelection(null)
-      return
-    }
-    const range = sel.getRangeAt(0)
-    const code = codeRef.current
-    if (!code) return
-    // Selection must be inside this code block.
-    if (!code.contains(range.commonAncestorContainer)) {
-      setSelection(null)
-      return
-    }
-    const before = code.textContent?.slice(
-      0,
-      code.textContent
-        ? offsetWithin(code, range.startContainer, range.startOffset)
-        : 0,
-    ) ?? ''
-    const startLine = before.split('\n').length
-    const endLine = startLine + text.split('\n').length - 1
-    const rect = range.getBoundingClientRect()
-    const codeRect = code.getBoundingClientRect()
-    setSelection({
-      text,
-      startLine,
-      endLine,
-      rect: {
-        top: rect.top - codeRect.top + code.scrollTop + rect.height + 6,
-        left: rect.left - codeRect.left + code.scrollLeft,
-      },
-    })
-  }
 
   if (tabs.length === 0) {
     return (
@@ -283,7 +236,7 @@ export function FilePanel({
                             endLine: selection.endLine,
                           })
                           window.getSelection()?.removeAllRanges()
-                          setSelection(null)
+                          clearSelection()
                         }}
                       >
                         💬 코멘트로 추가
