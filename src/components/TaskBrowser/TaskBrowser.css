@@ -455,3 +455,65 @@
 .task-detail__error--inline {
   margin: 6px 0 0;
 }
+
+/* WikiSection — 헤더(타이틀 + 새 파일 토글), 새 파일 입력 행, 파일 리스트. */
+.task-detail__wiki-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.task-detail__wiki-title {
+  flex: 1;
+  margin: 0;
+}
+
+.task-detail__wiki-toggle {
+  font-size: 11px;
+}
+
+.task-detail__wiki-new-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.task-detail__wiki-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-detail__wiki-item {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  background: transparent;
+}
+
+.task-detail__wiki-item.is-active {
+  background: #161b22;
+}
+
+.task-detail__wiki-link {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  text-align: left;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-detail__wiki-size {
+  font-size: 10px;
+  color: #6e7681;
+  margin-right: 8px;
+}

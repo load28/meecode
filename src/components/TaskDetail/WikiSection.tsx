@@ -42,31 +42,20 @@ export function WikiSection({
 
   return (
     <div className="task-detail__section">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          marginBottom: 8,
-        }}
-      >
-        <h3
-          className="task-detail__section-title"
-          style={{ flex: 1, margin: 0 }}
-        >
+      <div className="task-detail__wiki-header">
+        <h3 className="task-detail__section-title task-detail__wiki-title">
           Wiki ({files.length})
         </h3>
         <button
           type="button"
-          className="task-panel__btn"
+          className="task-panel__btn task-detail__wiki-toggle"
           onClick={() => setShowNewWikiInput((v) => !v)}
-          style={{ fontSize: 11 }}
         >
           {showNewWikiInput ? '취소' : '+ 새 파일'}
         </button>
       </div>
       {showNewWikiInput && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div className="task-detail__wiki-new-row">
           <input
             className="task-panel__create-input"
             placeholder="파일명 (예: decisions)"
@@ -94,50 +83,30 @@ export function WikiSection({
         <div className="task-detail__section-empty">
           위키 파일이 없습니다.
           <br />
-          <span style={{ fontSize: 11 }}>
+          <span className="task-detail__section-empty-hint">
             Source를 추가하고 위 "정리" 버튼을 누르거나, 직접 새 파일을 만드세요.
           </span>
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <ul className="task-detail__wiki-list">
           {files.map((f) => (
             <li
               key={f.name}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 6,
-                background: activeWiki === f.name ? '#161b22' : 'transparent',
-                marginBottom: 2,
-              }}
+              className={
+                'task-detail__wiki-item' +
+                (activeWiki === f.name ? ' is-active' : '')
+              }
             >
               <button
                 type="button"
+                className="task-detail__wiki-link"
                 onClick={() =>
                   setActiveWiki((cur) => (cur === f.name ? null : f.name))
                 }
-                style={{
-                  flex: 1,
-                  background: 'none',
-                  border: 'none',
-                  color: '#c9d1d9',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  padding: '6px 8px',
-                  fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                  fontSize: 12,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
               >
                 📄 {f.name}
               </button>
-              <span
-                style={{ fontSize: 10, color: '#6e7681', marginRight: 8 }}
-              >
-                {f.size_bytes}B
-              </span>
+              <span className="task-detail__wiki-size">{f.size_bytes}B</span>
             </li>
           ))}
         </ul>
