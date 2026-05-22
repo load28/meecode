@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import type { QaPair } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
 import { type OpenFileFn } from '../ToolViews'
@@ -7,6 +6,7 @@ import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
 import { ANSWER_MAX_HEIGHT_PX, buildPairText } from './helpers'
 import { ThinkingStep, ToolUseStep } from './StepRow'
+import { useClampedAnswer } from './useClampedAnswer'
 import './QaCard.css'
 
 interface Props {
@@ -30,38 +30,10 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
   const { selection, handleMouseUp, clearSelection } = useSelection()
   const hasAnyContent = pair.segments.length > 0
 
-  // Collapse-by-height: the answer body is clamped to ANSWER_MAX_HEIGHT_PX
-  // by default and unfolds when the user opts in. `overflowing` is computed
-  // from the actual rendered height so the toggle button (and bottom fade)
-  // only appears when there's something hidden — a short response stays
-  // clean with no extra chrome.
-  const [expanded, setExpanded] = useState(false)
-  const [overflowing, setOverflowing] = useState(false)
-  const answerRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const el = answerRef.current
-    if (!el) {
-      setOverflowing(false)
-      return
-    }
-    const check = () => {
-      // Compare full content height against the rendered (clamped) height.
-      // +1 absorbs sub-pixel rounding so a card with exactly the max height
-      // doesn't flicker the toggle in and out.
-      setOverflowing(el.scrollHeight > el.clientHeight + 1)
-    }
-    check()
-    const ro = new ResizeObserver(check)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [pair.segments])
-
-  const answerCls = expanded
-    ? 'qa-card__answer qa-card__answer--expanded'
-    : overflowing
-    ? 'qa-card__answer qa-card__answer--clamped'
-    : 'qa-card__answer'
+  // 답변 본체를 ANSWER_MAX_HEIGHT_PX로 잘라두고 사용자가 "더 보기"로
+  // 펼치게 한다. 실제 콘텐츠가 그 높이를 초과할 때만 토글이 노출돼,
+  // 짧은 응답은 추가 chrome 없이 그대로 보인다.
+  const clamp = useClampedAnswer<HTMLDivElement>(pair.segments)
 
   const handleCardCapture = () => {
     if (!onCapture) return
@@ -113,10 +85,12 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
       ) : (
         <>
           <div
-            ref={answerRef}
-            className={answerCls}
+            ref={clamp.ref}
+            className={clamp.className}
             style={
-              expanded ? undefined : { maxHeight: `${ANSWER_MAX_HEIGHT_PX}px` }
+              clamp.expanded
+                ? undefined
+                : { maxHeight: `${ANSWER_MAX_HEIGHT_PX}px` }
             }
             onMouseUp={handleMouseUp}
           >
@@ -177,14 +151,14 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
               />
             )}
           </div>
-          {(overflowing || expanded) && (
+          {(clamp.overflowing || clamp.expanded) && (
             <button
               type="button"
               className="qa-card__toggle"
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
+              onClick={clamp.toggle}
+              aria-expanded={clamp.expanded}
             >
-              {expanded ? '접기 ↑' : '더 보기 ↓'}
+              {clamp.expanded ? '접기 ↑' : '더 보기 ↓'}
             </button>
           )}
         </>
