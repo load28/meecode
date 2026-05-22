@@ -5,9 +5,9 @@ import type {
   MarkdownView,
 } from '../../hooks/useFileTabs'
 import { highlight } from './highlight'
-import { formatBytes } from './utils'
 import { FileTabsBar } from './FileTabsBar'
 import { FileBodyViewer } from './FileBodyViewer'
+import { FileMetaBar } from './FileMetaBar'
 import { useCodeSelection } from './useCodeSelection'
 import './FilePanel.css'
 
@@ -104,77 +104,13 @@ export function FilePanel({
       />
       {active && (
         <div className="file-panel__body">
-          <header className="file-panel__bar">
-            <span className="file-panel__path">{active.path}</span>
-            <span className="file-panel__meta">
-              {active.language} · {formatBytes(active.size)}
-              {active.truncated && ' · ⚠ 일부만 표시'}
-            </span>
-            {active.pending && onSetViewMode && (
-              <div
-                className="file-panel__mode-toggle"
-                role="tablist"
-                aria-label="보기 모드"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active.viewMode === 'diff'}
-                  className={
-                    'file-panel__mode-btn' +
-                    (active.viewMode === 'diff' ? ' is-active' : '')
-                  }
-                  onClick={() => onSetViewMode(active.path, 'diff')}
-                >
-                  Diff
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active.viewMode === 'normal'}
-                  className={
-                    'file-panel__mode-btn' +
-                    (active.viewMode === 'normal' ? ' is-active' : '')
-                  }
-                  onClick={() => onSetViewMode(active.path, 'normal')}
-                >
-                  Original
-                </button>
-              </div>
-            )}
-            {isMarkdown && !showingDiff && onSetMarkdownView && (
-              <div
-                className="file-panel__mode-toggle"
-                role="tablist"
-                aria-label="마크다운 보기 모드"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active.markdownView === 'rendered'}
-                  className={
-                    'file-panel__mode-btn' +
-                    (active.markdownView === 'rendered' ? ' is-active' : '')
-                  }
-                  onClick={() => onSetMarkdownView(active.path, 'rendered')}
-                >
-                  Rendered
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={active.markdownView === 'source'}
-                  className={
-                    'file-panel__mode-btn' +
-                    (active.markdownView === 'source' ? ' is-active' : '')
-                  }
-                  onClick={() => onSetMarkdownView(active.path, 'source')}
-                >
-                  Source
-                </button>
-              </div>
-            )}
-          </header>
+          <FileMetaBar
+            tab={active}
+            isMarkdown={isMarkdown}
+            showingDiff={!!showingDiff}
+            onSetViewMode={onSetViewMode}
+            onSetMarkdownView={onSetMarkdownView}
+          />
           {active.loading && (
             <div className="file-panel__loading">불러오는 중…</div>
           )}
