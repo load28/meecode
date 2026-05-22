@@ -23,12 +23,17 @@
  * its own command panel without going through the CLI.
  */
 import { invoke } from '@tauri-apps/api/core'
-import type { Mode, QaPair } from '../types'
+import type { QaPair } from '../types'
 import {
   getTabSnapshot,
   setTab,
   type TabSession,
 } from '../state/sessionStore'
+import { modeToClaude, parsePermissionsArg } from '../utils/permissionMode'
+
+// Re-exported so existing importers (useClaudeSession, tests) keep working
+// without having to update their paths.
+export { modeToClaude, parsePermissionsArg }
 
 export interface ParsedSlash {
   cmd: string
@@ -42,32 +47,6 @@ export function parseSlash(text: string): ParsedSlash | null {
   const m = firstLine.match(/^(\/[A-Za-z][A-Za-z0-9:_-]*)(?:\s+([\s\S]*))?$/)
   if (!m) return null
   return { cmd: m[1].toLowerCase(), args: (m[2] ?? '').trim() }
-}
-
-export function parsePermissionsArg(s: string): Mode | null {
-  const a = s.toLowerCase()
-  if (a === 'plan' || a === 'plan-mode') return 'plan'
-  if (a === 'default' || a === 'ask') return 'default'
-  if (
-    a === 'acceptedits' ||
-    a === 'accept-edits' ||
-    a === 'accept' ||
-    a === 'auto' ||
-    a === 'auto-accept'
-  )
-    return 'auto-accept'
-  return null
-}
-
-export function modeToClaude(m: Mode): string {
-  switch (m) {
-    case 'default':
-      return 'default'
-    case 'plan':
-      return 'plan'
-    case 'auto-accept':
-      return 'acceptEdits'
-  }
 }
 
 /**
