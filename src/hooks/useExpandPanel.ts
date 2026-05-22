@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QaPair } from '../types'
 import { totalTextChars } from '../utils/segmentHelpers'
-import {
-  PERSISTED_FLAG_KEYS,
-  readPersistedFlag,
-  writePersistedFlag,
-} from '../state/persistedFlags'
+import { PERSISTED_FLAG_KEYS } from '../state/persistedFlags'
+import { usePersistedBoolean } from './usePersistedBoolean'
 
 const AUTO_THRESHOLD = 500
 
@@ -18,20 +15,14 @@ interface UseExpandPanelReturn {
   setAutoExpand: (v: boolean) => void
 }
 
-function readAutoExpand(): boolean {
-  return readPersistedFlag(PERSISTED_FLAG_KEYS.autoExpand, true)
-}
-
 export function useExpandPanel(pairs: QaPair[]): UseExpandPanelReturn {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
-  const [autoExpand, setAutoExpandState] = useState<boolean>(readAutoExpand)
+  const [autoExpand, setAutoExpand] = usePersistedBoolean(
+    PERSISTED_FLAG_KEYS.autoExpand,
+    true,
+  )
   const lastSeenRef = useRef<string | null>(null)
-
-  const setAutoExpand = useCallback((v: boolean) => {
-    setAutoExpandState(v)
-    writePersistedFlag(PERSISTED_FLAG_KEYS.autoExpand, v)
-  }, [])
 
   const toggleOpen = useCallback(() => {
     setIsOpen((prev) => !prev)

@@ -23,11 +23,8 @@ import { useClaudeSession } from './hooks/useClaudeSession'
 import { useClaudeStatus } from './hooks/useClaudeStatus'
 import { useExpandPanel } from './hooks/useExpandPanel'
 import { SettingsPanel } from './components/SettingsPanel'
-import {
-  PERSISTED_FLAG_KEYS,
-  readPersistedFlag,
-  writePersistedFlag,
-} from './state/persistedFlags'
+import { PERSISTED_FLAG_KEYS } from './state/persistedFlags'
+import { usePersistedBoolean } from './hooks/usePersistedBoolean'
 import { relativeTimeKr, truncateWithEllipsis } from './utils/format'
 import { makeTabId, MAIN_TAB_ID } from './utils/tabId'
 import './App.css'
@@ -647,10 +644,6 @@ interface TabRecord {
   sessionTitle: string | null
 }
 
-function readTasksOpen(): boolean {
-  return readPersistedFlag(PERSISTED_FLAG_KEYS.tasksOpen, false)
-}
-
 function App() {
   const [tabs, setTabs] = useState<TabRecord[]>(() => [
     {
@@ -668,14 +661,10 @@ function App() {
   // Tasks panel open/close is app-wide: toggling it on tab A persists
   // and shows the same state on tab B. Sized by the outer PanelGroup so
   // its width also carries across tabs.
-  const [showTasks, setShowTasksState] = useState<boolean>(readTasksOpen)
-  const setShowTasks = (next: boolean | ((prev: boolean) => boolean)) => {
-    setShowTasksState((prev) => {
-      const resolved = typeof next === 'function' ? next(prev) : next
-      writePersistedFlag(PERSISTED_FLAG_KEYS.tasksOpen, resolved)
-      return resolved
-    })
-  }
+  const [showTasks, setShowTasks] = usePersistedBoolean(
+    PERSISTED_FLAG_KEYS.tasksOpen,
+    false,
+  )
 
   const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0]
 
