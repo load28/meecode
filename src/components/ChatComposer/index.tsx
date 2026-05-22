@@ -11,8 +11,7 @@ import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
 import { ComposerCard } from './ComposerCard'
 import { ComposerNotices } from './ComposerNotices'
-import { SlashMenu } from './SlashMenu'
-import { MentionMenu } from './MentionMenu'
+import { ComposerMenus } from './ComposerMenus'
 import { ClaudeWarning } from './ClaudeWarning'
 import { tryNewlineInsert } from './newlineInsert'
 import { handleEscape } from './escapeHandler'
@@ -227,24 +226,7 @@ export function ChatComposer({
         error={error}
         showEscClearHint={escClear.hintVisible && !busy}
       />
-      {slashMenu.show && slashMenu.items.length > 0 && !mentionMenu.state && (
-        <SlashMenu
-          ref={slashMenu.listRef}
-          items={slashMenu.items}
-          selectedIndex={slashMenu.selectedIndex}
-          onHover={slashMenu.setSelectedIndex}
-          onSelect={slashMenu.select}
-        />
-      )}
-      {mentionMenu.state && mentionMenu.results.length > 0 && (
-        <MentionMenu
-          ref={mentionMenu.listRef}
-          results={mentionMenu.results}
-          selectedIndex={mentionMenu.selectedIndex}
-          onHover={mentionMenu.setSelectedIndex}
-          onSelect={mentionMenu.select}
-        />
-      )}
+      <ComposerMenus slash={slashMenu} mention={mentionMenu} />
       <ComposerCard
         value={value}
         cardDisabled={disabled && !busy}
