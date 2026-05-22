@@ -9,6 +9,7 @@ import { WikiEditor } from '../WikiEditor'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
 import { SourcesSection } from './SourcesSection'
+import { OrganizeSection } from './OrganizeSection'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -51,8 +52,6 @@ export function TaskDetail({
   const wiki = useTaskWiki(taskId)
   const organize = useTaskOrganize(taskId)
   const [attachBusy, setAttachBusy] = useState(false)
-  const [organizeBusy, setOrganizeBusy] = useState(false)
-  const [organizeError, setOrganizeError] = useState<string | null>(null)
   const [activeWiki, setActiveWiki] = useState<string | null>(null)
   const [newWikiName, setNewWikiName] = useState('')
   const [showNewWikiInput, setShowNewWikiInput] = useState(false)
@@ -85,17 +84,6 @@ export function TaskDetail({
     }
     await deleteTask(task.id)
     onDeleted?.()
-  }
-
-  const handleStartOrganize = async () => {
-    setOrganizeBusy(true)
-    setOrganizeError(null)
-    try {
-      const err = await organize.start()
-      if (err) setOrganizeError(err)
-    } finally {
-      setOrganizeBusy(false)
-    }
   }
 
   const handleNewWiki = async () => {
@@ -179,58 +167,13 @@ export function TaskDetail({
             onDelete={(id) => void deleteSource(id)}
             formatTimestamp={formatTs}
           />
-          <div className="task-detail__section">
-            <h3 className="task-detail__section-title">
-              정리 (Organize)
-            </h3>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
-                type="button"
-                className="task-panel__btn task-panel__btn--primary"
-                onClick={handleStartOrganize}
-                disabled={
-                  organizeBusy ||
-                  organize.status === 'running' ||
-                  (organize.preview?.unprocessed_count ?? 0) === 0
-                }
-                title={
-                  organize.preview?.resume_session_id
-                    ? '기존 Claude Code 세션을 resume — 캐시 활용'
-                    : '새 Claude Code 세션 시작'
-                }
-              >
-                {organize.status === 'running'
-                  ? '🔄 정리 중...'
-                  : `🪄 정리 (${organize.preview?.unprocessed_count ?? 0}개 새 source)`}
-              </button>
-              {organize.status === 'running' && (
-                <button
-                  type="button"
-                  className="task-panel__btn"
-                  onClick={() => {
-                    void organize.cancel()
-                  }}
-                >
-                  취소
-                </button>
-              )}
-              {organize.preview?.resume_session_id && (
-                <span style={{ fontSize: 10, color: '#6e7681' }}>
-                  ↺ 캐시 가능
-                </span>
-              )}
-            </div>
-            {organize.lastNote && (
-              <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6 }}>
-                {organize.lastNote}
-              </div>
-            )}
-            {organizeError && (
-              <div className="task-detail__error" style={{ margin: '6px 0 0' }}>
-                {organizeError}
-              </div>
-            )}
-          </div>
+          <OrganizeSection
+            status={organize.status}
+            preview={organize.preview}
+            lastNote={organize.lastNote}
+            onStart={organize.start}
+            onCancel={organize.cancel}
+          />
           <div className="task-detail__section">
             <div
               style={{
