@@ -6,6 +6,7 @@ import {
   useTaskWiki,
 } from '../../hooks/useTasks'
 import { WikiEditor } from '../WikiEditor'
+import { TaskDetailHeader } from './TaskDetailHeader'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -127,29 +128,11 @@ export function TaskDetail({
 
   return (
     <div className="task-panel">
-      <div className="task-panel__header">
-        <button
-          type="button"
-          className="task-panel__back"
-          onClick={onBack}
-          aria-label="목록으로"
-        >
-          ←
-        </button>
-        <h2 className="task-panel__title">
-          {task?.name ?? (loading ? '불러오는 중...' : 'Task')}
-        </h2>
-        {onClose && (
-          <button
-            type="button"
-            className="task-panel__close"
-            onClick={onClose}
-            aria-label="패널 닫기"
-          >
-            ×
-          </button>
-        )}
-      </div>
+      <TaskDetailHeader
+        title={task?.name ?? (loading ? '불러오는 중...' : 'Task')}
+        onBack={onBack}
+        onClose={onClose}
+      />
       {error && <div className="task-detail__error">{error}</div>}
       {task && (
         <>
