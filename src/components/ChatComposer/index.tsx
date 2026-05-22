@@ -151,57 +151,11 @@ export function ChatComposer({
     if (composing && e.key !== 'Escape') {
       return
     }
-    if (slashMenu.show && slashMenu.items.length > 0 && !mentionMenu.state) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        slashMenu.setSelectedIndex((i) =>
-          Math.min(i + 1, slashMenu.items.length - 1),
-        )
-        return
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        slashMenu.setSelectedIndex((i) => Math.max(i - 1, 0))
-        return
-      }
-      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
-        e.preventDefault()
-        const pick =
-          slashMenu.items[
-            Math.min(slashMenu.selectedIndex, slashMenu.items.length - 1)
-          ]
-        if (pick) slashMenu.select(pick.name)
-        return
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        slashMenu.setShow(false)
-        return
-      }
-    }
-    if (mentionMenu.state && mentionMenu.results.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        mentionMenu.setSelectedIndex((i) =>
-          Math.min(i + 1, mentionMenu.results.length - 1),
-        )
-        return
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        mentionMenu.setSelectedIndex((i) => Math.max(i - 1, 0))
-        return
-      }
-      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
-        e.preventDefault()
-        const pick =
-          mentionMenu.results[
-            Math.min(mentionMenu.selectedIndex, mentionMenu.results.length - 1)
-          ]
-        if (pick) mentionMenu.select(pick)
-        return
-      }
-    }
+    // 멘션이 활성이면 그쪽이 우선 — 원래 slash 분기에 !mentionMenu.state
+    // 가드가 있었던 것과 동일한 순서. 멘션이 비활성이고 슬래시가 열려있을
+    // 때에만 슬래시 키 처리가 일어난다.
+    if (mentionMenu.handleKeyDown(e)) return
+    if (slashMenu.handleKeyDown(e)) return
     if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault()
       cycleMode()

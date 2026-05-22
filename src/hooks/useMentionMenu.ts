@@ -25,6 +25,11 @@ export interface UseMentionMenuResult {
   close: () => void
   /** 후보를 선택해 textarea의 `@<query>` 토큰을 `@<path> `로 교체. */
   select: (path: string) => void
+  /**
+   * textarea onKeyDown에서 호출. 멘션 메뉴가 열려있고 키가 메뉴에 속하면
+   * 처리 후 true를 반환. ESC는 닫기, 화살표는 인덱스 이동, Enter/Tab은 선택.
+   */
+  handleKeyDown: (e: React.KeyboardEvent) => boolean
 }
 
 function detectMention(text: string, caret: number): MentionState | null {
@@ -124,6 +129,27 @@ export function useMentionMenu({
     [state, value, setValue, textareaRef],
   )
 
+  const handleKeyDown = (e: React.KeyboardEvent): boolean => {
+    if (!state || results.length === 0) return false
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.min(i + 1, results.length - 1))
+      return true
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.max(i - 1, 0))
+      return true
+    }
+    if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+      e.preventDefault()
+      const pick = results[Math.min(selectedIndex, results.length - 1)]
+      if (pick) select(pick)
+      return true
+    }
+    return false
+  }
+
   return {
     state,
     results,
@@ -133,5 +159,6 @@ export function useMentionMenu({
     detect,
     close,
     select,
+    handleKeyDown,
   }
 }

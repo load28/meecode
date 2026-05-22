@@ -54,6 +54,12 @@ export interface UseSlashMenuResult {
   setSelectedIndex: React.Dispatch<React.SetStateAction<number>>
   /** 사용자가 명령을 선택했을 때 호출. value 갱신과 menu 닫기를 한다. */
   select: (cmd: string) => void
+  /**
+   * textarea의 onKeyDown에서 호출. 메뉴가 열려 있고 키가 메뉴에 해당하면
+   * preventDefault + 내부 동작을 처리하고 `true`를 반환한다(이때 호출자는
+   * 더 이상 다른 분기를 보지 않는다). 그 외에는 `false`.
+   */
+  handleKeyDown: (e: React.KeyboardEvent) => boolean
 }
 
 interface Options {
@@ -101,6 +107,32 @@ export function useSlashMenu({
     setShow(false)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent): boolean => {
+    if (!show || items.length === 0) return false
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.min(i + 1, items.length - 1))
+      return true
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.max(i - 1, 0))
+      return true
+    }
+    if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+      e.preventDefault()
+      const pick = items[Math.min(selectedIndex, items.length - 1)]
+      if (pick) select(pick.name)
+      return true
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setShow(false)
+      return true
+    }
+    return false
+  }
+
   return {
     show,
     selectedIndex,
@@ -109,5 +141,6 @@ export function useSlashMenu({
     setShow,
     setSelectedIndex,
     select,
+    handleKeyDown,
   }
 }
