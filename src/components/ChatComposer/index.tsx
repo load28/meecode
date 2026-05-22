@@ -7,6 +7,7 @@ import {
 } from '../../hooks/clientSlash'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
+import { useTextHistory } from '../../hooks/useTextHistory'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -101,7 +102,7 @@ export function ChatComposer({
     onDrop,
     onFileInputChange,
   } = useImageAttachments()
-  const [historyIdx, setHistoryIdx] = useState<number | null>(null)
+  const history = useTextHistory(recentUserTexts)
   const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
@@ -243,29 +244,12 @@ export function ChatComposer({
       clearImages()
       setShowSlash(false)
       setMention(null)
-      setHistoryIdx(null)
+      history.reset()
       selectionsRef.current.clear()
       selectionCounterRef.current = 0
     } catch (e) {
       setError(String(e))
     }
-  }
-
-  // Cursor positional helpers — used by Up/Down to decide between in-text
-  // cursor movement (the textarea's native behavior) and history paging.
-  // Matches the CLI's useTextInput up/downOrHistory: only fall through to
-  // history when the cursor genuinely can't move further within the text.
-  const isCursorAtFirstLine = (): boolean => {
-    const ta = textareaRef.current
-    if (!ta) return true
-    const caret = ta.selectionStart ?? 0
-    return value.indexOf('\n') === -1 || value.lastIndexOf('\n', caret - 1) === -1
-  }
-  const isCursorAtLastLine = (): boolean => {
-    const ta = textareaRef.current
-    if (!ta) return true
-    const caret = ta.selectionEnd ?? value.length
-    return value.indexOf('\n', caret) === -1
   }
 
   const detectMention = (text: string, caret: number): MentionState | null => {
@@ -372,37 +356,7 @@ export function ChatComposer({
     // History navigation — only when cursor genuinely can't move further
     // within the textarea. Mirrors CLI useTextInput.upOrHistoryUp /
     // downOrHistoryDown so multi-line drafts behave as users expect.
-    if (
-      e.key === 'ArrowUp' &&
-      !e.shiftKey &&
-      recentUserTexts &&
-      recentUserTexts.length > 0 &&
-      historyIdx === null &&
-      isCursorAtFirstLine()
-    ) {
-      e.preventDefault()
-      const lastIdx = recentUserTexts.length - 1
-      setHistoryIdx(lastIdx)
-      setValue(recentUserTexts[lastIdx])
-      return
-    }
-    if (e.key === 'ArrowUp' && historyIdx !== null && historyIdx > 0 && isCursorAtFirstLine()) {
-      e.preventDefault()
-      const next = historyIdx - 1
-      setHistoryIdx(next)
-      setValue(recentUserTexts![next])
-      return
-    }
-    if (e.key === 'ArrowDown' && historyIdx !== null && isCursorAtLastLine()) {
-      e.preventDefault()
-      if (historyIdx < (recentUserTexts?.length ?? 0) - 1) {
-        const next = historyIdx + 1
-        setHistoryIdx(next)
-        setValue(recentUserTexts![next])
-      } else {
-        setHistoryIdx(null)
-        setValue('')
-      }
+    if (history.tryNavigate(e, textareaRef.current, value, setValue)) {
       return
     }
     if (e.key === 'Escape') {
@@ -428,7 +382,7 @@ export function ChatComposer({
         e.preventDefault()
         if (escClear.press()) {
           setValue('')
-          setHistoryIdx(null)
+          history.reset()
           selectionsRef.current.clear()
           selectionCounterRef.current = 0
         }
@@ -511,7 +465,7 @@ export function ChatComposer({
     setSlashIdx(0)
     setMention(detectMention(v, caret))
     setMentionIdx(0)
-    setHistoryIdx(null)
+    history.reset()
     // Any further typing disarms the double-ESC clear (CLI parity).
     escClear.reset()
   }
