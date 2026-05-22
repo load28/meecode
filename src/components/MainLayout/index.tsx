@@ -7,6 +7,7 @@ import { ExpandPane } from '../ExpandPane'
 import { FilePanel } from '../FilePanel'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
+import { QueueList } from './QueueList'
 import { TaskBrowser } from '../TaskBrowser'
 import { TaskPicker, type CaptureDraft } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
@@ -272,26 +273,7 @@ export function MainLayout({
                       respondTool(reqId, allow, tuId, effective, denialMessage)
                     }}
                   />
-                  {queue.length > 0 && (
-                    <div className="app__queue">
-                      <div className="app__queue-label">
-                        ⏳ 큐에 대기 중 ({queue.length})
-                      </div>
-                      {queue.map((q) => (
-                        <div key={q.id} className="app__queue-item">
-                          <span className="app__queue-text">{q.text || '🖼'}</span>
-                          <button
-                            type="button"
-                            className="app__queue-remove"
-                            onClick={() => removeQueued(q.id)}
-                            title="큐에서 제거"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <QueueList queue={queue} onRemove={removeQueued} />
                   <ChatComposer
                     mode={mode}
                     disabled={pendingTool !== null}
