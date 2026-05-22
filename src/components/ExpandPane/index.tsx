@@ -1,11 +1,11 @@
 import { useSelection } from '../../hooks/useSelection'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
 import { CommentFloat } from '../CommentFloat'
-import { StatusIndicator, computeTurnIndicator } from '../StatusIndicator'
 import { type OpenFileFn } from '../ToolViews'
 import type { QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
 import { ExpandSegmentView } from './ExpandSegmentView'
+import { StreamingIndicatorFooter } from './StreamingIndicatorFooter'
 import './ExpandPane.css'
 
 interface Props {
@@ -132,28 +132,13 @@ export function ExpandPane({
             메인에서 '전체보기'를 눌러 답변을 펼쳐보세요
           </div>
         )}
-        {(() => {
-          // Streaming indicator footer — visibility/override come from the
-          // session-level in-flight pair (tail of `pairs`), not the user's
-          // currently-expanded pair. Lives outside the `pair` conditional so
-          // it surfaces even when no card has been selected yet (right pane
-          // just opened during streaming).
-          if (!pairs || pairs.length === 0) return null
-          const { show, override } = computeTurnIndicator(
-            pairs,
-            pendingTool ?? null,
-            turnInProgress ?? false,
-          )
-          if (!show) return null
-          return (
-            <StatusIndicator
-              override={override}
-              taskActivity={taskActivity ?? null}
-              hookActivity={hookActivity ?? null}
-              className="status-indicator--inline"
-            />
-          )
-        })()}
+        <StreamingIndicatorFooter
+          pairs={pairs}
+          pendingTool={pendingTool}
+          turnInProgress={turnInProgress}
+          taskActivity={taskActivity}
+          hookActivity={hookActivity}
+        />
       </div>
     </aside>
   )
