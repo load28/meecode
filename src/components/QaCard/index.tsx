@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { QaPair } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
-import { FilePath, type OpenFileFn } from '../ToolViews'
+import { type OpenFileFn } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
-import {
-  ANSWER_MAX_HEIGHT_PX,
-  FILE_PATH_TOOLS,
-  buildPairText,
-  pendingFromSegment,
-  thinkingLabel,
-} from './helpers'
+import { ANSWER_MAX_HEIGHT_PX, buildPairText } from './helpers'
+import { ThinkingStep, ToolUseStep } from './StepRow'
 import './QaCard.css'
 
 interface Props {
@@ -145,39 +140,15 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
                 )
               }
               if (seg.kind === 'thinking') {
-                return (
-                  <div key={i} className="qa-card__step">
-                    <span className="qa-card__step-dot" aria-hidden="true" />
-                    <span className="qa-card__step-label">{thinkingLabel(seg)}</span>
-                  </div>
-                )
+                return <ThinkingStep key={i} segment={seg} />
               }
               if (seg.kind === 'tool_use') {
-                const isFilePath = FILE_PATH_TOOLS.has(seg.name) && seg.summary
-                // For Edit/Write/MultiEdit, ferry the proposed change along
-                // with the open call so the FilePanel can default to a diff
-                // view (Cursor-IDE style) instead of just showing the
-                // current on-disk contents.
-                const pending = isFilePath ? pendingFromSegment(seg) : null
-                const handleOpen = (p: string) => {
-                  onOpenFile?.(p, pending ? { pending } : undefined)
-                }
                 return (
-                  <div key={i} className="qa-card__step">
-                    <span className="qa-card__step-dot" aria-hidden="true" />
-                    <span className="qa-card__step-tool">{seg.name}</span>
-                    {isFilePath ? (
-                      <FilePath
-                        path={seg.summary}
-                        onOpen={onOpenFile ? handleOpen : undefined}
-                        className="qa-card__step-arg qa-card__step-arg--link"
-                      />
-                    ) : (
-                      seg.summary && (
-                        <span className="qa-card__step-arg">{seg.summary}</span>
-                      )
-                    )}
-                  </div>
+                  <ToolUseStep
+                    key={i}
+                    segment={seg}
+                    onOpenFile={onOpenFile}
+                  />
                 )
               }
               if (seg.kind === 'text' || seg.kind === 'plan') {
