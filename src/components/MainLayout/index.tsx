@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
 import { InnerPanelGroup } from './InnerPanelGroup'
 import { TaskBrowser } from '../TaskBrowser'
-import { TaskPicker, type CaptureDraft } from '../TaskPicker'
+import { TaskPicker } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
 import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
@@ -15,6 +15,7 @@ import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
 import { useSessionSwitchOnMount } from '../../hooks/useSessionSwitchOnMount'
 import { useSyncEffect } from '../../hooks/useSyncEffect'
+import { useCapturePicker } from '../../hooks/useCapturePicker'
 
 export interface MainLayoutProps {
   tabId: string
@@ -102,24 +103,9 @@ export function MainLayout({
   // placeholder. `source` is set when the selection came from the file
   // panel (so the expanded block can carry a `// path:lines` header).
   const selection = usePendingSelection()
-  // QaCard's capture button / CommentFloat's 📥 button push a draft here;
-  // TaskPicker (mounted below) reads it and writes the resulting Source.
-  // null = picker hidden.
-  const [pendingCapture, setPendingCapture] = useState<CaptureDraft | null>(null)
-
-  const handleCapture = (input: {
-    kind: 'qa_block' | 'selection'
-    content: string
-    qaId: string
-  }) => {
-    setPendingCapture({
-      kind: input.kind,
-      content: input.content,
-      sessionId: sessionId ?? null,
-      qaId: input.qaId,
-      projectPath,
-    })
-  }
+  // QaCard's capture button / CommentFloat's 📥 button drive this hook;
+  // TaskPicker (mounted below) reads `draft` to know when to open.
+  const capture = useCapturePicker({ sessionId, projectPath })
 
   const taskAttach = useTaskAttach({
     sessionId,
@@ -208,7 +194,7 @@ export function MainLayout({
                 void detach()
               }}
               selection={selection}
-              onCapture={handleCapture}
+              onCapture={capture.open}
               onExpand={handleExpand}
               onOpenFile={handleOpenFile}
               onOpenSettings={onOpenSettings}
@@ -230,11 +216,8 @@ export function MainLayout({
           )}
         </PanelGroup>
       </div>
-      {pendingCapture && (
-        <TaskPicker
-          draft={pendingCapture}
-          onClose={() => setPendingCapture(null)}
-        />
+      {capture.draft && (
+        <TaskPicker draft={capture.draft} onClose={capture.close} />
       )}
     </div>
   )
