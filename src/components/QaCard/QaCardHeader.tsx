@@ -1,4 +1,5 @@
 import { makePreview } from '../../utils/segmentHelpers'
+import { INTERRUPTED_BY_USER } from '../../utils/messages'
 
 interface Props {
   text: string
@@ -14,7 +15,7 @@ export function QaCardHeader({ text, interrupted }: Props) {
       {interrupted && (
         <span
           className="qa-card__interrupted-badge"
-          title="사용자에 의해 응답이 중단됨"
+          title={INTERRUPTED_BY_USER}
         >
           중단됨
         </span>

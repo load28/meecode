@@ -1,5 +1,6 @@
 import type { AssistantSegment } from '../../types'
 import { useSmoothedText } from '../../hooks/useSmoothedText'
+import { INTERRUPTED_BY_USER } from '../../utils/messages'
 import { MarkdownContent } from './MarkdownContent'
 
 const TOOL_RESULT_PREVIEW_CHARS = 400
@@ -118,7 +119,7 @@ export function InterruptedSegment() {
   return (
     <div className="message-bubble__interrupted" role="note">
       <span aria-hidden="true">⛔</span>
-      <span>사용자에 의해 응답이 중단됨</span>
+      <span>{INTERRUPTED_BY_USER}</span>
     </div>
   )
 }

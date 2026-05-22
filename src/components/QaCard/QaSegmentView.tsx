@@ -2,6 +2,7 @@ import type { AssistantSegment } from '../../types'
 import { renderMarkdown, SegmentView } from '../MessageBubble'
 import { type OpenFileFn } from '../ToolViews'
 import { makePreview } from '../../utils/segmentHelpers'
+import { INTERRUPTED_BY_USER } from '../../utils/messages'
 import { ThinkingStep, ToolUseStep } from './StepRow'
 
 interface Props {
@@ -25,7 +26,7 @@ export function QaSegmentView({ segment, onOpenFile }: Props) {
     return (
       <div className="qa-card__interrupted" role="note">
         <span aria-hidden="true">⛔</span>
-        <span>사용자에 의해 응답이 중단됨</span>
+        <span>{INTERRUPTED_BY_USER}</span>
       </div>
     )
   }
