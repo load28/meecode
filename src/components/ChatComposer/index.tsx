@@ -6,6 +6,7 @@ import { useTextHistory } from '../../hooks/useTextHistory'
 import { useSelectionPlaceholders } from '../../hooks/useSelectionPlaceholders'
 import { useSlashMenu } from '../../hooks/useSlashMenu'
 import { useMentionMenu } from '../../hooks/useMentionMenu'
+import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { AttachmentsStrip } from './AttachmentsStrip'
 import { ComposerToolbar } from './ComposerToolbar'
 import { SlashMenu } from './SlashMenu'
@@ -103,14 +104,7 @@ export function ChatComposer({
     projectPath,
   })
 
-  // Auto-grow the textarea up to a max height.
-  useEffect(() => {
-    const ta = textareaRef.current
-    if (!ta) return
-    ta.style.height = 'auto'
-    const next = Math.min(ta.scrollHeight, 280)
-    ta.style.height = next + 'px'
-  }, [value])
+  useTextareaAutoGrow(textareaRef, value)
 
   // Global ESC interrupt — fires when focus is NOT on the textarea, so
   // ESC still cancels a turn even when the user clicked elsewhere (a
