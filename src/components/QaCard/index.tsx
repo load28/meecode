@@ -7,6 +7,8 @@ import { CommentFloat } from '../CommentFloat'
 import { ANSWER_MAX_HEIGHT_PX, buildPairText } from './helpers'
 import { ThinkingStep, ToolUseStep } from './StepRow'
 import { useClampedAnswer } from './useClampedAnswer'
+import { QaCardActions } from './QaCardActions'
+import { QaCardHeader } from './QaCardHeader'
 import './QaCard.css'
 
 interface Props {
@@ -48,37 +50,11 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
 
   return (
     <article className="qa-card">
-      <div className="qa-card__actions">
-        {onCapture && (
-          <button
-            type="button"
-            className="qa-card__capture-btn"
-            aria-label="이 답변을 Task에 캡처"
-            title="이 답변을 Task에 캡처"
-            onClick={handleCardCapture}
-          >
-            📥
-          </button>
-        )}
-        <button
-          type="button"
-          className="qa-card__expand-btn"
-          aria-label="대화 전체보기"
-          title="대화 전체보기"
-          onClick={onExpand}
-        >
-          ⤢
-        </button>
-      </div>
-      <header className="qa-card__question">
-        <span className="qa-card__question-label">Q</span>
-        <span className="qa-card__question-text">{makePreview(pair.user_text)}</span>
-        {pair.interrupted && (
-          <span className="qa-card__interrupted-badge" title="사용자에 의해 응답이 중단됨">
-            중단됨
-          </span>
-        )}
-      </header>
+      <QaCardActions
+        onCapture={onCapture ? handleCardCapture : undefined}
+        onExpand={onExpand}
+      />
+      <QaCardHeader text={pair.user_text} interrupted={!!pair.interrupted} />
 
       {!hasAnyContent ? (
         <div className="qa-card__pending">응답 대기 중…</div>
