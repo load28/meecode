@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTasks } from '../../hooks/useTasks'
 import type { Source, TaskSummary } from '../../types/task'
 import { TaskList } from './TaskList'
+import { useTaskCapture } from './useTaskCapture'
 import './TaskPicker.css'
 
 /** A pending capture — the content + origin gathered at the click site,
@@ -29,10 +30,17 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
   const { tasks, loaded, refresh, createTask, createSource } = useTasks()
   const [query, setQuery] = useState('')
   const [newName, setNewName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [focusIdx, setFocusIdx] = useState(0)
   const searchRef = useRef<HTMLInputElement | null>(null)
+  const capture = useTaskCapture({
+    draft,
+    tasks,
+    createTask,
+    createSource,
+    onCaptured,
+    onClose,
+  })
+  const { submitting, error, captureInto, createAndCapture } = capture
 
   // Fresh open: ensure list is fresh and focus the filter.
   useEffect(() => {
@@ -55,68 +63,6 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
     if (focusIdx >= filtered.length) setFocusIdx(Math.max(0, filtered.length - 1))
   }, [filtered.length, focusIdx])
 
-  const captureInto = async (taskId: string) => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      const created = await createSource({
-        taskId,
-        kind: draft.kind,
-        content: draft.content,
-        sessionId: draft.sessionId,
-        qaId: draft.qaId,
-        projectPath: draft.projectPath,
-      })
-      if (!created) {
-        setError('Source 생성에 실패했습니다.')
-        return
-      }
-      const task = tasks.find((t) => t.id === taskId)
-      if (task && onCaptured) onCaptured(created, task)
-      onClose()
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleCreateAndCapture = async () => {
-    const name = newName.trim()
-    if (!name) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      const t = await createTask(name)
-      if (!t) {
-        setError('Task 생성에 실패했습니다.')
-        return
-      }
-      // Reuse captureInto's flow but bypass the tasks lookup (the store
-      // refresh hasn't completed yet, so `tasks` doesn't include `t`).
-      const src = await createSource({
-        taskId: t.id,
-        kind: draft.kind,
-        content: draft.content,
-        sessionId: draft.sessionId,
-        qaId: draft.qaId,
-        projectPath: draft.projectPath,
-      })
-      if (!src) {
-        setError('Source 생성에 실패했습니다.')
-        return
-      }
-      onCaptured?.(src, {
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        created_at_ms: t.created_at_ms,
-        updated_at_ms: t.updated_at_ms,
-        source_count: 1,
-      })
-      onClose()
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -201,14 +147,14 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  void handleCreateAndCapture()
+                  void createAndCapture(newName)
                 }
               }}
             />
             <button
               type="button"
               className="task-picker__create-btn"
-              onClick={handleCreateAndCapture}
+              onClick={() => void createAndCapture(newName)}
               disabled={submitting || !newName.trim()}
             >
               {submitting ? '...' : '생성 + 캡처'}
