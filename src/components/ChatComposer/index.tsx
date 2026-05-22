@@ -10,6 +10,7 @@ import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
 import { useComposerSubmit } from '../../hooks/useComposerSubmit'
+import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
 import { ComposerCard } from './ComposerCard'
 import { ComposerNotices } from './ComposerNotices'
 import { ComposerMenus } from './ComposerMenus'
@@ -39,12 +40,7 @@ interface Props {
    * gets expanded back into a fenced code block on submit — mirroring how
    * Claude Code's `[Pasted text #N +M lines]` placeholders work.
    */
-  pendingSelection?: {
-    id: number
-    text: string
-    /** Optional `path:lineStart-lineEnd` shown as a `// ...` comment header. */
-    source?: string
-  } | null
+  pendingSelection?: PendingComposerSelection | null
   onSelectionConsumed?: () => void
   claudeReady?: boolean
   onOpenSettings?: () => void
