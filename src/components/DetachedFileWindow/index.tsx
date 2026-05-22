@@ -44,7 +44,3 @@ export function DetachedFileWindow() {
     </div>
   )
 }
-
-// SnippetPayload는 types/composer.ts의 CodeSnippet으로 통합됨 —
-// 외부 import 경로 호환을 위해 alias만 유지.
-export type { CodeSnippet as DetachedSnippet }
