@@ -5,6 +5,7 @@ import {
   CLIENT_SLASH_COMMANDS,
   decorateServerSlash,
 } from '../../hooks/clientSlash'
+import { useImageAttachments } from '../../hooks/useImageAttachments'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -69,13 +70,6 @@ interface Props {
   onOpenSettings?: () => void
 }
 
-interface PendingImage {
-  id: string
-  mediaType: string
-  data: string
-  previewUrl: string
-}
-
 interface MentionState {
   startIndex: number
   query: string
@@ -106,7 +100,16 @@ export function ChatComposer({
   const [mention, setMention] = useState<MentionState | null>(null)
   const [mentionResults, setMentionResults] = useState<string[]>([])
   const [mentionIdx, setMentionIdx] = useState(0)
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const {
+    pendingImages,
+    fileInputRef,
+    openFilePicker,
+    removeImage,
+    clear: clearImages,
+    onPaste,
+    onDrop,
+    onFileInputChange,
+  } = useImageAttachments()
   const [historyIdx, setHistoryIdx] = useState<number | null>(null)
   const [escHint, setEscHint] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -252,7 +255,7 @@ export function ChatComposer({
     try {
       await sendUserMessage(trimmed, images.length > 0 ? images : undefined)
       setValue('')
-      setPendingImages([])
+      clearImages()
       setShowSlash(false)
       setMention(null)
       setHistoryIdx(null)
@@ -278,62 +281,6 @@ export function ChatComposer({
     if (!ta) return true
     const caret = ta.selectionEnd ?? value.length
     return value.indexOf('\n', caret) === -1
-  }
-
-  const ingestFile = async (file: File): Promise<PendingImage | null> => {
-    if (!file.type.startsWith('image/')) return null
-    const buf = await file.arrayBuffer()
-    const bytes = new Uint8Array(buf)
-    let binary = ''
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
-    const base64 = btoa(binary)
-    return {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      mediaType: file.type,
-      data: base64,
-      previewUrl: `data:${file.type};base64,${base64}`,
-    }
-  }
-
-  const onPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = Array.from(e.clipboardData?.items ?? [])
-    const images = items.filter((i) => i.kind === 'file' && i.type.startsWith('image/'))
-    if (images.length === 0) return
-    e.preventDefault()
-    for (const item of images) {
-      const file = item.getAsFile()
-      if (!file) continue
-      const img = await ingestFile(file)
-      if (img) setPendingImages((prev) => [...prev, img])
-    }
-  }
-
-  const onDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(e.dataTransfer.files ?? [])
-    const images = files.filter((f) => f.type.startsWith('image/'))
-    if (images.length === 0) return
-    e.preventDefault()
-    for (const f of images) {
-      const img = await ingestFile(f)
-      if (img) setPendingImages((prev) => [...prev, img])
-    }
-  }
-
-  const removeImage = (id: string) => {
-    setPendingImages((prev) => prev.filter((p) => p.id !== id))
-  }
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const openFilePicker = () => {
-    fileInputRef.current?.click()
-  }
-  const onFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    for (const f of files) {
-      const img = await ingestFile(f)
-      if (img) setPendingImages((prev) => [...prev, img])
-    }
-    e.target.value = ''
   }
 
   const detectMention = (text: string, caret: number): MentionState | null => {
