@@ -3,6 +3,7 @@ import { useTasks } from '../../hooks/useTasks'
 import { TaskDetail } from '../TaskDetail'
 import { CreateTaskForm } from './CreateTaskForm'
 import { TaskBrowserList } from './TaskBrowserList'
+import { useCreateTaskForm } from './useCreateTaskForm'
 import './TaskBrowser.css'
 
 interface Props {
@@ -26,33 +27,10 @@ export function TaskBrowser({
   const { tasks, loaded, createTask, refresh } = useTasks()
   // Two-way view: list <-> detail. Detail mounts when a task is selected.
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDesc, setNewDesc] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const handleCreate = async () => {
-    const name = newName.trim()
-    if (!name) return
-    setSubmitting(true)
-    try {
-      const created = await createTask(name, newDesc.trim() || undefined)
-      if (created) {
-        setNewName('')
-        setNewDesc('')
-        setCreating(false)
-        setSelectedId(created.id)
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleCancelCreate = () => {
-    setCreating(false)
-    setNewName('')
-    setNewDesc('')
-  }
+  const form = useCreateTaskForm({
+    createTask,
+    onCreated: (t) => setSelectedId(t.id),
+  })
 
   if (selectedId) {
     return (
@@ -84,9 +62,9 @@ export function TaskBrowser({
         <button
           type="button"
           className="task-panel__new-btn"
-          onClick={() => setCreating((v) => !v)}
+          onClick={form.toggle}
         >
-          {creating ? '취소' : '+ 새 Task'}
+          {form.open ? '취소' : '+ 새 Task'}
         </button>
         {onClose && (
           <button
@@ -99,15 +77,15 @@ export function TaskBrowser({
           </button>
         )}
       </div>
-      {creating && (
+      {form.open && (
         <CreateTaskForm
-          name={newName}
-          description={newDesc}
-          submitting={submitting}
-          onNameChange={setNewName}
-          onDescriptionChange={setNewDesc}
-          onCancel={handleCancelCreate}
-          onSubmit={() => void handleCreate()}
+          name={form.name}
+          description={form.description}
+          submitting={form.submitting}
+          onNameChange={form.setName}
+          onDescriptionChange={form.setDescription}
+          onCancel={form.cancel}
+          onSubmit={() => void form.submit()}
         />
       )}
       <div className="task-panel__body">
