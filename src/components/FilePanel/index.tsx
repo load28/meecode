@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Prism from 'prismjs'
 import type {
   FileTab,
   FileViewMode,
@@ -7,6 +6,8 @@ import type {
 } from '../../hooks/useFileTabs'
 import { DiffView } from '../DiffView'
 import { MarkdownContent } from '../MessageBubble/MarkdownContent'
+import { highlight, langForPrism } from './highlight'
+import { basename, formatBytes, offsetWithin } from './utils'
 import './FilePanel.css'
 
 interface Props {
@@ -35,31 +36,6 @@ interface SelectionState {
   startLine: number
   endLine: number
   rect: { top: number; left: number }
-}
-
-function langForPrism(lang: string): string {
-  // Map our backend's language label to Prism's component names. Unknown
-  // values fall back to plaintext so highlight() doesn't throw.
-  if (Prism.languages[lang]) return lang
-  return 'plaintext'
-}
-
-function highlight(content: string, lang: string): string {
-  const key = langForPrism(lang)
-  const grammar = Prism.languages[key]
-  if (!grammar) return escapeHtml(content)
-  try {
-    return Prism.highlight(content, grammar, key)
-  } catch {
-    return escapeHtml(content)
-  }
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
 }
 
 export function FilePanel({
@@ -381,27 +357,4 @@ export function FilePanel({
       )}
     </aside>
   )
-}
-
-function basename(p: string): string {
-  const parts = p.split('/')
-  return parts[parts.length - 1] || p
-}
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
-  return `${(n / 1024 / 1024).toFixed(2)} MB`
-}
-
-// Compute the absolute character offset of `(node, offset)` inside `root`.
-function offsetWithin(root: Node, node: Node, offset: number): number {
-  let total = 0
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null)
-  let cur: Node | null
-  while ((cur = walker.nextNode())) {
-    if (cur === node) return total + offset
-    total += (cur.textContent ?? '').length
-  }
-  return total
 }
