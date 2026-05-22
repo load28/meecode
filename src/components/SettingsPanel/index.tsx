@@ -26,6 +26,7 @@ export function SettingsPanel({ open: visible, onClose, status, onChanged }: Pro
         <header className="settings-panel__header">
           <h2>설정</h2>
           <button
+            type="button"
             className="settings-panel__close"
             onClick={onClose}
             aria-label="닫기"

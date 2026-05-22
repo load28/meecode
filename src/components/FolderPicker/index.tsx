@@ -52,6 +52,7 @@ export function FolderPicker({ onStart }: Props) {
           프로젝트 폴더를 선택하면 Claude Code가 해당 디렉토리에서 실행됩니다.
         </p>
         <button
+          type="button"
           className="folder-picker__btn"
           onClick={handleSelect}
           disabled={loading}
