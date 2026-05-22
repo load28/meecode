@@ -14,8 +14,7 @@ import { ComposerCard } from './ComposerCard'
 import { ComposerNotices } from './ComposerNotices'
 import { ComposerMenus } from './ComposerMenus'
 import { ClaudeWarning } from './ClaudeWarning'
-import { tryNewlineInsert } from './newlineInsert'
-import { handleEscape } from './escapeHandler'
+import { useComposerKeyboard } from './useComposerKeyboard'
 import './ChatComposer.css'
 
 interface Props {
@@ -133,59 +132,26 @@ export function ChatComposer({
   })
 
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // IME 가드 — 조합 중일 때는 Enter류 키만 막고 ESC는 통과(조합 취소 +
-    // interrupt를 위해).
-    const composing = ime.isComposingEvent(e)
-    if (composing && e.key !== 'Escape') return
-    // 멘션이 활성이면 그쪽이 우선 — 원래 slash 분기에 !mentionMenu.state
-    // 가드가 있었던 것과 동일한 순서. 멘션이 비활성이고 슬래시가 열려있을
-    // 때에만 슬래시 키 처리가 일어난다.
-    if (mentionMenu.handleKeyDown(e)) return
-    if (slashMenu.handleKeyDown(e)) return
-    if (e.key === 'Tab' && e.shiftKey) {
-      e.preventDefault()
-      cycleMode()
-      return
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L') && onClearConversation) {
-      e.preventDefault()
-      onClearConversation()
-      return
-    }
-    // History navigation — only when cursor genuinely can't move further
-    // within the textarea. Mirrors CLI useTextInput.upOrHistoryUp /
-    // downOrHistoryDown so multi-line drafts behave as users expect.
-    if (history.tryNavigate(e, textareaRef.current, value, setValue)) {
-      return
-    }
-    if (
-      handleEscape(e, {
-        mentionActive: !!mentionMenu.state,
-        closeMention: mentionMenu.close,
-        busy: !!busy,
-        onInterrupt,
-        escClear,
-        hasInput: value.length > 0,
-        onConfirmedClear: () => {
-          setValue('')
-          history.reset()
-          selections.clear()
-        },
-      })
-    ) {
-      return
-    }
-    if (composing) return
-    // Enter 줄바꿈 삽입(backslash+Enter / Alt+Enter / Meta+Enter)을 먼저
-    // 시도 — 처리된 경우 submit으로 흘러가지 않는다.
-    if (tryNewlineInsert(e, textareaRef.current, value, setValue)) return
-    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.altKey) {
-      e.preventDefault()
-      submit()
-      return
-    }
-  }
+  const onKeyDown = useComposerKeyboard({
+    value,
+    setValue,
+    textareaRef,
+    ime,
+    slashMenu,
+    mentionMenu,
+    history,
+    escClear,
+    busy: !!busy,
+    cycleMode,
+    onInterrupt,
+    onClearConversation,
+    onConfirmedEscClear: () => {
+      setValue('')
+      history.reset()
+      selections.clear()
+    },
+    submit,
+  })
 
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value
