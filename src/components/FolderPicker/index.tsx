@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { relativeTimeKr } from '../../utils/format'
+import { logBackendError } from '../../utils/log'
 
 interface RecentProject {
   path: string
@@ -21,7 +22,7 @@ export function FolderPicker({ onStart }: Props) {
   useEffect(() => {
     invoke<RecentProject[]>('list_recent_projects')
       .then(setRecent)
-      .catch((e) => console.warn('[meecode] list_recent_projects failed', e))
+      .catch((e) => logBackendError('meecode', 'list_recent_projects', e))
   }, [])
 
   const startWith = (path: string) => {

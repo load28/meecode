@@ -13,6 +13,7 @@ import {
   type UsageStats,
 } from '../state/sessionStore'
 import { dispatchClientSlash, modeToClaude } from './clientSlash'
+import { logBackendError } from '../utils/log'
 
 export type { AgentInfo, McpServerInfo, TaskActivity, UsageStats }
 
@@ -183,7 +184,7 @@ export function useClaudeSession(
       mode: modeToClaude(next),
       tabId,
     }).catch((e) =>
-      console.warn('[meecode] set_permission_mode failed', e),
+      logBackendError('meecode', 'set_permission_mode', e),
     )
   }, [tabId])
 

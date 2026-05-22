@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { TabDescriptor } from '../components/SessionTabs'
 import { truncateWithEllipsis } from '../utils/format'
 import { makeTabId, MAIN_TAB_ID } from '../utils/tabId'
+import { logBackendError } from '../utils/log'
 
 export interface TabRecord {
   id: string
@@ -111,7 +112,7 @@ export function useTabs(): UseTabsResult {
 
   const closeTab = (id: string) => {
     invoke('close_tab', { tabId: id }).catch((e) =>
-      console.warn('[meecode] close_tab failed', e),
+      logBackendError('meecode', 'close_tab', e),
     )
     setTabs((list) => {
       const next = list.filter((t) => t.id !== id)

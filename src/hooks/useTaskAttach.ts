@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { Source, Task } from '../types/task'
 import { buildTaskContextMessage } from '../utils/taskContext'
+import { logBackendError } from '../utils/log'
 import type { UseSessionBindingsResult } from './useSessionBindings'
 
 interface Options {
@@ -67,7 +68,7 @@ export function useTaskAttach({
         }
         await sendUserMessage(message)
       } catch (e) {
-        console.warn('[tasks] context injection failed', e)
+        logBackendError('tasks', 'context injection', e)
       }
     },
     [sessionId, sessionBindings, sendUserMessage],

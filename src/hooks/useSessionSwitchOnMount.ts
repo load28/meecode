@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { logBackendError } from '../utils/log'
 
 interface Options {
   tabId: string
@@ -31,7 +32,7 @@ export function useSessionSwitchOnMount({
       path: projectPath,
       sessionId: pendingSessionId,
       tabId,
-    }).catch((e) => console.warn('[meecode] switch_session failed', e))
+    }).catch((e) => logBackendError('meecode', 'switch_session', e))
     // mount 시점의 needsSwitch만 본다 — deps는 비워둔다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

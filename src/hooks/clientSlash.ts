@@ -30,6 +30,7 @@ import {
   type TabSession,
 } from '../state/sessionStore'
 import { modeToClaude, parsePermissionsArg } from '../utils/permissionMode'
+import { logBackendError } from '../utils/log'
 
 // Re-exported so existing importers (useClaudeSession, tests) keep working
 // without having to update their paths.
@@ -328,7 +329,7 @@ const handleClear: SlashHandler = async ({ tabId }) => {
   } catch (e) {
     // CLI not running yet (e.g. user fired /clear from an empty
     // folder picker tab) — fine; local state is already reset.
-    console.warn('[meecode] /clear forward to CLI failed', e)
+    logBackendError('meecode', '/clear forward to CLI', e)
   }
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useClickOutside } from '../../hooks/useClickOutside'
+import { logBackendError } from '../../utils/log'
 import { RecentProjectsList, type ProjectInfo } from './RecentProjectsList'
 import './ProjectSwitcher.css'
 
@@ -22,7 +23,7 @@ export function ProjectSwitcher({ currentPath, onSwitch }: Props) {
       const result = await invoke<ProjectInfo[]>('list_recent_projects')
       setProjects(result)
     } catch (e) {
-      console.warn('[meecode] list_recent_projects failed', e)
+      logBackendError('meecode', 'list_recent_projects', e)
     } finally {
       setLoading(false)
     }

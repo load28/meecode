@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useClickOutside } from '../../hooks/useClickOutside'
+import { logBackendError } from '../../utils/log'
 import { SessionList, type SessionInfo } from './SessionList'
 import './SessionSwitcher.css'
 
@@ -28,7 +29,7 @@ export function SessionSwitcher({
       })
       setSessions(result)
     } catch (e) {
-      console.warn('[meecode] list_project_sessions failed', e)
+      logBackendError('meecode', 'list_project_sessions', e)
     } finally {
       setLoading(false)
     }

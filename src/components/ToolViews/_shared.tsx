@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { AssistantSegment } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
+import { logBackendError } from '../../utils/log'
 
 export interface OpenFileOptions {
   pending?: PendingEdit | null
@@ -16,7 +17,7 @@ export interface ToolViewProps {
 
 export function openExternal(path: string) {
   invoke('open_external', { path }).catch((e) =>
-    console.warn('[meecode] open_external failed', e),
+    logBackendError('meecode', 'open_external', e),
   )
 }
 
