@@ -7,6 +7,7 @@ import { ChatComposer } from '../ChatComposer'
 import { ExpandPane } from '../ExpandPane'
 import { FilePanel } from '../FilePanel'
 import { MainHeader } from './MainHeader'
+import { MainBanners } from './MainBanners'
 import { TaskBrowser } from '../TaskBrowser'
 import { TaskPicker, type CaptureDraft } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
@@ -298,28 +299,12 @@ export function MainLayout({
         }}
         onOpenSettings={onOpenSettings}
       />
-      <div className="app__banners">
-        {hookActivity && (
-          <div className="app__hook-banner">⚙ {hookActivity}</div>
-        )}
-        {rateLimit && (
-          <div className="app__rate-limit-banner" role="alert">
-            <span>⚠ {rateLimit}</span>
-            <button
-              type="button"
-              className="app__rate-limit-dismiss"
-              onClick={dismissRateLimit}
-            >
-              닫기
-            </button>
-          </div>
-        )}
-        {turnError && (
-          <div className="app__turn-error-banner" role="status">
-            <span>⚠ {turnError}</span>
-          </div>
-        )}
-      </div>
+      <MainBanners
+        hookActivity={hookActivity}
+        rateLimit={rateLimit}
+        turnError={turnError}
+        onDismissRateLimit={dismissRateLimit}
+      />
       <div className="app__body">
         {/*
           Two nested PanelGroups so panel sizes can have different scopes:
