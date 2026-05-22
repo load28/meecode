@@ -10,6 +10,7 @@ import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
 import { ComposerCard } from './ComposerCard'
+import { ComposerNotices } from './ComposerNotices'
 import { SlashMenu } from './SlashMenu'
 import { MentionMenu } from './MentionMenu'
 import { ClaudeWarning } from './ClaudeWarning'
@@ -222,16 +223,10 @@ export function ChatComposer({
 
   return (
     <div className="chat-composer">
-      {error && (
-        <div role="alert" className="chat-composer__error">
-          {error}
-        </div>
-      )}
-      {escClear.hintVisible && !busy && (
-        <div className="chat-composer__esc-hint" aria-live="polite">
-          Esc 한 번 더 누르면 입력이 지워집니다
-        </div>
-      )}
+      <ComposerNotices
+        error={error}
+        showEscClearHint={escClear.hintVisible && !busy}
+      />
       {slashMenu.show && slashMenu.items.length > 0 && !mentionMenu.state && (
         <SlashMenu
           ref={slashMenu.listRef}
