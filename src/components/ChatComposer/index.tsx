@@ -9,8 +9,7 @@ import { useMentionMenu } from '../../hooks/useMentionMenu'
 import { useTextareaAutoGrow } from '../../hooks/useTextareaAutoGrow'
 import { useGlobalEscapeInterrupt } from '../../hooks/useGlobalEscapeInterrupt'
 import { useImeComposingGuard } from '../../hooks/useImeComposingGuard'
-import { AttachmentsStrip } from './AttachmentsStrip'
-import { ComposerToolbar } from './ComposerToolbar'
+import { ComposerCard } from './ComposerCard'
 import { SlashMenu } from './SlashMenu'
 import { MentionMenu } from './MentionMenu'
 import { ClaudeWarning } from './ClaudeWarning'
@@ -251,47 +250,32 @@ export function ChatComposer({
           onSelect={mentionMenu.select}
         />
       )}
-      <div
-        className={
-          'chat-composer__card' + (disabled && !busy ? ' is-disabled' : '')
-        }
-      >
-        <AttachmentsStrip images={pendingImages} onRemove={removeImage} />
-        <textarea
-          ref={textareaRef}
-          className="chat-composer__textarea"
-          value={value}
-          disabled={composerDisabled}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
-          onDrop={onDrop}
-          onDragOver={(e) => e.preventDefault()}
-          onCompositionStart={ime.onCompositionStart}
-          onCompositionEnd={ime.onCompositionEnd}
-          placeholder={
-            !claudeReady
-              ? 'Claude CLI 경로를 먼저 설정해주세요…'
-              : disabled && !busy
-              ? '도구 승인을 먼저 처리하세요…'
-              : 'Claude에게 메시지 보내기…'
-          }
-          rows={1}
-        />
-        <ComposerToolbar
-          mode={mode}
-          model={model}
-          busy={!!busy}
-          disabled={disabled}
-          hasContent={hasContent}
-          sendDisabled={sendDisabled}
-          fileInputRef={fileInputRef}
-          onFileInputChange={onFileInputChange}
-          onOpenFilePicker={openFilePicker}
-          onCycleMode={cycleMode}
-          onSendClick={onSendClick}
-        />
-      </div>
+      <ComposerCard
+        value={value}
+        cardDisabled={disabled && !busy}
+        textareaDisabled={composerDisabled}
+        sendDisabled={sendDisabled}
+        busy={!!busy}
+        disabled={disabled}
+        hasContent={hasContent}
+        mode={mode}
+        model={model}
+        pendingImages={pendingImages}
+        claudeReady={claudeReady}
+        textareaRef={textareaRef}
+        fileInputRef={fileInputRef}
+        onRemoveImage={removeImage}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        onPaste={onPaste}
+        onDrop={onDrop}
+        onCompositionStart={ime.onCompositionStart}
+        onCompositionEnd={ime.onCompositionEnd}
+        onFileInputChange={onFileInputChange}
+        onOpenFilePicker={openFilePicker}
+        onCycleMode={cycleMode}
+        onSendClick={onSendClick}
+      />
       {!claudeReady && <ClaudeWarning onOpenSettings={onOpenSettings} />}
     </div>
   )
