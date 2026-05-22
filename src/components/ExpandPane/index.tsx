@@ -4,6 +4,7 @@ import { CommentFloat } from '../CommentFloat'
 import { type OpenFileFn } from '../ToolViews'
 import type { QaPair, ToolRequest } from '../../types'
 import type { TaskActivity } from '../../state/sessionStore'
+import { ExpandPaneHeader } from './ExpandPaneHeader'
 import { ExpandSegmentView } from './ExpandSegmentView'
 import { StreamingIndicatorFooter } from './StreamingIndicatorFooter'
 import './ExpandPane.css'
@@ -34,13 +35,6 @@ interface Props {
   }) => void
 }
 
-function formatTime(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
 export function ExpandPane({
   pair,
   isOpen,
@@ -69,23 +63,10 @@ export function ExpandPane({
 
   return (
     <aside className="expand-pane" aria-expanded={true}>
-      <header className="expand-pane__header">
-        <button
-          type="button"
-          className="expand-pane__toggle"
-          aria-label="펼쳐보기 패널 접기"
-          onClick={onToggle}
-        >
-          ▶
-        </button>
-        <div className="expand-pane__title">
-          {pair ? (
-            <span className="expand-pane__time">{formatTime(pair.timestamp)}</span>
-          ) : (
-            <span className="expand-pane__title-empty">펼쳐보기</span>
-          )}
-        </div>
-      </header>
+      <ExpandPaneHeader
+        timestamp={pair?.timestamp ?? null}
+        onToggle={onToggle}
+      />
       <div
         ref={bodyRef}
         className="expand-pane__body"
