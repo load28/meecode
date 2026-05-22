@@ -8,6 +8,7 @@ import {
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { AttachmentsStrip } from './AttachmentsStrip'
+import { ComposerToolbar } from './ComposerToolbar'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -24,20 +25,6 @@ const FALLBACK_SLASH: ReadonlyArray<{ name: string; description?: string }> = [
   { name: '/review', description: '코드 리뷰' },
   { name: '/security-review', description: '보안 리뷰' },
 ]
-
-const MODE_LABEL: Record<Mode, string> = {
-  default: '⏎ 기본',
-  plan: '📋 Plan',
-  'auto-accept': '⚡ Auto',
-}
-
-const MODEL_DISPLAY_NAME = (model: string | null | undefined): string => {
-  if (!model) return '기본'
-  if (model.includes('opus')) return 'Opus 4.7'
-  if (model.includes('sonnet')) return 'Sonnet 4.6'
-  if (model.includes('haiku')) return 'Haiku 4.5'
-  return model
-}
 
 interface Props {
   mode: Mode
@@ -644,58 +631,19 @@ export function ChatComposer({
           }
           rows={1}
         />
-        <div className="chat-composer__toolbar">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={onFileInputChange}
-          />
-          <button
-            type="button"
-            className="chat-composer__icon-btn"
-            onClick={openFilePicker}
-            title="이미지 첨부"
-            aria-label="이미지 첨부"
-            disabled={disabled && !busy}
-          >
-            📎
-          </button>
-          <button
-            type="button"
-            className="chat-composer__chip"
-            data-mode={mode}
-            onClick={() => cycleMode()}
-            title="모드 전환 (Shift+Tab)"
-          >
-            <span>{MODE_LABEL[mode]}</span>
-            <span className="chat-composer__chip-shortcut">⇧⇥</span>
-          </button>
-          <span className="chat-composer__chip chat-composer__chip-model" title="현재 모델">
-            {MODEL_DISPLAY_NAME(model)}
-          </span>
-          <div className="chat-composer__toolbar-spacer" />
-          <button
-            type="button"
-            className={'chat-composer__send' + (busy ? ' is-stop' : '')}
-            onClick={onSendClick}
-            disabled={sendDisabled}
-            title={
-              busy
-                ? '진행 중인 작업 중단 (ESC)'
-                : hasContent
-                ? '전송 (Enter)'
-                : '메시지를 입력하세요'
-            }
-            aria-label={busy ? '진행 중인 작업 중단' : '메시지 전송'}
-          >
-            <span className="chat-composer__send-icon" aria-hidden="true">
-              {busy ? '■' : '↑'}
-            </span>
-          </button>
-        </div>
+        <ComposerToolbar
+          mode={mode}
+          model={model}
+          busy={!!busy}
+          disabled={disabled}
+          hasContent={hasContent}
+          sendDisabled={sendDisabled}
+          fileInputRef={fileInputRef}
+          onFileInputChange={onFileInputChange}
+          onOpenFilePicker={openFilePicker}
+          onCycleMode={cycleMode}
+          onSendClick={onSendClick}
+        />
       </div>
       {!claudeReady && (
         <div className="chat-composer__claude-warning" role="status">
