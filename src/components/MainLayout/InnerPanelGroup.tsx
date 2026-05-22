@@ -7,6 +7,7 @@ import type { UseFileTabsResult, PendingEdit } from '../../hooks/useFileTabs'
 import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
 import type { QaPair } from '../../types'
 import type { CaptureSource, CodeSnippet } from '../../types/composer'
+import { innerLayoutKey } from '../../state/persistedFlags'
 
 interface SelectionApi {
   pending: PendingComposerSelection | null
@@ -73,7 +74,7 @@ export function InnerPanelGroup({
   return (
     <PanelGroup
       direction="horizontal"
-      autoSaveId={`meecode.layout.tab.${tabId}`}
+      autoSaveId={innerLayoutKey(tabId)}
     >
       <Panel
         id="chat"

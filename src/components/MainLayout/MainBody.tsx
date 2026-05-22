@@ -6,6 +6,7 @@ import type { UseFileTabsResult, PendingEdit } from '../../hooks/useFileTabs'
 import type { QaPair } from '../../types'
 import type { CaptureSource, CodeSnippet } from '../../types/composer'
 import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
+import { PERSISTED_LAYOUT_KEYS } from '../../state/persistedFlags'
 
 interface SelectionApi {
   pending: PendingComposerSelection | null
@@ -75,7 +76,10 @@ export function MainBody({
 }: Props) {
   return (
     <div className="app__body">
-      <PanelGroup direction="horizontal" autoSaveId="meecode.layout.knowledge">
+      <PanelGroup
+        direction="horizontal"
+        autoSaveId={PERSISTED_LAYOUT_KEYS.mainOuter}
+      >
         <Panel id="main-content" order={1} minSize={30}>
           <InnerPanelGroup
             tabId={tabId}
