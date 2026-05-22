@@ -72,7 +72,7 @@ export function WikiEditor({
               dangerouslySetInnerHTML={{ __html: renderMarkdown(buf.draft) }}
             />
           ) : (
-            <div className="wiki-editor__rendered" style={{ color: '#6e7681' }}>
+            <div className="wiki-editor__rendered wiki-editor__rendered--empty">
               빈 파일입니다.
             </div>
           )

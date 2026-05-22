@@ -54,7 +54,7 @@ export function ComposerToolbar({
         type="file"
         accept="image/*"
         multiple
-        style={{ display: 'none' }}
+        className="chat-composer__file-input"
         onChange={onFileInputChange}
       />
       <button

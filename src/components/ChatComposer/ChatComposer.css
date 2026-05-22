@@ -374,3 +374,8 @@
 .chat-composer__claude-warning-btn:hover {
   background: rgba(248, 81, 73, 0.28);
 }
+
+/* 이미지 picker용 hidden input — 디스플레이만 숨기고 layout은 차지 안 함. */
+.chat-composer__file-input {
+  display: none;
+}

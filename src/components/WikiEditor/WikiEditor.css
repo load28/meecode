@@ -108,3 +108,8 @@
 .wiki-editor__dirty {
   color: #d29922;
 }
+
+/* 빈 위키 파일일 때 노출되는 placeholder 색상. */
+.wiki-editor__rendered--empty {
+  color: #6e7681;
+}

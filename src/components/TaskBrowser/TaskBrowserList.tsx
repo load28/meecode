@@ -29,7 +29,7 @@ export function TaskBrowserList({
     return (
       <div className="task-panel__empty">
         <p>Task가 없습니다.</p>
-        <p style={{ fontSize: 12, color: '#6e7681' }}>
+        <p className="task-panel__empty-hint">
           위의 + 새 Task 버튼으로 만들어보세요.
         </p>
       </div>
