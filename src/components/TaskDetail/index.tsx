@@ -5,11 +5,11 @@ import {
   useTaskOrganize,
   useTaskWiki,
 } from '../../hooks/useTasks'
-import { WikiEditor } from '../WikiEditor'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
 import { SourcesSection } from './SourcesSection'
 import { OrganizeSection } from './OrganizeSection'
+import { WikiSection } from './WikiSection'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -52,9 +52,6 @@ export function TaskDetail({
   const wiki = useTaskWiki(taskId)
   const organize = useTaskOrganize(taskId)
   const [attachBusy, setAttachBusy] = useState(false)
-  const [activeWiki, setActiveWiki] = useState<string | null>(null)
-  const [newWikiName, setNewWikiName] = useState('')
-  const [showNewWikiInput, setShowNewWikiInput] = useState(false)
 
   // When organize completes, refresh sources (processed badges) and wiki list.
   useEffect(() => {
@@ -84,19 +81,6 @@ export function TaskDetail({
     }
     await deleteTask(task.id)
     onDeleted?.()
-  }
-
-  const handleNewWiki = async () => {
-    if (!task) return
-    let name = newWikiName.trim()
-    if (!name) return
-    if (!name.endsWith('.md')) name = `${name}.md`
-    const ok = await wiki.writeFile(name, `# ${name.replace(/\.md$/, '')}\n\n`)
-    if (ok) {
-      setNewWikiName('')
-      setShowNewWikiInput(false)
-      setActiveWiki(name)
-    }
   }
 
   return (
@@ -174,122 +158,13 @@ export function TaskDetail({
             onStart={organize.start}
             onCancel={organize.cancel}
           />
-          <div className="task-detail__section">
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                marginBottom: 8,
-              }}
-            >
-              <h3
-                className="task-detail__section-title"
-                style={{ flex: 1, margin: 0 }}
-              >
-                Wiki ({wiki.files.length})
-              </h3>
-              <button
-                type="button"
-                className="task-panel__btn"
-                onClick={() => setShowNewWikiInput((v) => !v)}
-                style={{ fontSize: 11 }}
-              >
-                {showNewWikiInput ? '취소' : '+ 새 파일'}
-              </button>
-            </div>
-            {showNewWikiInput && (
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <input
-                  className="task-panel__create-input"
-                  placeholder="파일명 (예: decisions)"
-                  value={newWikiName}
-                  onChange={(e) => setNewWikiName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void handleNewWiki()
-                    }
-                  }}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="task-panel__btn task-panel__btn--primary"
-                  onClick={handleNewWiki}
-                  disabled={!newWikiName.trim()}
-                >
-                  생성
-                </button>
-              </div>
-            )}
-            {wiki.files.length === 0 ? (
-              <div className="task-detail__section-empty">
-                위키 파일이 없습니다.
-                <br />
-                <span style={{ fontSize: 11 }}>
-                  Source를 추가하고 위 "정리" 버튼을 누르거나, 직접 새 파일을 만드세요.
-                </span>
-              </div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {wiki.files.map((f) => (
-                  <li
-                    key={f.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: 6,
-                      background: activeWiki === f.name ? '#161b22' : 'transparent',
-                      marginBottom: 2,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveWiki((cur) => (cur === f.name ? null : f.name))
-                      }
-                      style={{
-                        flex: 1,
-                        background: 'none',
-                        border: 'none',
-                        color: '#c9d1d9',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        padding: '6px 8px',
-                        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                        fontSize: 12,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      📄 {f.name}
-                    </button>
-                    <span style={{ fontSize: 10, color: '#6e7681', marginRight: 8 }}>
-                      {f.size_bytes}B
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {activeWiki && (
-              <WikiEditor
-                taskId={task.id}
-                name={activeWiki}
-                onClose={() => setActiveWiki(null)}
-                readFile={wiki.readFile}
-                writeFile={wiki.writeFile}
-                deleteFile={wiki.deleteFile}
-              />
-            )}
-          </div>
+          <WikiSection
+            taskId={task.id}
+            files={wiki.files}
+            readFile={wiki.readFile}
+            writeFile={wiki.writeFile}
+            deleteFile={wiki.deleteFile}
+          />
           <div className="task-detail__footer">
             <button
               type="button"
