@@ -4,11 +4,10 @@ import type {
   FileViewMode,
   MarkdownView,
 } from '../../hooks/useFileTabs'
-import { DiffView } from '../DiffView'
-import { MarkdownContent } from '../MessageBubble/MarkdownContent'
-import { highlight, langForPrism } from './highlight'
+import { highlight } from './highlight'
 import { formatBytes } from './utils'
 import { FileTabsBar } from './FileTabsBar'
+import { FileBodyViewer } from './FileBodyViewer'
 import { useCodeSelection } from './useCodeSelection'
 import './FilePanel.css'
 
@@ -64,8 +63,6 @@ export function FilePanel({
 
   const isMarkdown = active?.language === 'markdown'
   const showingDiff = active?.viewMode === 'diff' && !!active.pending
-  const renderMarkdown =
-    isMarkdown && !showingDiff && active?.markdownView !== 'source'
 
   const lineCount = useMemo(() => {
     if (!active) return 0
@@ -185,67 +182,16 @@ export function FilePanel({
             <div className="file-panel__error">⚠ {active.error}</div>
           )}
           {!active.loading && !active.error && (
-            <>
-              {active.viewMode === 'diff' && active.pending ? (
-                <div className="file-panel__diff">
-                  <DiffView
-                    oldText={active.pending.oldText}
-                    newText={active.pending.newText}
-                    sideBySide
-                    collapsibleLabel={null}
-                  />
-                </div>
-              ) : renderMarkdown ? (
-                <div className="file-panel__markdown">
-                  <MarkdownContent
-                    className="file-panel__markdown-content message-bubble__content"
-                    source={active.content}
-                  />
-                </div>
-              ) : (
-                <div
-                  ref={codeRef}
-                  className="file-panel__code"
-                  onMouseUp={handleMouseUp}
-                >
-                  <div className="file-panel__gutter" aria-hidden="true">
-                    {Array.from({ length: lineCount }, (_, i) => (
-                      <span key={i}>{i + 1}</span>
-                    ))}
-                  </div>
-                  <pre className={`language-${langForPrism(active.language)}`}>
-                    <code
-                      className={`language-${langForPrism(active.language)}`}
-                      dangerouslySetInnerHTML={{ __html: highlighted }}
-                    />
-                  </pre>
-                  {selection && (
-                    <div
-                      className="file-panel__comment"
-                      style={{ top: selection.rect.top, left: selection.rect.left }}
-                      // Don't bubble mouseup or it clears the selection itself.
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onAddSelectionToComposer({
-                            text: selection.text,
-                            path: active.path,
-                            startLine: selection.startLine,
-                            endLine: selection.endLine,
-                          })
-                          window.getSelection()?.removeAllRanges()
-                          clearSelection()
-                        }}
-                      >
-                        💬 코멘트로 추가
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+            <FileBodyViewer
+              tab={active}
+              highlighted={highlighted}
+              lineCount={lineCount}
+              selection={selection}
+              codeRef={codeRef}
+              onMouseUp={handleMouseUp}
+              onClearSelection={clearSelection}
+              onAddSelectionToComposer={onAddSelectionToComposer}
+            />
           )}
         </div>
       )}
