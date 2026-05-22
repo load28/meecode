@@ -1,14 +1,12 @@
 import type { QaPair } from '../../types'
-import { renderMarkdown, SegmentView } from '../MessageBubble'
 import { type OpenFileFn } from '../ToolViews'
-import { makePreview } from '../../utils/segmentHelpers'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
 import { ANSWER_MAX_HEIGHT_PX, buildPairText } from './helpers'
-import { ThinkingStep, ToolUseStep } from './StepRow'
 import { useClampedAnswer } from './useClampedAnswer'
 import { QaCardActions } from './QaCardActions'
 import { QaCardHeader } from './QaCardHeader'
+import { QaSegmentView } from './QaSegmentView'
 import './QaCard.css'
 
 interface Props {
@@ -70,54 +68,9 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
             }
             onMouseUp={handleMouseUp}
           >
-            {/*
-              Compact step list, matching VS Code Claude plugin layout:
-                - thinking → "● Thought for Ns" one-liner (no body)
-                - tool_use → "● **Name** brief-arg" one-liner
-                - tool_result → hidden inline; full output stays in ExpandPane
-                - text / plan → markdown preview (truncated by makePreview)
-                - image / redacted_thinking → SegmentView as-is
-              Full segment renderings still live in ExpandPane via "전체보기".
-            */}
-            {pair.segments.map((seg, i) => {
-              if (seg.kind === 'tool_result') return null
-              if (seg.kind === 'interrupted') {
-                return (
-                  <div key={i} className="qa-card__interrupted" role="note">
-                    <span aria-hidden="true">⛔</span>
-                    <span>사용자에 의해 응답이 중단됨</span>
-                  </div>
-                )
-              }
-              if (seg.kind === 'thinking') {
-                return <ThinkingStep key={i} segment={seg} />
-              }
-              if (seg.kind === 'tool_use') {
-                return (
-                  <ToolUseStep
-                    key={i}
-                    segment={seg}
-                    onOpenFile={onOpenFile}
-                  />
-                )
-              }
-              if (seg.kind === 'text' || seg.kind === 'plan') {
-                return (
-                  <div
-                    key={i}
-                    // `message-bubble__content` opts the rendered markdown into
-                    // the shared list/blockquote/spacing rules; without it the
-                    // global `* { padding: 0 }` strips list indents.
-                    className="qa-card__preview message-bubble__content"
-                    dangerouslySetInnerHTML={{
-                      __html: renderMarkdown(makePreview(seg.text)),
-                    }}
-                  />
-                )
-              }
-              // image, redacted_thinking — unchanged
-              return <SegmentView key={i} segment={seg} onOpenFile={onOpenFile} />
-            })}
+            {pair.segments.map((seg, i) => (
+              <QaSegmentView key={i} segment={seg} onOpenFile={onOpenFile} />
+            ))}
             {selection.text && selection.rect && (
               <CommentFloat
                 selection={{ text: selection.text, rect: selection.rect }}
