@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 import { QuestionOptions } from './QuestionOptions'
+import { QuestionNav } from './QuestionNav'
+import { CardFooter } from './CardFooter'
 import { useAskAnswers } from './useAskAnswers'
 import './AskUserQuestionCard.css'
 
@@ -86,28 +88,12 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
       tabIndex={-1}
       onKeyDown={handleKeyDown}
     >
-      {questions.length > 1 && (
-        <header className="ask-question-card__nav">
-          {questions.map((qq, i) => {
-            const answered = (ans.answers[qq.question]?.picks.size ?? 0) > 0
-            return (
-              <button
-                key={i}
-                type="button"
-                className={
-                  'ask-question-card__tab' +
-                  (i === ans.active ? ' is-active' : '') +
-                  (answered ? ' is-answered' : '')
-                }
-                onClick={() => ans.goTo(i)}
-              >
-                {qq.header || `Q${i + 1}`}
-                {answered && <span className="ask-question-card__check">✓</span>}
-              </button>
-            )
-          })}
-        </header>
-      )}
+      <QuestionNav
+        questions={questions}
+        active={ans.active}
+        answers={ans.answers}
+        onGoTo={ans.goTo}
+      />
 
       <div className="ask-question-card__question">{q.question}</div>
 
@@ -125,39 +111,16 @@ export function AskUserQuestionCard({ input, onRespond }: Props) {
         숫자 키로 선택 · Enter로 {ans.isLast ? '전송' : '다음'} · Esc로 건너뛰기
       </div>
 
-      <div className="ask-question-card__footer">
-        {questions.length > 1 && (
-          <span className="ask-question-card__counter">
-            {ans.active + 1} / {questions.length}
-          </span>
-        )}
-        <button
-          type="button"
-          className="ask-question-card__skip"
-          onClick={skip}
-        >
-          건너뛰기
-        </button>
-        {ans.isLast ? (
-          <button
-            type="button"
-            className="ask-question-card__submit"
-            onClick={submit}
-            disabled={!ans.everyAnswered}
-          >
-            답변 전송
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="ask-question-card__submit"
-            onClick={() => ans.goNext()}
-            disabled={!ans.currentAnswered}
-          >
-            다음 →
-          </button>
-        )}
-      </div>
+      <CardFooter
+        active={ans.active}
+        total={questions.length}
+        isLast={ans.isLast}
+        everyAnswered={ans.everyAnswered}
+        currentAnswered={ans.currentAnswered}
+        onSkip={skip}
+        onSubmit={submit}
+        onNext={ans.goNext}
+      />
     </section>
   )
 }
