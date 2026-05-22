@@ -6,6 +6,7 @@ import {
   decorateServerSlash,
 } from '../../hooks/clientSlash'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
+import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import './ChatComposer.css'
 
 // Commands MeeCode dispatches without sending anything to the CLI. See
@@ -111,7 +112,7 @@ export function ChatComposer({
     onFileInputChange,
   } = useImageAttachments()
   const [historyIdx, setHistoryIdx] = useState<number | null>(null)
-  const [escHint, setEscHint] = useState(false)
+  const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const isComposingRef = useRef(false)
   const slashListRef = useRef<HTMLUListElement | null>(null)
@@ -124,12 +125,6 @@ export function ChatComposer({
   )
   const selectionCounterRef = useRef(0)
   const lastSelectionIdRef = useRef<number | null>(null)
-  // Double-press ESC window — matches the CLI's useDoublePress for input
-  // clear. First ESC arms the action and shows a hint, second ESC within
-  // the window clears and saves to history.
-  const escArmedAtRef = useRef<number | null>(null)
-  const ESC_DOUBLE_PRESS_MS = 1000
-
   useEffect(() => {
     if (!pendingSelection) return
     if (lastSelectionIdRef.current === pendingSelection.id) return
@@ -424,8 +419,7 @@ export function ChatComposer({
       if (mention) {
         e.preventDefault()
         setMention(null)
-        escArmedAtRef.current = null
-        setEscHint(false)
+        escClear.reset()
         return
       }
       // While the agent is busy, ESC always interrupts first (CLI parity:
@@ -434,8 +428,7 @@ export function ChatComposer({
       if (busy && onInterrupt) {
         e.preventDefault()
         onInterrupt()
-        escArmedAtRef.current = null
-        setEscHint(false)
+        escClear.reset()
         return
       }
       // Double-press ESC to clear (CLI's useTextInput handleEscape via
@@ -443,24 +436,11 @@ export function ChatComposer({
       // within the window clears the input and saves it to history.
       if (value.length > 0) {
         e.preventDefault()
-        const now = Date.now()
-        const armedAt = escArmedAtRef.current
-        if (armedAt !== null && now - armedAt <= ESC_DOUBLE_PRESS_MS) {
-          escArmedAtRef.current = null
-          setEscHint(false)
+        if (escClear.press()) {
           setValue('')
           setHistoryIdx(null)
           selectionsRef.current.clear()
           selectionCounterRef.current = 0
-        } else {
-          escArmedAtRef.current = now
-          setEscHint(true)
-          window.setTimeout(() => {
-            if (escArmedAtRef.current === now) {
-              escArmedAtRef.current = null
-              setEscHint(false)
-            }
-          }, ESC_DOUBLE_PRESS_MS)
         }
         return
       }
@@ -543,10 +523,7 @@ export function ChatComposer({
     setMentionIdx(0)
     setHistoryIdx(null)
     // Any further typing disarms the double-ESC clear (CLI parity).
-    if (escArmedAtRef.current !== null) {
-      escArmedAtRef.current = null
-      setEscHint(false)
-    }
+    escClear.reset()
   }
 
   const onSelectSlash = (cmd: string) => {
@@ -589,7 +566,7 @@ export function ChatComposer({
           {error}
         </div>
       )}
-      {escHint && !busy && (
+      {escClear.hintVisible && !busy && (
         <div className="chat-composer__esc-hint" aria-live="polite">
           Esc 한 번 더 누르면 입력이 지워집니다
         </div>
