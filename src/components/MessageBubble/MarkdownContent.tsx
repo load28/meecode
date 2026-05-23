@@ -121,10 +121,19 @@ export function MarkdownContent({ source, className }: Props) {
     return () => root.removeEventListener('click', onClick)
   }, [])
 
+  // 복사 버튼 hover 판정을 이 안정적인 컨테이너 기준으로 걸기 위한 클래스.
+  // 스트리밍 중엔 innerHTML이 프레임마다 통째로 교체돼 내부 pre·button이
+  // 새 노드로 다시 생기는데, 그러면 pre:hover가 (정지한 커서 아래에서 hover를
+  // 재평가하지 않는 WebKit 계열에서) 풀려 버튼이 사라졌다 나타났다 한다.
+  // hover를 교체되지 않는 컨테이너에 두면 이 깜빡임이 사라진다.
+  const containerClass = ['markdown-content', className]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div
       ref={ref}
-      className={className}
+      className={containerClass}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

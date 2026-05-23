@@ -42,6 +42,15 @@ describe('SegmentView', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Hello')
   })
 
+  it('text 세그먼트 컨테이너에 markdown-content 클래스 — 복사 버튼 hover 기준', () => {
+    const seg: AssistantSegment = { kind: 'text', text: '# Hello' }
+    const { container } = render(<SegmentView segment={seg} />)
+    const root = container.querySelector('.markdown-content')
+    expect(root).toBeInTheDocument()
+    // 전달된 className도 함께 유지돼야 한다.
+    expect(root).toHaveClass('message-bubble__content')
+  })
+
   it('plan 세그먼트를 라벨과 함께 렌더', () => {
     const seg: AssistantSegment = { kind: 'plan', text: '# Plan body' }
     const { container } = render(<SegmentView segment={seg} />)
