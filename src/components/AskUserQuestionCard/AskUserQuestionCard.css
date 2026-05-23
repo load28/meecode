@@ -2,9 +2,9 @@
   /* Plugin-style: clean dark card with subtle accent, list-shaped options,
      numeric keyboard hints. The heavy blue left rail is gone — the accent is
      conveyed via the active option highlight instead. */
-  border: 1px solid #30363d;
-  border-radius: 8px;
-  background: #0d1117;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-base);
   padding: 14px 16px;
   margin: 12px 8px;
   display: flex;
@@ -14,7 +14,7 @@
 }
 
 .ask-question-card:focus-visible {
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .ask-question-card__nav {
@@ -25,11 +25,11 @@
 
 .ask-question-card__tab {
   background: transparent;
-  border: 1px solid #30363d;
-  border-radius: 999px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
   padding: 3px 10px;
   font-size: 12px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -37,14 +37,14 @@
 }
 
 .ask-question-card__tab.is-active {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .ask-question-card__tab.is-answered:not(.is-active) {
-  border-color: #2ea043;
-  color: #2ea043;
+  border-color: var(--color-accent-green);
+  color: var(--color-accent-green);
 }
 
 .ask-question-card__check {
@@ -53,7 +53,7 @@
 
 .ask-question-card__question {
   font-size: 14px;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   font-weight: 600;
   line-height: 1.45;
   padding: 2px 0 4px;
@@ -74,20 +74,20 @@
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
   position: relative;
 }
 
 .ask-question-card__option:hover {
-  background: #161b22;
+  background: var(--color-bg-elevated);
 }
 
 .ask-question-card__option.is-selected {
   background: #11233f;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .ask-question-card__option-marker {
@@ -97,9 +97,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  background: #21262d;
-  color: #8b949e;
+  border-radius: var(--radius-sm);
+  background: var(--color-border-muted);
+  color: var(--color-text-muted);
   font-size: 11px;
   font-family: var(--font-mono);
   margin-top: 1px;
@@ -107,7 +107,7 @@
 }
 
 .ask-question-card__option.is-selected .ask-question-card__option-marker {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
 }
 
@@ -130,23 +130,23 @@
 
 .ask-question-card__option-label {
   font-size: 13px;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   font-weight: 500;
 }
 
 .ask-question-card__option-desc {
   font-size: 12px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   line-height: 1.45;
 }
 
 .ask-question-card__other-input {
   margin-top: 6px;
   padding: 6px 8px;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  color: #e6edf3;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-strong);
   font-size: 13px;
   width: 100%;
   box-sizing: border-box;
@@ -154,12 +154,12 @@
 
 .ask-question-card__other-input:focus {
   outline: none;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .ask-question-card__hint {
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   padding: 2px 2px 0;
 }
 
@@ -172,14 +172,14 @@
 
 .ask-question-card__counter {
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin-right: auto;
 }
 
 .ask-question-card__skip,
 .ask-question-card__submit {
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   padding: 5px 14px;
   font-size: 13px;
   cursor: pointer;
@@ -187,16 +187,16 @@
 
 .ask-question-card__skip {
   background: transparent;
-  color: #c9d1d9;
+  color: var(--color-text-default);
 }
 .ask-question-card__skip:hover {
-  background: #30363d;
+  background: var(--color-border-default);
 }
 
 .ask-question-card__submit {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 .ask-question-card__submit:hover:not(:disabled) {
   background: #388bfd;
@@ -207,6 +207,6 @@
 }
 
 .ask-question-card__empty {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 13px;
 }

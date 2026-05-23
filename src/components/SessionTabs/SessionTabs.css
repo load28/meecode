@@ -1,8 +1,8 @@
 .session-tabs {
   display: flex;
   align-items: stretch;
-  background: #0d1117;
-  border-bottom: 1px solid #21262d;
+  background: var(--color-bg-base);
+  border-bottom: 1px solid var(--color-border-muted);
   padding: 0 6px;
   gap: 2px;
   overflow-x: auto;
@@ -20,31 +20,31 @@
   background: transparent;
   border: 1px solid transparent;
   border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-md) 6px 0 0;
   padding: 0 4px 0 10px;
   max-width: 200px;
   min-width: 80px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   cursor: pointer;
   user-select: none;
 }
 
 .session-tabs__tab:hover {
-  background: #161b22;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
 }
 
 .session-tabs__tab.is-active {
-  background: #161b22;
-  border-color: #30363d;
-  border-bottom-color: #161b22;
-  color: #e6edf3;
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-default);
+  border-bottom-color: var(--color-bg-elevated);
+  color: var(--color-text-strong);
   z-index: 1;
 }
 
 .session-tabs__tab.is-empty .session-tabs__tab-label {
   font-style: italic;
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .session-tabs__tab-button {
@@ -71,12 +71,12 @@
 .session-tabs__close {
   background: transparent;
   border: none;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   cursor: pointer;
   padding: 0 4px;
   font-size: 14px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   width: 18px;
   height: 18px;
   display: inline-flex;
@@ -86,15 +86,15 @@
 
 .session-tabs__close:hover {
   background: rgba(248, 81, 73, 0.2);
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .session-tabs__new {
   align-self: center;
   background: transparent;
-  border: 1px dashed #30363d;
-  color: #8b949e;
-  border-radius: 4px;
+  border: 1px dashed var(--color-border-default);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
   width: 22px;
   height: 22px;
   margin-left: 4px;
@@ -108,7 +108,7 @@
 }
 
 .session-tabs__new:hover {
-  background: #161b22;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
   border-style: solid;
 }

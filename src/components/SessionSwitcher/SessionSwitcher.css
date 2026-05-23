@@ -7,10 +7,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #161b22;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  border-radius: 6px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-default);
+  border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -29,7 +29,7 @@
 }
 
 .session-switcher__caret {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 10px;
 }
 
@@ -42,9 +42,9 @@
   max-width: 90vw;
   max-height: calc(100vh - 96px);
   overflow-y: auto;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 8px;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   z-index: 30;
   display: flex;
@@ -54,12 +54,12 @@
 .session-switcher__new {
   border: none;
   background: transparent;
-  color: #2ea043;
+  color: var(--color-accent-green);
   font-size: 13px;
   padding: 10px 12px;
   cursor: pointer;
   text-align: left;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
   font-weight: 600;
 }
 
@@ -69,11 +69,11 @@
 
 .session-switcher__header {
   padding: 8px 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .session-switcher__list {
@@ -84,7 +84,7 @@
 
 .session-switcher__empty {
   padding: 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 12px;
   text-align: center;
 }
@@ -99,12 +99,12 @@
   border: none;
   cursor: pointer;
   text-align: left;
-  color: #c9d1d9;
-  border-bottom: 1px solid #161b22;
+  color: var(--color-text-default);
+  border-bottom: 1px solid var(--color-bg-elevated);
 }
 
 .session-switcher__item:hover {
-  background: #161b22;
+  background: var(--color-bg-elevated);
 }
 
 .session-switcher__item.is-current {
@@ -113,7 +113,7 @@
 
 .session-switcher__item-text {
   font-size: 13px;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -125,10 +125,10 @@
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: #8b949e;
+  color: var(--color-text-muted);
 }
 
 .session-switcher__item-count {
   font-family: var(--font-mono);
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }

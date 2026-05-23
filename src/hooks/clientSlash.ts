@@ -23,12 +23,19 @@
  * its own command panel without going through the CLI.
  */
 import { invoke } from '@tauri-apps/api/core'
-import type { Mode, QaPair } from '../types'
+import type { QaPair } from '../types'
 import {
   getTabSnapshot,
   setTab,
   type TabSession,
 } from '../state/sessionStore'
+import { modeToClaude, parsePermissionsArg } from '../utils/permissionMode'
+import { logBackendError } from '../utils/log'
+import { makeLocalId } from '../utils/localId'
+
+// Re-exported so existing importers (useClaudeSession, tests) keep working
+// without having to update their paths.
+export { modeToClaude, parsePermissionsArg }
 
 export interface ParsedSlash {
   cmd: string
@@ -42,32 +49,6 @@ export function parseSlash(text: string): ParsedSlash | null {
   const m = firstLine.match(/^(\/[A-Za-z][A-Za-z0-9:_-]*)(?:\s+([\s\S]*))?$/)
   if (!m) return null
   return { cmd: m[1].toLowerCase(), args: (m[2] ?? '').trim() }
-}
-
-export function parsePermissionsArg(s: string): Mode | null {
-  const a = s.toLowerCase()
-  if (a === 'plan' || a === 'plan-mode') return 'plan'
-  if (a === 'default' || a === 'ask') return 'default'
-  if (
-    a === 'acceptedits' ||
-    a === 'accept-edits' ||
-    a === 'accept' ||
-    a === 'auto' ||
-    a === 'auto-accept'
-  )
-    return 'auto-accept'
-  return null
-}
-
-export function modeToClaude(m: Mode): string {
-  switch (m) {
-    case 'default':
-      return 'default'
-    case 'plan':
-      return 'plan'
-    case 'auto-accept':
-      return 'acceptEdits'
-  }
 }
 
 /**
@@ -104,8 +85,7 @@ export const CLIENT_SLASH_COMMANDS: ReadonlyArray<{
   { name: '/todos', description: 'TODO 목록 (TUI 전용 — 사용 불가 안내)' },
 ]
 
-const CLEAR_CMDS = new Set(['/clear', '/exit', '/quit'])
-const TERMINAL_ONLY_CMDS = new Set(['/login', '/logout', '/doctor'])
+const TERMINAL_ONLY_CMDS = ['/login', '/logout', '/doctor'] as const
 
 /**
  * Descriptions for well-known CLI-dispatched commands. The CLI's
@@ -164,9 +144,7 @@ function emitSyntheticPair(
   userText: string,
   assistantText: string,
 ): void {
-  const id = `local-slash-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 6)}`
+  const id = makeLocalId('local-slash')
   setTab(tabId, (s) => ({
     ...s,
     pairs: [
@@ -314,6 +292,124 @@ export interface DispatchDeps {
   tabId: string
 }
 
+interface SlashContext {
+  tabId: string
+  /** Snapshot taken once at dispatch entry; handlers should not re-read. */
+  snapshot: TabSession
+  /** Raw user text (placeholder + args); fed back as the `user_text` of any synthetic pair. */
+  text: string
+  /** Parsed command + args (cmd is already lower-cased). */
+  parsed: ParsedSlash
+}
+
+type SlashHandler = (ctx: SlashContext) => Promise<void> | void
+
+const handleClear: SlashHandler = async ({ tabId }) => {
+  setTab(tabId, (s) => ({
+    ...s,
+    pairs: [],
+    currentId: null,
+    queue: [],
+    turnError: null,
+    turnInProgress: false,
+  }))
+  // Also reset the CLI's own conversation transcript so the next user
+  // message doesn't carry every prior turn as context. `/clear` is a
+  // `local` command in the CLI's registry — in stream-json mode it
+  // empties the in-memory message history and emits an empty
+  // assistant turn (verified). Forward it even on `/exit`/`/quit`
+  // since meecode treats those as aliases.
+  try {
+    await invoke('send_user_message', {
+      text: '/clear',
+      images: undefined,
+      tabId,
+    })
+  } catch (e) {
+    // CLI not running yet (e.g. user fired /clear from an empty
+    // folder picker tab) — fine; local state is already reset.
+    logBackendError('meecode', '/clear forward to CLI', e)
+  }
+}
+
+const handleModel: SlashHandler = async ({ tabId, parsed }) => {
+  const m = parsed.args || null
+  try {
+    await invoke('set_model', { model: m, tabId })
+    if (m) setTab(tabId, (s) => ({ ...s, model: m }))
+  } catch (e) {
+    setTab(tabId, (s) => ({
+      ...s,
+      turnError: `/model 실패: ${String(e)}`,
+    }))
+  }
+}
+
+const handlePermissions: SlashHandler = async ({ tabId, parsed }) => {
+  const target = parsePermissionsArg(parsed.args)
+  if (!target) {
+    setTab(tabId, (s) => ({
+      ...s,
+      turnError:
+        '/permissions <default|plan|acceptEdits> 형식으로 입력하세요',
+    }))
+    return
+  }
+  setTab(tabId, (s) => ({ ...s, mode: target }))
+  try {
+    await invoke('set_permission_mode', {
+      mode: modeToClaude(target),
+      tabId,
+    })
+  } catch (e) {
+    setTab(tabId, (s) => ({
+      ...s,
+      turnError: `/permissions 실패: ${String(e)}`,
+    }))
+  }
+}
+
+/** Adapt a snapshot→string builder into a handler that emits a synthetic pair. */
+function emitFrom(build: (s: TabSession) => string): SlashHandler {
+  return ({ tabId, snapshot, text }) =>
+    emitSyntheticPair(tabId, text, build(snapshot))
+}
+
+const handleTerminalOnly: SlashHandler = ({ tabId, text, parsed }) =>
+  emitSyntheticPair(tabId, text, buildTerminalOnlyText(parsed.cmd))
+
+const handleTodos: SlashHandler = ({ tabId, text }) =>
+  emitSyntheticPair(
+    tabId,
+    text,
+    '`/todos`는 Claude Code TUI 전용 명령으로 현재 환경에서 사용할 수 없습니다.',
+  )
+
+/**
+ * Map of slash command → handler. Aliases share the same handler reference
+ * so /exit and /quit behave identically to /clear, /usage to /cost, etc.
+ * Lookup is O(1) and adding a new command is a single entry instead of
+ * threading a new `if` into a long chain.
+ */
+const SLASH_HANDLERS: Record<string, SlashHandler> = {
+  '/clear': handleClear,
+  '/exit': handleClear,
+  '/quit': handleClear,
+  '/model': handleModel,
+  '/permissions': handlePermissions,
+  '/help': emitFrom(buildHelpText),
+  '/agents': emitFrom(buildAgentsText),
+  '/mcp': emitFrom(buildMcpText),
+  '/tools': emitFrom(buildToolsText),
+  '/status': emitFrom(buildStatusText),
+  '/cost': emitFrom(buildUsageText),
+  '/usage': emitFrom(buildUsageText),
+  '/todos': handleTodos,
+  ...Object.fromEntries(
+    TERMINAL_ONLY_CMDS.map((cmd) => [cmd, handleTerminalOnly] as const),
+  ),
+}
+
 /**
  * Dispatch a slash command. Returns `true` if it was handled
  * client-side (so the caller should NOT forward to the CLI), `false`
@@ -331,117 +427,13 @@ export async function dispatchClientSlash(
   if (images && images.length > 0) return false
   const parsed = parseSlash(text)
   if (!parsed) return false
+  const handler = SLASH_HANDLERS[parsed.cmd]
+  if (!handler) {
+    // `/init`, `/compact`, `/context`, `/review`, plugin/skill commands, …
+    // fall through to the CLI's own dispatcher.
+    return false
+  }
   const { tabId } = deps
-  const snapshot = getTabSnapshot(tabId)
-
-  if (CLEAR_CMDS.has(parsed.cmd)) {
-    setTab(tabId, (s) => ({
-      ...s,
-      pairs: [],
-      currentId: null,
-      queue: [],
-      turnError: null,
-      turnInProgress: false,
-    }))
-    // Also reset the CLI's own conversation transcript so the next user
-    // message doesn't carry every prior turn as context. `/clear` is a
-    // `local` command in the CLI's registry — in stream-json mode it
-    // empties the in-memory message history and emits an empty
-    // assistant turn (verified). Forward it even on `/exit`/`/quit`
-    // since meecode treats those as aliases.
-    try {
-      await invoke('send_user_message', {
-        text: '/clear',
-        images: undefined,
-        tabId,
-      })
-    } catch (e) {
-      // CLI not running yet (e.g. user fired /clear from an empty
-      // folder picker tab) — fine; local state is already reset.
-      console.warn('[meecode] /clear forward to CLI failed', e)
-    }
-    return true
-  }
-
-  if (parsed.cmd === '/model') {
-    const m = parsed.args || null
-    try {
-      await invoke('set_model', { model: m, tabId })
-      if (m) setTab(tabId, (s) => ({ ...s, model: m }))
-    } catch (e) {
-      setTab(tabId, (s) => ({
-        ...s,
-        turnError: `/model 실패: ${String(e)}`,
-      }))
-    }
-    return true
-  }
-
-  if (parsed.cmd === '/permissions') {
-    const target = parsePermissionsArg(parsed.args)
-    if (!target) {
-      setTab(tabId, (s) => ({
-        ...s,
-        turnError:
-          '/permissions <default|plan|acceptEdits> 형식으로 입력하세요',
-      }))
-      return true
-    }
-    setTab(tabId, (s) => ({ ...s, mode: target }))
-    try {
-      await invoke('set_permission_mode', {
-        mode: modeToClaude(target),
-        tabId,
-      })
-    } catch (e) {
-      setTab(tabId, (s) => ({
-        ...s,
-        turnError: `/permissions 실패: ${String(e)}`,
-      }))
-    }
-    return true
-  }
-
-  if (parsed.cmd === '/help') {
-    emitSyntheticPair(tabId, text, buildHelpText(snapshot))
-    return true
-  }
-  if (parsed.cmd === '/agents') {
-    emitSyntheticPair(tabId, text, buildAgentsText(snapshot))
-    return true
-  }
-  if (parsed.cmd === '/mcp') {
-    emitSyntheticPair(tabId, text, buildMcpText(snapshot))
-    return true
-  }
-  if (parsed.cmd === '/tools') {
-    emitSyntheticPair(tabId, text, buildToolsText(snapshot))
-    return true
-  }
-  if (parsed.cmd === '/status') {
-    emitSyntheticPair(tabId, text, buildStatusText(snapshot))
-    return true
-  }
-  if (parsed.cmd === '/cost' || parsed.cmd === '/usage') {
-    emitSyntheticPair(tabId, text, buildUsageText(snapshot))
-    return true
-  }
-  if (TERMINAL_ONLY_CMDS.has(parsed.cmd)) {
-    emitSyntheticPair(tabId, text, buildTerminalOnlyText(parsed.cmd))
-    return true
-  }
-  if (parsed.cmd === '/todos') {
-    emitSyntheticPair(
-      tabId,
-      text,
-      '`/todos`는 Claude Code TUI 전용 명령으로 현재 환경에서 사용할 수 없습니다.',
-    )
-    return true
-  }
-
-  // Anything else (`/init`, `/compact`, `/context`, `/review`,
-  // `/security-review`, plugin/skill commands) → fall through so the
-  // outer caller forwards to the CLI, where its dispatcher executes
-  // them just like in the TUI.
-  return false
+  await handler({ tabId, snapshot: getTabSnapshot(tabId), text, parsed })
+  return true
 }

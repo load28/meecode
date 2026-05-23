@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QaPair } from '../types'
 import { totalTextChars } from '../utils/segmentHelpers'
+import { PERSISTED_FLAG_KEYS } from '../state/persistedFlags'
+import { usePersistedBoolean } from './usePersistedBoolean'
 
-const STORAGE_KEY = 'meecode.autoExpand'
 const AUTO_THRESHOLD = 500
 
 interface UseExpandPanelReturn {
@@ -14,22 +15,14 @@ interface UseExpandPanelReturn {
   setAutoExpand: (v: boolean) => void
 }
 
-function readAutoExpand(): boolean {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored === null) return true
-  return stored !== 'false'
-}
-
 export function useExpandPanel(pairs: QaPair[]): UseExpandPanelReturn {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
-  const [autoExpand, setAutoExpandState] = useState<boolean>(readAutoExpand)
+  const [autoExpand, setAutoExpand] = usePersistedBoolean(
+    PERSISTED_FLAG_KEYS.autoExpand,
+    true,
+  )
   const lastSeenRef = useRef<string | null>(null)
-
-  const setAutoExpand = useCallback((v: boolean) => {
-    setAutoExpandState(v)
-    localStorage.setItem(STORAGE_KEY, String(v))
-  }, [])
 
   const toggleOpen = useCallback(() => {
     setIsOpen((prev) => !prev)

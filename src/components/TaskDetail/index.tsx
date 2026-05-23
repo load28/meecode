@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import {
   useTasks,
   useTaskDetail,
   useTaskOrganize,
   useTaskWiki,
 } from '../../hooks/useTasks'
-import { WikiEditor } from '../WikiEditor'
+import { LOADING } from '../../utils/messages'
+import { TaskDetailHeader } from './TaskDetailHeader'
+import { TaskEditableFields } from './TaskEditableFields'
+import { AttachTaskRow } from './AttachTaskRow'
+import { SourcesSection } from './SourcesSection'
+import { OrganizeSection } from './OrganizeSection'
+import { WikiSection } from './WikiSection'
 import '../TaskBrowser/TaskBrowser.css'
 
 interface Props {
@@ -47,13 +53,6 @@ export function TaskDetail({
     useTaskDetail(taskId)
   const wiki = useTaskWiki(taskId)
   const organize = useTaskOrganize(taskId)
-  const [attachBusy, setAttachBusy] = useState(false)
-  const [organizeBusy, setOrganizeBusy] = useState(false)
-  const [organizeError, setOrganizeError] = useState<string | null>(null)
-  const [activeWiki, setActiveWiki] = useState<string | null>(null)
-  const [newWikiName, setNewWikiName] = useState('')
-  const [showNewWikiInput, setShowNewWikiInput] = useState(false)
-
   // When organize completes, refresh sources (processed badges) and wiki list.
   useEffect(() => {
     if (organize.status === 'idle' && organize.lastProcessedSourceIds.length > 0) {
@@ -63,33 +62,16 @@ export function TaskDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organize.status, organize.lastProcessedSourceIds])
 
-  // Edits stay local until the input is blurred, so every keystroke isn't
-  // an IPC roundtrip + disk write.
-  const [name, setName] = useState('')
-  const [desc, setDesc] = useState('')
-  useEffect(() => {
-    if (task) {
-      setName(task.name)
-      setDesc(task.description)
-    }
-  }, [task?.id])
-
-  const commitName = async () => {
+  const commitName = async (next: string) => {
     if (!task) return
-    const trimmed = name.trim()
-    if (!trimmed || trimmed === task.name) {
-      setName(task.name)
-      return
-    }
-    const next = await updateTask(task.id, { name: trimmed })
-    if (next) setTask(next)
+    const updated = await updateTask(task.id, { name: next })
+    if (updated) setTask(updated)
   }
 
-  const commitDesc = async () => {
+  const commitDesc = async (next: string) => {
     if (!task) return
-    if (desc === task.description) return
-    const next = await updateTask(task.id, { description: desc })
-    if (next) setTask(next)
+    const updated = await updateTask(task.id, { description: next })
+    if (updated) setTask(updated)
   }
 
   const handleDelete = async () => {
@@ -101,400 +83,47 @@ export function TaskDetail({
     onDeleted?.()
   }
 
-  const handleStartOrganize = async () => {
-    setOrganizeBusy(true)
-    setOrganizeError(null)
-    try {
-      const err = await organize.start()
-      if (err) setOrganizeError(err)
-    } finally {
-      setOrganizeBusy(false)
-    }
-  }
-
-  const handleNewWiki = async () => {
-    if (!task) return
-    let name = newWikiName.trim()
-    if (!name) return
-    if (!name.endsWith('.md')) name = `${name}.md`
-    const ok = await wiki.writeFile(name, `# ${name.replace(/\.md$/, '')}\n\n`)
-    if (ok) {
-      setNewWikiName('')
-      setShowNewWikiInput(false)
-      setActiveWiki(name)
-    }
-  }
-
   return (
     <div className="task-panel">
-      <div className="task-panel__header">
-        <button
-          type="button"
-          className="task-panel__back"
-          onClick={onBack}
-          aria-label="목록으로"
-        >
-          ←
-        </button>
-        <h2 className="task-panel__title">
-          {task?.name ?? (loading ? '불러오는 중...' : 'Task')}
-        </h2>
-        {onClose && (
-          <button
-            type="button"
-            className="task-panel__close"
-            onClick={onClose}
-            aria-label="패널 닫기"
-          >
-            ×
-          </button>
-        )}
-      </div>
+      <TaskDetailHeader
+        title={task?.name ?? (loading ? LOADING : 'Task')}
+        onBack={onBack}
+        onClose={onClose}
+      />
       {error && <div className="task-detail__error">{error}</div>}
       {task && (
         <>
-          <div className="task-detail__field">
-            <label className="task-detail__label" htmlFor="task-detail-name">
-              이름
-            </label>
-            <input
-              id="task-detail-name"
-              className="task-detail__name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={commitName}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  ;(e.target as HTMLInputElement).blur()
-                }
-              }}
-            />
-          </div>
-          <div className="task-detail__field">
-            <label className="task-detail__label" htmlFor="task-detail-desc">
-              설명
-            </label>
-            <textarea
-              id="task-detail-desc"
-              className="task-detail__desc"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onBlur={commitDesc}
-              placeholder="이 Task가 무엇에 대한 작업인지 적어두세요"
-            />
-          </div>
-          <div className="task-detail__meta">
-            <span>생성 {formatTs(task.created_at_ms)}</span>
-            <span>수정 {formatTs(task.updated_at_ms)}</span>
-          </div>
-          <div className="task-detail__attach-row">
-            {attached ? (
-              <button
-                type="button"
-                className="task-panel__btn task-detail__attach-btn task-detail__attach-btn--detach"
-                onClick={async () => {
-                  if (!onDetach || attachBusy) return
-                  setAttachBusy(true)
-                  try {
-                    await onDetach(task.id)
-                  } finally {
-                    setAttachBusy(false)
-                  }
-                }}
-                disabled={!onDetach || attachBusy}
-                title="이 세션에서 Task 분리 (이미 주입된 컨텍스트는 제거되지 않음)"
-              >
-                {attachBusy ? '...' : '🔗 분리'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="task-panel__btn task-panel__btn--primary task-detail__attach-btn"
-                onClick={async () => {
-                  if (!onAttach || attachBusy) return
-                  setAttachBusy(true)
-                  try {
-                    await onAttach(task.id)
-                  } finally {
-                    setAttachBusy(false)
-                  }
-                }}
-                disabled={!canAttach || !onAttach || attachBusy}
-                title={
-                  canAttach
-                    ? '이 세션에 Task의 컨텍스트를 주입하고 attach'
-                    : '현재 활성화된 세션이 없습니다'
-                }
-              >
-                {attachBusy ? '...' : '📎 이 세션에 attach'}
-              </button>
-            )}
-            {attached && (
-              <span className="task-detail__attach-hint">
-                이 세션에 attach됨
-              </span>
-            )}
-          </div>
-          <div className="task-detail__section">
-            <h3 className="task-detail__section-title">
-              Sources ({sources.length})
-            </h3>
-            {sources.length === 0 ? (
-              <div className="task-detail__section-empty">
-                아직 Source가 없습니다.
-                <br />
-                <span style={{ fontSize: 11 }}>
-                  채팅의 답변 옆 📥 버튼이나 선택 텍스트의 📥 캡처로 추가할 수 있습니다.
-                </span>
-              </div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {sources.map((s) => {
-                  const isProcessed = !!s.processed_at_ms
-                  return (
-                    <li
-                      key={s.id}
-                      style={{
-                        background: isProcessed ? '#0d1117' : '#10171f',
-                        border: isProcessed
-                          ? '1px solid #21262d'
-                          : '1px solid #1f3a5f',
-                        borderRadius: 6,
-                        padding: 8,
-                        marginBottom: 6,
-                        fontSize: 12,
-                        color: '#c9d1d9',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          fontSize: 10,
-                          color: '#6e7681',
-                          marginBottom: 4,
-                        }}
-                      >
-                        <span style={{ flex: 1 }}>
-                          {s.kind} · {formatTs(s.captured_at_ms)}
-                          {isProcessed ? (
-                            <span style={{ marginLeft: 6, color: '#79c0ff' }}>
-                              ✓ wiki 반영됨
-                            </span>
-                          ) : (
-                            <span style={{ marginLeft: 6, color: '#d29922' }}>
-                              ● 미정리
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm('이 Source를 삭제하시겠습니까?')) {
-                              void deleteSource(s.id)
-                            }
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#6e7681',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            padding: '0 4px',
-                          }}
-                          title="Source 삭제"
-                          aria-label="Source 삭제"
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <div
-                        style={{
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          maxHeight: 120,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {s.content.slice(0, 400)}
-                        {s.content.length > 400 ? '…' : ''}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-          <div className="task-detail__section">
-            <h3 className="task-detail__section-title">
-              정리 (Organize)
-            </h3>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
-                type="button"
-                className="task-panel__btn task-panel__btn--primary"
-                onClick={handleStartOrganize}
-                disabled={
-                  organizeBusy ||
-                  organize.status === 'running' ||
-                  (organize.preview?.unprocessed_count ?? 0) === 0
-                }
-                title={
-                  organize.preview?.resume_session_id
-                    ? '기존 Claude Code 세션을 resume — 캐시 활용'
-                    : '새 Claude Code 세션 시작'
-                }
-              >
-                {organize.status === 'running'
-                  ? '🔄 정리 중...'
-                  : `🪄 정리 (${organize.preview?.unprocessed_count ?? 0}개 새 source)`}
-              </button>
-              {organize.status === 'running' && (
-                <button
-                  type="button"
-                  className="task-panel__btn"
-                  onClick={() => {
-                    void organize.cancel()
-                  }}
-                >
-                  취소
-                </button>
-              )}
-              {organize.preview?.resume_session_id && (
-                <span style={{ fontSize: 10, color: '#6e7681' }}>
-                  ↺ 캐시 가능
-                </span>
-              )}
-            </div>
-            {organize.lastNote && (
-              <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6 }}>
-                {organize.lastNote}
-              </div>
-            )}
-            {organizeError && (
-              <div className="task-detail__error" style={{ margin: '6px 0 0' }}>
-                {organizeError}
-              </div>
-            )}
-          </div>
-          <div className="task-detail__section">
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                marginBottom: 8,
-              }}
-            >
-              <h3
-                className="task-detail__section-title"
-                style={{ flex: 1, margin: 0 }}
-              >
-                Wiki ({wiki.files.length})
-              </h3>
-              <button
-                type="button"
-                className="task-panel__btn"
-                onClick={() => setShowNewWikiInput((v) => !v)}
-                style={{ fontSize: 11 }}
-              >
-                {showNewWikiInput ? '취소' : '+ 새 파일'}
-              </button>
-            </div>
-            {showNewWikiInput && (
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <input
-                  className="task-panel__create-input"
-                  placeholder="파일명 (예: decisions)"
-                  value={newWikiName}
-                  onChange={(e) => setNewWikiName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      void handleNewWiki()
-                    }
-                  }}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="task-panel__btn task-panel__btn--primary"
-                  onClick={handleNewWiki}
-                  disabled={!newWikiName.trim()}
-                >
-                  생성
-                </button>
-              </div>
-            )}
-            {wiki.files.length === 0 ? (
-              <div className="task-detail__section-empty">
-                위키 파일이 없습니다.
-                <br />
-                <span style={{ fontSize: 11 }}>
-                  Source를 추가하고 위 "정리" 버튼을 누르거나, 직접 새 파일을 만드세요.
-                </span>
-              </div>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {wiki.files.map((f) => (
-                  <li
-                    key={f.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: 6,
-                      background: activeWiki === f.name ? '#161b22' : 'transparent',
-                      marginBottom: 2,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveWiki((cur) => (cur === f.name ? null : f.name))
-                      }
-                      style={{
-                        flex: 1,
-                        background: 'none',
-                        border: 'none',
-                        color: '#c9d1d9',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        padding: '6px 8px',
-                        fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                        fontSize: 12,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      📄 {f.name}
-                    </button>
-                    <span style={{ fontSize: 10, color: '#6e7681', marginRight: 8 }}>
-                      {f.size_bytes}B
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {activeWiki && (
-              <WikiEditor
-                taskId={task.id}
-                name={activeWiki}
-                onClose={() => setActiveWiki(null)}
-                readFile={wiki.readFile}
-                writeFile={wiki.writeFile}
-                deleteFile={wiki.deleteFile}
-              />
-            )}
-          </div>
+          <TaskEditableFields
+            task={task}
+            onCommitName={commitName}
+            onCommitDescription={commitDesc}
+          />
+          <AttachTaskRow
+            taskId={task.id}
+            attached={attached}
+            canAttach={canAttach}
+            onAttach={onAttach}
+            onDetach={onDetach}
+          />
+          <SourcesSection
+            sources={sources}
+            onDelete={(id) => void deleteSource(id)}
+            formatTimestamp={formatTs}
+          />
+          <OrganizeSection
+            status={organize.status}
+            preview={organize.preview}
+            lastNote={organize.lastNote}
+            onStart={organize.start}
+            onCancel={organize.cancel}
+          />
+          <WikiSection
+            taskId={task.id}
+            files={wiki.files}
+            readFile={wiki.readFile}
+            writeFile={wiki.writeFile}
+            deleteFile={wiki.deleteFile}
+          />
           <div className="task-detail__footer">
             <button
               type="button"

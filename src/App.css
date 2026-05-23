@@ -9,7 +9,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
-  background: #0d1117;
+  background: var(--color-bg-base);
   overflow: hidden;
 }
 
@@ -18,7 +18,7 @@ body,
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
+  background: var(--color-bg-base);
 }
 
 .app-tab-host {
@@ -39,14 +39,14 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0d1117;
+  background: var(--color-bg-base);
 }
 
 .folder-picker__card {
   text-align: center;
   padding: 48px 56px;
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
   border-radius: 16px;
   max-width: 420px;
   width: 100%;
@@ -55,7 +55,7 @@ body,
 .folder-picker__logo {
   width: 64px;
   height: 64px;
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -69,30 +69,30 @@ body,
 .folder-picker__title {
   font-size: 28px;
   font-weight: 700;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   margin-bottom: 12px;
   font-family: var(--font-ui);
 }
 
 .folder-picker__desc {
   font-size: 14px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   line-height: 1.6;
   margin-bottom: 32px;
   font-family: var(--font-ui);
 }
 
 .folder-picker__btn {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 24px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
 }
 
 .folder-picker__btn:hover:not(:disabled) {
@@ -107,7 +107,7 @@ body,
 .folder-picker__error {
   margin-top: 16px;
   font-size: 13px;
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .folder-picker__recent {
@@ -118,7 +118,7 @@ body,
 
 .folder-picker__recent-label {
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -139,33 +139,33 @@ body,
   gap: 2px 12px;
   width: 100%;
   padding: 8px 10px;
-  background: #0d1117;
-  border: 1px solid #21262d;
-  border-radius: 6px;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: left;
 }
 
 .folder-picker__recent-item:hover:not(:disabled) {
-  background: #161b22;
-  border-color: #30363d;
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-default);
 }
 
 .folder-picker__recent-name {
   font-size: 13px;
-  color: #e6edf3;
+  color: var(--color-text-strong);
   font-weight: 600;
 }
 
 .folder-picker__recent-meta {
   font-size: 11px;
-  color: #8b949e;
+  color: var(--color-text-muted);
 }
 
 .folder-picker__recent-path {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   grid-column: 1 / -1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -182,8 +182,8 @@ body,
 
 .app__header {
   min-height: 44px;
-  background: #161b22;
-  border-bottom: 1px solid #21262d;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border-muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -194,7 +194,7 @@ body,
 
 .app__path {
   font-size: 12px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -213,7 +213,7 @@ body,
 }
 
 .app__queue-label {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 10.5px;
   font-weight: 500;
   display: inline-flex;
@@ -224,7 +224,7 @@ body,
 
 .app__queue-label::before {
   content: '◷';
-  color: #d29922;
+  color: var(--color-accent-yellow);
   font-size: 11px;
 }
 
@@ -235,8 +235,8 @@ body,
   padding: 8px 12px;
   background: rgba(30, 30, 30, 0.6);
   border: 1px solid #3c3c3c;
-  border-left: 2px solid #d29922;
-  border-radius: 6px;
+  border-left: 2px solid var(--color-accent-yellow);
+  border-radius: var(--radius-md);
   opacity: 0.85;
 }
 
@@ -256,7 +256,7 @@ body,
 .app__queue-remove {
   background: transparent;
   border: none;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   cursor: pointer;
   font-size: 14px;
   padding: 0 4px;
@@ -265,14 +265,14 @@ body,
 }
 
 .app__queue-remove:hover {
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .app__model-picker {
-  background: #161b22;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: 11px;
   margin-left: 8px;
@@ -280,15 +280,15 @@ body,
 }
 
 .app__model-picker:hover {
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .app__settings-btn {
   margin-left: 6px;
   background: transparent;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  color: var(--color-text-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   width: 28px;
   height: 24px;
   font-size: 14px;
@@ -299,13 +299,13 @@ body,
 }
 
 .app__settings-btn:hover {
-  border-color: #1f6feb;
-  color: #58a6ff;
+  border-color: var(--color-accent-blue);
+  color: var(--color-accent-blue-soft);
 }
 
 .app__usage {
   margin-left: 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 11px;
   font-family: var(--font-mono);
 }
@@ -320,7 +320,7 @@ body,
   left: 12px;
   right: 12px;
   margin-top: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
   z-index: 25;
 }
@@ -331,7 +331,7 @@ body,
 
 .app__hook-banner {
   background: #1a1f2b;
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
   border: 1px solid #2b4565;
   font-size: 12px;
   padding: 6px 12px;
@@ -356,7 +356,7 @@ body,
   background: transparent;
   border: 1px solid #5d1f23;
   color: #ffa198;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   cursor: pointer;
   font-size: 11px;
@@ -386,15 +386,15 @@ body,
 
 .resize-handle {
   width: 4px;
-  background: #21262d;
+  background: var(--color-border-muted);
   cursor: col-resize;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
   flex-shrink: 0;
 }
 
 .resize-handle:hover,
 .resize-handle[data-resize-handle-active] {
-  background: #58a6ff;
+  background: var(--color-accent-blue-soft);
 }
 
 .app__chat {
@@ -405,10 +405,10 @@ body,
 }
 
 .app__reopen-btn {
-  background: #161b22;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   cursor: pointer;
   font-size: 12px;
@@ -420,10 +420,10 @@ body,
 }
 
 .app__knowledge-btn {
-  background: #161b22;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   padding: 2px 10px;
   cursor: pointer;
   font-size: 12px;
@@ -434,23 +434,23 @@ body,
 }
 
 .app__knowledge-btn:hover {
-  background: #21262d;
-  border-color: #58a6ff;
+  background: var(--color-border-muted);
+  border-color: var(--color-accent-blue-soft);
 }
 
 .app__knowledge-btn.is-active {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .app__attached-count {
   margin-left: 4px;
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
-  background: #1f3a5f;
-  color: #79c0ff;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-accent-subtle);
+  color: var(--color-accent-blue-pale);
 }
 
 .app__knowledge-btn.is-active .app__attached-count {
@@ -462,7 +462,7 @@ body,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 12px;
   margin-left: auto;
   cursor: pointer;

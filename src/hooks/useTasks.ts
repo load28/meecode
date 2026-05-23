@@ -19,6 +19,7 @@ import {
   getOrganizeSnapshot,
   subscribeOrganize,
 } from '../state/organizeStore'
+import { logBackendError } from '../utils/log'
 
 export interface CreateSourceInput {
   taskId: string
@@ -54,7 +55,7 @@ export function useTasks(): UseTasksResult {
       const list = await invoke<TaskSummary[]>('list_tasks')
       setTasks(list)
     } catch (e) {
-      console.warn('[tasks] list_tasks failed', e)
+      logBackendError('tasks', 'list_tasks', e)
     }
   }, [])
 
@@ -82,7 +83,7 @@ export function useTasks(): UseTasksResult {
         })
         return task
       } catch (e) {
-        console.warn('[tasks] create_task failed', e)
+        logBackendError('tasks', 'create_task', e)
         return null
       }
     },
@@ -115,7 +116,7 @@ export function useTasks(): UseTasksResult {
         })
         return task
       } catch (e) {
-        console.warn('[tasks] update_task failed', e)
+        logBackendError('tasks', 'update_task', e)
         return null
       }
     },
@@ -127,7 +128,7 @@ export function useTasks(): UseTasksResult {
       await invoke('delete_task', { taskId: id })
       removeTaskInStore(id)
     } catch (e) {
-      console.warn('[tasks] delete_task failed', e)
+      logBackendError('tasks', 'delete_task', e)
     }
   }, [])
 
@@ -150,7 +151,7 @@ export function useTasks(): UseTasksResult {
         void refresh()
         return created
       } catch (e) {
-        console.warn('[tasks] create_source failed', e)
+        logBackendError('tasks', 'create_source', e)
         return null
       }
     },
@@ -211,7 +212,7 @@ export function useTaskDetail(taskId: string | null) {
         })
         setSources((prev) => prev.filter((s) => s.id !== sourceId))
       } catch (e) {
-        console.warn('[tasks] delete_source failed', e)
+        logBackendError('tasks', 'delete_source', e)
       }
     },
     [taskId],
@@ -235,7 +236,7 @@ export function useTaskWiki(taskId: string | null) {
       const list = await invoke<WikiFile[]>('list_task_wiki_files', { taskId })
       setFiles(list)
     } catch (e) {
-      console.warn('[tasks] list_task_wiki_files failed', e)
+      logBackendError('tasks', 'list_task_wiki_files', e)
     } finally {
       setLoading(false)
     }
@@ -253,7 +254,7 @@ export function useTaskWiki(taskId: string | null) {
           args: { task_id: taskId, name },
         })
       } catch (e) {
-        console.warn('[tasks] read_task_wiki failed', e)
+        logBackendError('tasks', 'read_task_wiki', e)
         return ''
       }
     },
@@ -270,7 +271,7 @@ export function useTaskWiki(taskId: string | null) {
         await refresh()
         return true
       } catch (e) {
-        console.warn('[tasks] write_task_wiki failed', e)
+        logBackendError('tasks', 'write_task_wiki', e)
         return false
       }
     },
@@ -286,7 +287,7 @@ export function useTaskWiki(taskId: string | null) {
         })
         await refresh()
       } catch (e) {
-        console.warn('[tasks] delete_task_wiki failed', e)
+        logBackendError('tasks', 'delete_task_wiki', e)
       }
     },
     [taskId, refresh],
@@ -313,7 +314,7 @@ export function useTaskOrganize(taskId: string | null) {
       const p = await invoke<OrganizePreview>('get_organize_preview', { taskId })
       setPreview(p)
     } catch (e) {
-      console.warn('[organize] get_organize_preview failed', e)
+      logBackendError('organize', 'get_organize_preview', e)
     }
   }, [taskId])
 
@@ -345,7 +346,7 @@ export function useTaskOrganize(taskId: string | null) {
     try {
       await invoke('cancel_task_organize', { taskId })
     } catch (e) {
-      console.warn('[organize] cancel failed', e)
+      logBackendError('organize', 'cancel', e)
     }
   }, [taskId])
 

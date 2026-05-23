@@ -3,8 +3,8 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: #0d1117;
-  border-left: 1px solid #21262d;
+  background: var(--color-bg-base);
+  border-left: 1px solid var(--color-border-muted);
   font-family: var(--font-ui);
   min-width: 0;
 }
@@ -15,7 +15,7 @@
 }
 
 .file-panel__placeholder {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 13px;
   padding: 24px;
   text-align: center;
@@ -25,8 +25,8 @@
 .file-panel__tabs {
   display: flex;
   align-items: stretch;
-  background: #0d1117;
-  border-bottom: 1px solid #21262d;
+  background: var(--color-bg-base);
+  border-bottom: 1px solid var(--color-border-muted);
   padding: 0 6px;
   gap: 2px;
   overflow-x: auto;
@@ -42,22 +42,22 @@
   background: transparent;
   border: 1px solid transparent;
   border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-md) 6px 0 0;
   padding: 0 4px 0 10px;
   max-width: 220px;
   min-width: 80px;
-  color: #8b949e;
+  color: var(--color-text-muted);
 }
 
 .file-panel__tab:hover {
-  background: #161b22;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
 }
 
 .file-panel__tab.is-active {
-  background: #161b22;
-  border-color: #30363d;
-  color: #e6edf3;
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-default);
+  color: var(--color-text-strong);
 }
 
 .file-panel__tab-button {
@@ -85,12 +85,12 @@
 .file-panel__tab-close {
   background: transparent;
   border: none;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   cursor: pointer;
   font-size: 14px;
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -99,15 +99,15 @@
 
 .file-panel__tab-close:hover {
   background: rgba(248, 81, 73, 0.2);
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .file-panel__close-all {
   align-self: center;
   background: transparent;
-  border: 1px dashed #30363d;
-  color: #8b949e;
-  border-radius: 4px;
+  border: 1px dashed var(--color-border-default);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
   margin-left: 8px;
   padding: 2px 8px;
   font-size: 11px;
@@ -116,16 +116,16 @@
 }
 
 .file-panel__close-all:hover {
-  background: #161b22;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
 }
 
 .file-panel__action {
   align-self: center;
   background: transparent;
-  border: 1px solid #30363d;
-  color: #8b949e;
-  border-radius: 4px;
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
   margin-left: 6px;
   padding: 2px 8px;
   font-size: 11px;
@@ -135,9 +135,9 @@
 }
 
 .file-panel__action:hover {
-  background: #161b22;
-  color: #c9d1d9;
-  border-color: #58a6ff;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
+  border-color: var(--color-accent-blue-soft);
 }
 
 .file-panel__tabs--actions-only {
@@ -158,13 +158,13 @@
   justify-content: space-between;
   gap: 12px;
   padding: 6px 12px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
   background: #11161d;
   font-size: 11px;
 }
 
 .file-panel__path {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -174,14 +174,14 @@
 }
 
 .file-panel__meta {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   flex-shrink: 0;
 }
 
 .file-panel__loading,
 .file-panel__error {
   padding: 24px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 
@@ -193,7 +193,7 @@
   position: relative;
   flex: 1;
   overflow: auto;
-  background: #0d1117;
+  background: var(--color-bg-base);
   display: flex;
   font-family: var(--font-mono);
   font-size: 12.5px;
@@ -206,7 +206,7 @@
   text-align: right;
   padding: 12px 8px 12px 12px;
   color: #484f58;
-  border-right: 1px solid #161b22;
+  border-right: 1px solid var(--color-bg-elevated);
   background: #0a0f14;
   display: flex;
   flex-direction: column;
@@ -230,7 +230,7 @@
 .file-panel__code code {
   background: transparent;
   padding: 0;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
@@ -240,18 +240,18 @@
 .file-panel__comment {
   position: absolute;
   z-index: 30;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 6px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   padding: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .file-panel__comment button {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -265,7 +265,7 @@
 .file-panel__tab-marker {
   display: inline-block;
   margin-left: 4px;
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
   font-size: 8px;
   line-height: 1;
 }
@@ -273,9 +273,9 @@
 .file-panel__mode-toggle {
   display: inline-flex;
   align-items: center;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -283,7 +283,7 @@
 .file-panel__mode-btn {
   background: transparent;
   border: none;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 11px;
   font-family: var(--font-ui);
   padding: 2px 10px;
@@ -291,32 +291,32 @@
 }
 
 .file-panel__mode-btn:hover {
-  background: #161b22;
-  color: #c9d1d9;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-default);
 }
 
 .file-panel__mode-btn.is-active {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
 }
 
 .file-panel__diff {
   flex: 1;
   overflow: auto;
-  background: #0d1117;
+  background: var(--color-bg-base);
   min-height: 0;
 }
 
 .file-panel__markdown {
   flex: 1;
   overflow: auto;
-  background: #0d1117;
+  background: var(--color-bg-base);
   min-height: 0;
   padding: 20px 28px;
 }
 
 .file-panel__markdown-content {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-family: var(--font-ui);
   font-size: 14px;
   max-width: 920px;

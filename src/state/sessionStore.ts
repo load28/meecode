@@ -25,6 +25,8 @@ import {
   type StreamPartialEvent,
   type ToolProgressPayload,
 } from '../hooks/reduceStreamMessage'
+import { tabIdOf } from '../utils/tabId'
+import { modeFromClaude } from '../utils/permissionMode'
 
 export interface UsageStats {
   totalCostUsd: number
@@ -162,28 +164,7 @@ export function setTab(
   notify(tabId)
 }
 
-function modeFromClaude(s: string | undefined | null): Mode | null {
-  if (!s) return null
-  switch (s) {
-    case 'default':
-      return 'default'
-    case 'plan':
-      return 'plan'
-    case 'auto':
-    case 'acceptEdits':
-      return 'auto-accept'
-    default:
-      return null
-  }
-}
-
 // --- Tauri listener bootstrap, runs exactly once per page load. ---
-
-function tabIdOf(payload: unknown): string {
-  if (!payload || typeof payload !== 'object') return 'main'
-  const t = (payload as { tab_id?: unknown }).tab_id
-  return typeof t === 'string' && t.length > 0 ? t : 'main'
-}
 
 let bootstrapped = false
 

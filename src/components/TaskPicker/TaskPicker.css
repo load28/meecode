@@ -11,8 +11,8 @@
 .task-picker {
   width: min(420px, calc(100vw - 32px));
   max-height: min(560px, calc(100vh - 64px));
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -22,7 +22,7 @@
 
 .task-picker__header {
   padding: 12px 14px;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--color-border-default);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -32,14 +32,14 @@
   flex: 1;
   font-size: 14px;
   font-weight: 600;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   margin: 0;
 }
 
 .task-picker__preview {
   font-size: 11px;
-  color: #6e7681;
-  background: #0d1117;
+  color: var(--color-text-subtle);
+  background: var(--color-bg-base);
   padding: 2px 8px;
   border-radius: 10px;
   max-width: 200px;
@@ -51,7 +51,7 @@
 .task-picker__close {
   background: none;
   border: none;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -63,10 +63,10 @@
 }
 
 .task-picker__search {
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  color: #c9d1d9;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-default);
   font-size: 13px;
   padding: 8px 10px;
   font-family: inherit;
@@ -76,7 +76,7 @@
 
 .task-picker__search:focus {
   outline: none;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .task-picker__body {
@@ -89,7 +89,7 @@
 .task-picker__empty {
   padding: 24px 16px;
   text-align: center;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 12px;
 }
 
@@ -107,8 +107,8 @@
   text-align: left;
   cursor: pointer;
   padding: 8px 14px;
-  color: #c9d1d9;
-  border-bottom: 1px solid #161b22;
+  color: var(--color-text-default);
+  border-bottom: 1px solid var(--color-bg-elevated);
 }
 
 .task-picker__item:hover,
@@ -124,17 +124,17 @@
 
 .task-picker__item-meta {
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin-top: 2px;
 }
 
 .task-picker__create {
-  border-top: 1px solid #30363d;
+  border-top: 1px solid var(--color-border-default);
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #0d1117;
+  background: var(--color-bg-base);
 }
 
 .task-picker__create-row {
@@ -144,10 +144,10 @@
 
 .task-picker__create-input {
   flex: 1;
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
   border-radius: 5px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 12px;
   padding: 6px 8px;
   font-family: inherit;
@@ -155,7 +155,7 @@
 
 .task-picker__create-input:focus {
   outline: none;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .task-picker__create-btn {
@@ -170,18 +170,18 @@
 }
 
 .task-picker__create-btn:hover:not(:disabled) {
-  background: #2ea043;
+  background: var(--color-accent-green);
 }
 
 .task-picker__create-btn:disabled {
-  background: #30363d;
-  color: #6e7681;
+  background: var(--color-border-default);
+  color: var(--color-text-subtle);
   cursor: not-allowed;
 }
 
 .task-picker__hint {
   font-size: 10px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin: 0;
 }
 

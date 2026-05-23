@@ -9,6 +9,7 @@ import {
   subscribeBindings,
   upsertBinding,
 } from '../state/bindingsStore'
+import { logBackendError } from '../utils/log'
 
 export interface UseSessionBindingsResult {
   bindings: SessionTaskBinding[]
@@ -47,7 +48,7 @@ export function useSessionBindings(
       )
       setBindings(sessionId, list)
     } catch (e) {
-      console.warn('[bindings] list_session_task_bindings failed', e)
+      logBackendError('bindings', 'list_session_task_bindings', e)
     }
   }, [sessionId])
 
@@ -70,7 +71,7 @@ export function useSessionBindings(
         upsertBinding(created)
         return created
       } catch (e) {
-        console.warn('[bindings] attach_task failed', e)
+        logBackendError('bindings', 'attach_task', e)
         return null
       }
     },
@@ -86,7 +87,7 @@ export function useSessionBindings(
         })
         removeBinding(sessionId, taskId)
       } catch (e) {
-        console.warn('[bindings] detach_task failed', e)
+        logBackendError('bindings', 'detach_task', e)
       }
     },
     [sessionId],

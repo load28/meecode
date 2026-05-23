@@ -5,10 +5,10 @@
 }
 
 .comment-float__button {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 12px;
   font-size: 13px;
   cursor: pointer;
@@ -25,7 +25,7 @@
 }
 
 .comment-float__button--capture {
-  background: #1f3a5f;
+  background: var(--color-bg-accent-subtle);
 }
 
 .comment-float__button--capture:hover {

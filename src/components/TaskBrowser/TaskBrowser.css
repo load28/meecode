@@ -2,8 +2,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0d1117;
-  border-left: 1px solid #30363d;
+  background: var(--color-bg-base);
+  border-left: 1px solid var(--color-border-default);
   min-width: 0;
 }
 
@@ -11,14 +11,14 @@
   display: flex;
   align-items: center;
   padding: 12px 14px;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--color-border-default);
   gap: 8px;
 }
 
 .task-panel__back {
   background: none;
   border: none;
-  color: #8b949e;
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 14px;
   padding: 0 4px;
@@ -32,7 +32,7 @@
   flex: 1;
   font-size: 14px;
   font-weight: 600;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -40,7 +40,7 @@
 }
 
 .task-panel__new-btn {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
   border: none;
   padding: 6px 10px;
@@ -56,7 +56,7 @@
 .task-panel__close {
   background: none;
   border: none;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -78,7 +78,7 @@
 .task-panel__empty {
   padding: 32px 18px;
   text-align: center;
-  color: #8b949e;
+  color: var(--color-text-muted);
 }
 
 .task-panel__empty p {
@@ -93,7 +93,7 @@
 }
 
 .task-panel__item {
-  border-bottom: 1px solid #161b22;
+  border-bottom: 1px solid var(--color-bg-elevated);
 }
 
 .task-panel__item-btn {
@@ -101,14 +101,14 @@
   width: 100%;
   background: none;
   border: none;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   text-align: left;
   cursor: pointer;
   padding: 10px 14px;
 }
 
 .task-panel__item-btn:hover {
-  background: #161b22;
+  background: var(--color-bg-elevated);
 }
 
 .task-panel__item-name {
@@ -125,13 +125,13 @@
   display: flex;
   gap: 8px;
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .task-panel__item-desc {
   margin-top: 4px;
   font-size: 11px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -144,16 +144,16 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .task-panel__create-input,
 .task-panel__create-textarea {
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
   border-radius: 5px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 12px;
   padding: 6px 8px;
   font-family: inherit;
@@ -169,7 +169,7 @@
 .task-panel__create-input:focus,
 .task-panel__create-textarea:focus {
   outline: none;
-  border-color: #1f6feb;
+  border-color: var(--color-accent-blue);
 }
 
 .task-panel__create-actions {
@@ -179,9 +179,9 @@
 }
 
 .task-panel__btn {
-  background: #21262d;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
+  background: var(--color-border-muted);
+  color: var(--color-text-default);
+  border: 1px solid var(--color-border-default);
   padding: 5px 10px;
   border-radius: 5px;
   font-size: 12px;
@@ -189,11 +189,11 @@
 }
 
 .task-panel__btn:hover {
-  background: #30363d;
+  background: var(--color-border-default);
 }
 
 .task-panel__btn--primary {
-  background: #1f6feb;
+  background: var(--color-accent-blue);
   color: #fff;
   border-color: transparent;
 }
@@ -203,9 +203,9 @@
 }
 
 .task-panel__btn--primary:disabled {
-  background: #30363d;
+  background: var(--color-border-default);
   cursor: not-allowed;
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .task-panel__btn--danger {
@@ -220,13 +220,13 @@
 /* TaskDetail */
 .task-detail__field {
   padding: 12px 14px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .task-detail__label {
   display: block;
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -240,29 +240,29 @@
   border: 1px solid transparent;
   width: 100%;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   box-sizing: border-box;
 }
 
 .task-detail__name:hover {
-  border-color: #21262d;
+  border-color: var(--color-border-muted);
 }
 
 .task-detail__name:focus {
   outline: none;
-  border-color: #1f6feb;
-  background: #0d1117;
+  border-color: var(--color-accent-blue);
+  background: var(--color-bg-base);
 }
 
 .task-detail__desc {
   font-size: 12px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   background: none;
   border: 1px solid transparent;
   width: 100%;
   padding: 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   box-sizing: border-box;
   resize: vertical;
@@ -271,18 +271,18 @@
 }
 
 .task-detail__desc:hover {
-  border-color: #21262d;
+  border-color: var(--color-border-muted);
 }
 
 .task-detail__desc:focus {
   outline: none;
-  border-color: #1f6feb;
-  background: #0d1117;
+  border-color: var(--color-accent-blue);
+  background: var(--color-bg-base);
 }
 
 .task-detail__meta {
   font-size: 11px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   padding: 8px 14px;
   display: flex;
   gap: 12px;
@@ -295,7 +295,7 @@
 .task-detail__section-title {
   font-size: 12px;
   font-weight: 600;
-  color: #8b949e;
+  color: var(--color-text-muted);
   margin: 0 0 8px 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -303,17 +303,17 @@
 
 .task-detail__section-empty {
   font-size: 12px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   padding: 16px;
   text-align: center;
-  background: #0d1117;
-  border: 1px dashed #21262d;
-  border-radius: 6px;
+  background: var(--color-bg-base);
+  border: 1px dashed var(--color-border-muted);
+  border-radius: var(--radius-md);
 }
 
 .task-detail__footer {
   padding: 12px 14px;
-  border-top: 1px solid #21262d;
+  border-top: 1px solid var(--color-border-muted);
   display: flex;
   gap: 8px;
   justify-content: flex-end;
@@ -324,14 +324,14 @@
   border: 1px solid #5a1f1f;
   color: #f78166;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   margin: 12px 14px;
 }
 
 .task-detail__attach-row {
   padding: 8px 14px 12px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -342,9 +342,9 @@
 }
 
 .task-detail__attach-btn--detach {
-  background: #1f3a5f;
-  border-color: #1f3a5f;
-  color: #c9d1d9;
+  background: var(--color-bg-accent-subtle);
+  border-color: var(--color-bg-accent-subtle);
+  color: var(--color-text-default);
 }
 
 .task-detail__attach-btn--detach:hover {
@@ -353,7 +353,7 @@
 
 .task-detail__attach-hint {
   font-size: 11px;
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
 }
 
 .task-panel__item-attached {
@@ -361,8 +361,165 @@
   margin-left: 6px;
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
-  background: #1f3a5f;
-  color: #79c0ff;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-accent-subtle);
+  color: var(--color-accent-blue-pale);
   vertical-align: middle;
+}
+
+/* TaskDetail/SourcesSection — section-empty 내부의 추가 안내 텍스트. */
+.task-detail__section-empty-hint {
+  font-size: 11px;
+}
+
+/* SourcesSection 리스트 — 빈 ul 기본 indent/marker 제거. */
+.task-detail__source-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 한 Source 행. processed 여부에 따라 배경/테두리가 바뀐다. */
+.task-detail__source-item {
+  border-radius: var(--radius-md);
+  padding: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-text-default);
+  background: #10171f;
+  border: 1px solid var(--color-bg-accent-subtle);
+}
+
+.task-detail__source-item.is-processed {
+  background: var(--color-bg-base);
+  border-color: var(--color-border-muted);
+}
+
+.task-detail__source-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  margin-bottom: 4px;
+}
+
+.task-detail__source-meta-text {
+  flex: 1;
+}
+
+.task-detail__source-badge--ok {
+  margin-left: 6px;
+  color: var(--color-accent-blue-pale);
+}
+
+.task-detail__source-badge--pending {
+  margin-left: 6px;
+  color: var(--color-accent-yellow);
+}
+
+.task-detail__source-delete {
+  background: none;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.task-detail__source-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: hidden;
+}
+
+/* OrganizeSection — 액션 행: 정리 버튼 / 취소 / 캐시 안내. */
+.task-detail__organize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-detail__organize-hint {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+}
+
+.task-detail__organize-note {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 6px;
+}
+
+.task-detail__error--inline {
+  margin: 6px 0 0;
+}
+
+/* WikiSection — 헤더(타이틀 + 새 파일 토글), 새 파일 입력 행, 파일 리스트. */
+.task-detail__wiki-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.task-detail__wiki-title {
+  flex: 1;
+  margin: 0;
+}
+
+.task-detail__wiki-toggle {
+  font-size: 11px;
+}
+
+.task-detail__wiki-new-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.task-detail__wiki-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-detail__wiki-item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+  background: transparent;
+}
+
+.task-detail__wiki-item.is-active {
+  background: var(--color-bg-elevated);
+}
+
+.task-detail__wiki-link {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--color-text-default);
+  text-align: left;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-detail__wiki-size {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  margin-right: 8px;
+}
+
+/* TaskBrowserList의 빈 상태 안내(작은 설명 한 줄). */
+.task-panel__empty-hint {
+  font-size: 12px;
+  color: var(--color-text-subtle);
 }

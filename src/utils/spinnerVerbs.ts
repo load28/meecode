@@ -33,6 +33,9 @@ const STATIC_OVERRIDES: Record<string, string> = {
   initializing: 'Loading',
 }
 
+/** 기본 회전 주기 — 사람이 읽고 다음으로 자연스럽게 넘어갈 만큼의 시간. */
+const DEFAULT_ROTATION_MS = 2500
+
 export interface SpinnerVerbOptions {
   /** Override label that suppresses rotation. e.g. tool name, "Compacting". */
   override?: string | null
@@ -42,7 +45,7 @@ export interface SpinnerVerbOptions {
 
 export function useSpinnerVerb({
   override,
-  intervalMs = 2500,
+  intervalMs = DEFAULT_ROTATION_MS,
 }: SpinnerVerbOptions = {}): string {
   const forced = override ? STATIC_OVERRIDES[override] ?? override : null
   const [index, setIndex] = useState(() => Math.floor(Math.random() * SPINNER_VERBS.length))

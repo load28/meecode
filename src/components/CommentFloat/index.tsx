@@ -54,6 +54,7 @@ export function CommentFloat({ selection, onClose, onAddComment, onCapture }: Pr
       <div className="comment-float__actions">
         {onCapture && (
           <button
+            type="button"
             className="comment-float__button comment-float__button--capture"
             onClick={handleCapture}
             title="이 선택을 Task에 캡처"
@@ -63,6 +64,7 @@ export function CommentFloat({ selection, onClose, onAddComment, onCapture }: Pr
         )}
         {onAddComment && (
           <button
+            type="button"
             className="comment-float__button"
             onClick={handleAddComment}
             title="선택 영역을 입력창에 코멘트로 추가"

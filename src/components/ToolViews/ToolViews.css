@@ -1,6 +1,6 @@
 .tool-view {
-  border: 1px solid #21262d;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-lg);
   background: #0f141b;
   font-size: 12px;
   margin: 4px 0;
@@ -13,7 +13,7 @@
   gap: 8px;
   padding: 8px 12px;
   background: #11161d;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--color-border-muted);
 }
 
 .tool-view:not(.tool-view--bash):not(.tool-view--edit):not(.tool-view--write):not(.tool-view--read):not(.tool-view--todo) .tool-view__header {
@@ -22,18 +22,18 @@
 
 .tool-view__icon {
   font-size: 14px;
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
 }
 
 .tool-view__name {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: #79c0ff;
+  color: var(--color-accent-blue-pale);
 }
 
 .tool-view__path {
   font-family: var(--font-mono);
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -51,12 +51,12 @@ button.tool-view__path-link {
 }
 
 button.tool-view__path-link:hover {
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
   text-decoration: underline;
 }
 
 .tool-view__hint {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 11px;
   font-family: var(--font-mono);
 }
@@ -66,20 +66,20 @@ button.tool-view__path-link:hover {
   padding: 10px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
-  color: #c9d1d9;
+  color: var(--color-text-default);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 280px;
   overflow: auto;
-  background: #0d1117;
+  background: var(--color-bg-base);
 }
 
 /* Bash */
 .tool-view--bash .tool-view__icon {
-  color: #d29922;
+  color: var(--color-accent-yellow);
 }
 .tool-view--bash .tool-view__name {
-  color: #d29922;
+  color: var(--color-accent-yellow);
 }
 
 /* Edit */
@@ -89,14 +89,14 @@ button.tool-view__path-link:hover {
 }
 
 .tool-view__diff {
-  background: #0d1117;
+  background: var(--color-bg-base);
 }
 
 .tool-view__diff-summary {
   cursor: pointer;
   list-style: none;
   padding: 6px 12px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 11px;
   user-select: none;
 }
@@ -107,7 +107,7 @@ button.tool-view__path-link:hover {
 
 .tool-view__diff-summary::before {
   content: '▸ ';
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .tool-view__diff[open] > .tool-view__diff-summary::before {
@@ -128,25 +128,25 @@ button.tool-view__path-link:hover {
 .tool-view__diff-old {
   background: #2b1416;
   color: #ffa198;
-  border-top: 1px dashed #21262d;
+  border-top: 1px dashed var(--color-border-muted);
 }
 
 .tool-view__diff-new {
   background: #0c1f17;
   color: #7ee787;
-  border-top: 1px dashed #21262d;
+  border-top: 1px dashed var(--color-border-muted);
 }
 
 /* Write */
 .tool-view--write .tool-view__icon,
 .tool-view--write .tool-view__name {
-  color: #2ea043;
+  color: var(--color-accent-green);
 }
 
 /* Read */
 .tool-view--read .tool-view__icon,
 .tool-view--read .tool-view__name {
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .tool-view--read .tool-view__header {
@@ -156,7 +156,7 @@ button.tool-view__path-link:hover {
 /* TodoWrite */
 .tool-view--todo .tool-view__icon,
 .tool-view--todo .tool-view__name {
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
 }
 
 .tool-view__todo-list {
@@ -181,24 +181,24 @@ button.tool-view__path-link:hover {
   width: 14px;
   text-align: center;
   flex-shrink: 0;
-  color: #6e7681;
+  color: var(--color-text-subtle);
 }
 
 .tool-view__todo-item--in_progress .tool-view__todo-marker {
-  color: #d29922;
+  color: var(--color-accent-yellow);
 }
 
 .tool-view__todo-item--completed .tool-view__todo-marker {
-  color: #2ea043;
+  color: var(--color-accent-green);
 }
 
 .tool-view__todo-item--completed .tool-view__todo-text {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   text-decoration: line-through;
 }
 
 .tool-view__todo-text {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   flex: 1;
   word-break: break-word;
 }
@@ -212,27 +212,27 @@ button.tool-view__path-link:hover {
 }
 
 .tool-view__todo-subject {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-weight: 500;
 }
 
 .tool-view__todo-desc {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
 }
 
 .tool-view__todo-status--completed {
-  color: #2ea043;
+  color: var(--color-accent-green);
 }
 
 .tool-view__todo-status--in_progress {
-  color: #d29922;
+  color: var(--color-accent-yellow);
 }
 
 .tool-view__todo-status--deleted {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   text-decoration: line-through;
 }
 
@@ -244,14 +244,14 @@ button.tool-view__path-link:hover {
   padding: 2px 8px;
   border-radius: 10px;
   background: rgba(210, 153, 34, 0.15);
-  color: #d29922;
+  color: var(--color-accent-yellow);
   border: 1px solid rgba(210, 153, 34, 0.3);
   white-space: nowrap;
 }
 
 /* Subagent activity tree */
 .tool-view__subagent {
-  border-top: 1px solid #21262d;
+  border-top: 1px solid var(--color-border-muted);
   background: #0c1015;
 }
 
@@ -259,7 +259,7 @@ button.tool-view__path-link:hover {
   cursor: pointer;
   padding: 6px 12px;
   list-style: none;
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-size: 12px;
   user-select: none;
 }
@@ -272,9 +272,9 @@ button.tool-view__path-link:hover {
   content: '▸';
   display: inline-block;
   margin-right: 6px;
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .tool-view__subagent[open] > .tool-view__subagent-summary::before {
@@ -286,7 +286,7 @@ button.tool-view__path-link:hover {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-left: 2px solid #21262d;
+  border-left: 2px solid var(--color-border-muted);
   margin-left: 18px;
 }
 
@@ -299,7 +299,7 @@ button.tool-view__path-link:hover {
 }
 
 .tool-view__subagent-text {
-  color: #c9d1d9;
+  color: var(--color-text-default);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -307,25 +307,25 @@ button.tool-view__path-link:hover {
 }
 
 .tool-view__subagent-thinking {
-  color: #8b949e;
+  color: var(--color-text-muted);
   font-style: italic;
   font-size: 12px;
 }
 
 .tool-view__subagent-result {
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 4px 6px;
   background: #11161d;
-  border-radius: 4px;
-  border-left: 2px solid #2ea043;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--color-accent-green);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .tool-view__subagent-result--error {
-  border-left-color: #f85149;
+  border-left-color: var(--color-danger);
   color: #ffa198;
 }
 
@@ -341,10 +341,10 @@ button.tool-view__path-link:hover {
 
 .tool-view__pattern {
   font-family: var(--font-mono);
-  color: #e6edf3;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  border-radius: 4px;
+  color: var(--color-text-strong);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   font-size: 12px;
 }
@@ -352,7 +352,7 @@ button.tool-view__path-link:hover {
 /* Web */
 .tool-view--web .tool-view__icon,
 .tool-view--web .tool-view__name {
-  color: #58a6ff;
+  color: var(--color-accent-blue-soft);
 }
 
 /* Skill */
@@ -383,7 +383,7 @@ button.tool-view__path-link:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   user-select: none;
 }
 
@@ -393,9 +393,9 @@ button.tool-view__path-link:hover {
 
 .tool-view__generic-summary::before {
   content: '▸';
-  color: #6e7681;
+  color: var(--color-text-subtle);
   font-size: 10px;
-  transition: transform 0.15s;
+  transition: transform var(--duration-normal);
 }
 
 .tool-view--generic[open] > .tool-view__generic-summary::before {
