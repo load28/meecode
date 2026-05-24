@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'seti';
+  src: url('./seti.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
 .file-explorer {
   display: flex;
   flex-direction: column;
@@ -92,8 +100,15 @@
 
 .file-explorer__icon {
   flex-shrink: 0;
+  width: 16px;
+  text-align: center;
   font-size: 12px;
   line-height: 1;
+}
+
+.file-explorer__icon.is-seti {
+  font-family: 'seti';
+  font-size: 16px;
 }
 
 .file-explorer__name {
