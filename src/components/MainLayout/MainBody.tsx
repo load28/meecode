@@ -42,6 +42,10 @@ interface Props {
   onToggleTasks: () => void
   /** 파일 탐색기 사이드 패널의 표시 여부. */
   showExplorer: boolean
+  /** 탐색기에서 파일/폴더가 삭제됐을 때 — 관련 탭을 닫는다. */
+  onPathDeleted: (path: string) => void
+  /** 탐색기에서 파일/폴더가 이름변경/이동됐을 때 — 열린 탭 경로를 갱신한다. */
+  onPathRenamed: (from: string, to: string) => void
   sessionId: string | null
   attachedTaskIds: Set<string>
   onAttachTask: (taskId: string) => Promise<void> | void
@@ -79,6 +83,8 @@ export function MainBody({
   showTasks,
   onToggleTasks,
   showExplorer,
+  onPathDeleted,
+  onPathRenamed,
   sessionId,
   attachedTaskIds,
   onAttachTask,
@@ -104,6 +110,8 @@ export function MainBody({
                 projectPath={projectPath}
                 activePath={fileTabs.activePath}
                 onOpenFile={onOpenFile}
+                onPathDeleted={onPathDeleted}
+                onPathRenamed={onPathRenamed}
               />
             </Panel>
             <PanelResizeHandle className="resize-handle" />
