@@ -1,4 +1,5 @@
 import { useFileTree, type DirEntry, type UseFileTreeResult } from './useFileTree'
+import { getFileIcon } from './fileIcons'
 import './FileExplorer.css'
 
 interface Props {
@@ -107,7 +108,7 @@ function TreeNode({ entry, depth, tree, activePath, onOpenFile }: TreeNodeProps)
           {entry.is_dir ? (isExpanded ? '▾' : '▸') : ''}
         </span>
         <span className="file-explorer__icon">
-          {entry.is_dir ? '📁' : '📄'}
+          {getFileIcon(entry.name, entry.is_dir, isExpanded)}
         </span>
         <span className="file-explorer__name">{entry.name}</span>
       </div>
