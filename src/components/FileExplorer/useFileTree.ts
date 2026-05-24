@@ -31,11 +31,26 @@ interface FsChangedPayload {
   updated: { dir: string; entries: DirEntry[] }[]
   /** Directories that no longer exist (drop them and their descendants). */
   removed: string[]
+  /** Atomic dir moves/renames; re-root keys instead of dropping them. */
+  renamed: { from: string; to: string }[]
 }
 
 /** Whether `child` is `dir` itself or nested beneath it (either separator). */
 function isUnder(child: string, dir: string): boolean {
   return child === dir || child.startsWith(dir + '/') || child.startsWith(dir + '\\')
+}
+
+/**
+ * Re-root `key` from under `from` to under `to` when it matches, else return
+ * `null`. Mirrors the backend's `remap_key` so a moved dir's loaded children
+ * and expansion follow it to the new path.
+ */
+function remapKey(key: string, from: string, to: string): string | null {
+  if (key === from) return to
+  if (key.startsWith(from + '/') || key.startsWith(from + '\\')) {
+    return to + key.slice(from.length)
+  }
+  return null
 }
 
 /**
@@ -136,10 +151,29 @@ export function useFileTree(rootPath: string): UseFileTreeResult {
       const p = e.payload
       if (p.root !== rootPath) return
 
-      if (p.updated.length > 0) {
+      // Renames first: carry the expanded state to the new path, and drop the
+      // stale source keys from the cache (the `updated` entries below re-supply
+      // the destination keys with corrected child paths).
+      if (p.renamed.length > 0) {
+        const remap = (k: string): string => {
+          for (const r of p.renamed) {
+            const m = remapKey(k, r.from, r.to)
+            if (m !== null) return m
+          }
+          return k
+        }
+        const movedFrom = (k: string) =>
+          p.renamed.some((r) => remapKey(k, r.from, r.to) !== null)
+        setExpanded((prev) => {
+          const next = new Set<string>()
+          for (const k of prev) next.add(remap(k))
+          return next
+        })
         setChildrenByDir((prev) => {
-          const next = { ...prev }
-          for (const u of p.updated) next[u.dir] = u.entries
+          const next: Record<string, DirEntry[]> = {}
+          for (const [k, v] of Object.entries(prev)) {
+            if (!movedFrom(k)) next[k] = v
+          }
           return next
         })
       }
@@ -156,6 +190,14 @@ export function useFileTree(rootPath: string): UseFileTreeResult {
         setExpanded((prev) => {
           const next = new Set<string>()
           for (const k of prev) if (!gone(k)) next.add(k)
+          return next
+        })
+      }
+
+      if (p.updated.length > 0) {
+        setChildrenByDir((prev) => {
+          const next = { ...prev }
+          for (const u of p.updated) next[u.dir] = u.entries
           return next
         })
       }

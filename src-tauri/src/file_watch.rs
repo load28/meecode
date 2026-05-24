@@ -15,7 +15,10 @@
 use crate::commands::{read_dir_entries, AppState, DirEntry};
 use notify_debouncer_full::{
     new_debouncer,
-    notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode},
+    notify::{
+        event::{ModifyKind, RenameMode},
+        EventKind, RecommendedWatcher, RecursiveMode,
+    },
     DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache,
 };
 use std::collections::{HashMap, HashSet};
@@ -82,48 +85,122 @@ fn affects_listing(kind: &EventKind) -> bool {
     )
 }
 
+/// Re-root `key` from under `from` to under `to`, preserving the suffix.
+/// Returns `None` when `key` is neither `from` nor nested beneath it.
+/// Component-wise, so `/a/x` never matches `/a/xy`.
+fn remap_key(from: &Path, to: &Path, key: &Path) -> Option<PathBuf> {
+    key.strip_prefix(from).ok().map(|rel| to.join(rel))
+}
+
 /// Reconcile a debounced batch against the cache, then push the delta to the
 /// UI. Runs on the watcher's background thread.
+///
+/// The `notify` FileIdCache (inode tracking) stitches an atomic move into a
+/// single `Modify(Name(Both))` event carrying `[from, to]`. We use that to do
+/// what VS Code only does for *in-app* operations (its `onDidRunOperation`
+/// MOVE handler, `ExplorerItem.move`/`.rename`): re-root the cached subtree
+/// `from`→`to` instead of dropping it, so a renamed/moved folder keeps its
+/// loaded children and the UI keeps its expansion. Renames the watcher can't
+/// stitch fall back to the generic remove+add pass, exactly like VS Code's
+/// external `onDidFilesChange` path.
 fn handle_events(
     app: &AppHandle,
     root: &Path,
     cache: &Arc<Mutex<DirCache>>,
     events: Vec<DebouncedEvent>,
 ) {
-    // A change to `foo/bar` alters the listing of its parent `foo`; a
-    // rename/remove of `foo/bar` itself matters when `bar` is a loaded dir.
+    // Stitched moves, plus the directories whose listings a change touches.
+    // A change to `foo/bar` alters the listing of its parent `foo`; the path
+    // itself matters when it is a loaded dir.
+    let mut renames: Vec<(PathBuf, PathBuf)> = Vec::new();
     let mut candidates: HashSet<PathBuf> = HashSet::new();
+    let note = |set: &mut HashSet<PathBuf>, path: &Path| {
+        if is_excluded(root, path) {
+            return;
+        }
+        if let Some(parent) = path.parent() {
+            set.insert(parent.to_path_buf());
+        }
+        set.insert(path.to_path_buf());
+    };
     for ev in &events {
+        if matches!(ev.kind, EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            && ev.paths.len() == 2
+        {
+            let (from, to) = (&ev.paths[0], &ev.paths[1]);
+            renames.push((from.clone(), to.clone()));
+            // Both parents' listings change (the old name leaves, the new
+            // arrives — possibly under a different parent for a move).
+            note(&mut candidates, from);
+            note(&mut candidates, to);
+            continue;
+        }
         if !affects_listing(&ev.kind) {
             continue;
         }
         for path in &ev.paths {
-            if is_excluded(root, path) {
-                continue;
-            }
-            if let Some(parent) = path.parent() {
-                candidates.insert(parent.to_path_buf());
-            }
-            candidates.insert(path.clone());
+            note(&mut candidates, path);
         }
     }
-    if candidates.is_empty() {
+    if renames.is_empty() && candidates.is_empty() {
         return;
     }
 
     let mut updated: Vec<serde_json::Value> = Vec::new();
     let mut removed: Vec<String> = Vec::new();
+    let mut renamed: Vec<serde_json::Value> = Vec::new();
     {
         let mut guard = match cache.lock() {
             Ok(g) => g,
             Err(_) => return,
         };
-        // Only directories the user has loaded are in the cache, and only
-        // those need reconciling — everything else is re-read lazily on its
-        // next expand.
+
+        // Phase A — re-root the cached subtree of any move whose source was
+        // actually loaded. `handled` are the new keys we already refreshed;
+        // `moved_from` are source roots the generic pass must skip (the source
+        // is gone from disk, but it's a move, not a deletion).
+        let mut handled: HashSet<PathBuf> = HashSet::new();
+        let mut moved_from: Vec<PathBuf> = Vec::new();
+        for (from, to) in &renames {
+            if is_excluded(root, from) || is_excluded(root, to) {
+                continue;
+            }
+            let subtree: Vec<PathBuf> = guard
+                .keys()
+                .filter(|k| remap_key(from, to, k).is_some())
+                .cloned()
+                .collect();
+            if subtree.is_empty() {
+                continue; // source wasn't loaded → nothing to preserve
+            }
+            for old_key in subtree {
+                let Some(new_key) = remap_key(from, to, &old_key) else {
+                    continue;
+                };
+                guard.remove(&old_key);
+                // Re-read so the entries carry corrected absolute paths.
+                let new_str = new_key.to_string_lossy().to_string();
+                if let Ok(entries) = read_dir_entries(&new_str) {
+                    guard.insert(new_key.clone(), entries.clone());
+                    updated.push(serde_json::json!({ "dir": new_str, "entries": entries }));
+                    handled.insert(new_key);
+                }
+            }
+            renamed.push(serde_json::json!({
+                "from": from.to_string_lossy(),
+                "to": to.to_string_lossy(),
+            }));
+            moved_from.push(from.clone());
+        }
+
+        // Phase B — generic reconcile for the remaining loaded dirs. Only
+        // directories the user has loaded are in the cache; everything else is
+        // re-read lazily on its next expand.
         let relevant: Vec<PathBuf> = candidates
             .into_iter()
             .filter(|p| guard.contains_key(p))
+            .filter(|p| !handled.contains(p))
+            .filter(|p| !moved_from.iter().any(|f| p.starts_with(f)))
             .collect();
         for dir in relevant {
             let dir_str = dir.to_string_lossy().to_string();
@@ -146,7 +223,7 @@ fn handle_events(
         }
     }
 
-    if updated.is_empty() && removed.is_empty() {
+    if updated.is_empty() && removed.is_empty() && renamed.is_empty() {
         return;
     }
     let _ = app.emit(
@@ -155,6 +232,7 @@ fn handle_events(
             "root": root.to_string_lossy(),
             "updated": updated,
             "removed": removed,
+            "renamed": renamed,
         }),
     );
 }
@@ -267,6 +345,21 @@ mod tests {
         assert!(affects_listing(&EventKind::Modify(ModifyKind::Name(
             RenameMode::Both
         ))));
+    }
+
+    #[test]
+    fn remap_reroots_subtree_and_ignores_siblings() {
+        let from = Path::new("/proj/src");
+        let to = Path::new("/proj/app");
+        // The moved dir itself and any descendant get re-rooted.
+        assert_eq!(remap_key(from, to, Path::new("/proj/src")), Some(to.into()));
+        assert_eq!(
+            remap_key(from, to, Path::new("/proj/src/utils")),
+            Some(PathBuf::from("/proj/app/utils"))
+        );
+        // A sibling that merely shares a name prefix is untouched.
+        assert_eq!(remap_key(from, to, Path::new("/proj/src-old")), None);
+        assert_eq!(remap_key(from, to, Path::new("/proj/lib")), None);
     }
 
     #[test]
