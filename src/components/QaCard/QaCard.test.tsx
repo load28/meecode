@@ -157,11 +157,13 @@ describe('QaCard', () => {
     ).toBeNull()
   })
 
-  it('onCapture 제공 시 캡처 버튼 클릭하면 qa_block kind로 호출', () => {
+  it('onCapture 제공 시 캡처 버튼 클릭하면 qa_block kind로 호출 (답변만, 도구/띵킹 제외)', () => {
     const onCapture = vi.fn()
     const p = pair('q-42', [
+      { kind: 'thinking', text: '생각 중', partial: false, duration_ms: 1000 },
       text('첫 줄 답변'),
       tool('Bash', 'ls', 'tu1'),
+      { kind: 'tool_result', tool_use_id: 'tu1', text: 'file.txt', is_error: false },
     ])
     render(<QaCard pair={p} onExpand={() => {}} onCapture={onCapture} />)
     fireEvent.click(
@@ -171,10 +173,15 @@ describe('QaCard', () => {
     const arg = onCapture.mock.calls[0][0]
     expect(arg.kind).toBe('qa_block')
     expect(arg.qaId).toBe('q-42')
-    // 직렬화 포맷: Q/A 헤더 + 도구 호출 마커
+    // 직렬화 포맷: Q/A 헤더 + 실제 답변 텍스트만.
     expect(arg.content).toContain('## Q\n내 질문')
     expect(arg.content).toContain('## A')
     expect(arg.content).toContain('첫 줄 답변')
-    expect(arg.content).toContain('[tool Bash]')
+    // 도구 호출 / 결과 / 띵킹은 제외된다.
+    expect(arg.content).not.toContain('[tool Bash]')
+    expect(arg.content).not.toContain('file.txt')
+    expect(arg.content).not.toContain('생각 중')
+    // 제목 후보는 질문에서 파생.
+    expect(arg.suggestedTitle).toBe('내 질문')
   })
 })

@@ -1,15 +1,16 @@
 import type { Source } from '../../types/task'
-
-const PREVIEW_MAX_CHARS = 400
+import { sourceTitle } from '../../utils/sourceTitle'
 
 interface Props {
   sources: Source[]
   onDelete: (sourceId: string) => void
   formatTimestamp: (ms: number) => string
+  /** Open the source's full content in the shared file viewer (rendered md). */
+  onOpen?: (source: Source) => void
 }
 
 /** Sources list panel inside TaskDetail — captured snippets per task. */
-export function SourcesSection({ sources, onDelete, formatTimestamp }: Props) {
+export function SourcesSection({ sources, onDelete, formatTimestamp, onOpen }: Props) {
   return (
     <div className="task-detail__section">
       <h3 className="task-detail__section-title">Sources ({sources.length})</h3>
@@ -29,6 +30,7 @@ export function SourcesSection({ sources, onDelete, formatTimestamp }: Props) {
               source={s}
               onDelete={onDelete}
               formatTimestamp={formatTimestamp}
+              onOpen={onOpen}
             />
           ))}
         </ul>
@@ -41,10 +43,12 @@ function SourceRow({
   source,
   onDelete,
   formatTimestamp,
+  onOpen,
 }: {
   source: Source
   onDelete: (sourceId: string) => void
   formatTimestamp: (ms: number) => string
+  onOpen?: (source: Source) => void
 }) {
   const isProcessed = !!source.processed_at_ms
   return (
@@ -54,14 +58,20 @@ function SourceRow({
       }
     >
       <div className="task-detail__source-meta">
-        <span className="task-detail__source-meta-text">
-          {source.kind} · {formatTimestamp(source.captured_at_ms)}
-          {isProcessed ? (
-            <span className="task-detail__source-badge--ok">✓ wiki 반영됨</span>
-          ) : (
-            <span className="task-detail__source-badge--pending">● 미정리</span>
-          )}
-        </span>
+        {onOpen ? (
+          <button
+            type="button"
+            className="task-detail__source-title-btn"
+            onClick={() => onOpen(source)}
+            title="파일뷰로 열기"
+          >
+            📄 {sourceTitle(source)}
+          </button>
+        ) : (
+          <span className="task-detail__source-title">
+            {sourceTitle(source)}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -76,9 +86,13 @@ function SourceRow({
           ×
         </button>
       </div>
-      <div className="task-detail__source-body">
-        {source.content.slice(0, PREVIEW_MAX_CHARS)}
-        {source.content.length > PREVIEW_MAX_CHARS ? '…' : ''}
+      <div className="task-detail__source-submeta">
+        {source.kind} · {formatTimestamp(source.captured_at_ms)}
+        {isProcessed ? (
+          <span className="task-detail__source-badge--ok">✓ wiki 반영됨</span>
+        ) : (
+          <span className="task-detail__source-badge--pending">● 미정리</span>
+        )}
       </div>
     </li>
   )

@@ -399,13 +399,47 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
-  color: var(--color-text-subtle);
-  margin-bottom: 4px;
 }
 
-.task-detail__source-meta-text {
+.task-detail__source-title-btn {
   flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-detail__source-title-btn:hover {
+  color: var(--color-accent-blue);
+  text-decoration: underline;
+}
+
+.task-detail__source-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-detail__source-submeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  margin-top: 4px;
 }
 
 .task-detail__source-badge--ok {
@@ -425,13 +459,6 @@
   cursor: pointer;
   font-size: 14px;
   padding: 0 4px;
-}
-
-.task-detail__source-body {
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 120px;
-  overflow: hidden;
 }
 
 /* OrganizeSection — 액션 행: 정리 버튼 / 취소 / 캐시 안내. */
@@ -516,6 +543,23 @@
   font-size: 10px;
   color: var(--color-text-subtle);
   margin-right: 8px;
+}
+
+.task-detail__wiki-link:hover {
+  color: var(--color-accent-blue);
+}
+
+.task-detail__wiki-edit {
+  background: none;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.task-detail__wiki-edit:hover {
+  color: var(--color-text-default);
 }
 
 /* TaskBrowserList의 빈 상태 안내(작은 설명 한 줄). */

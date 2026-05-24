@@ -13,6 +13,8 @@ import './TaskPicker.css'
 export interface CaptureDraft {
   kind: 'qa_block' | 'selection' | 'manual'
   content: string
+  /** Title suggestion gathered at the capture site; editable in the picker. */
+  suggestedTitle?: string
   sessionId?: string | null
   qaId?: string | null
   projectPath?: string | null
@@ -30,9 +32,11 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
   const { query, setQuery, filtered, focusIdx, setFocusIdx, focusNext, focusPrev } =
     filter
   const [newName, setNewName] = useState('')
+  const [title, setTitle] = useState(draft.suggestedTitle ?? '')
   const searchRef = useRef<HTMLInputElement | null>(null)
   const capture = useTaskCapture({
     draft,
+    title,
     tasks,
     createTask,
     createSource,
@@ -83,6 +87,15 @@ export function TaskPicker({ draft, onClose, onCaptured }: Props) {
         onKeyDown={onKeyDown}
       >
         <PickerHeader previewText={draft.content || null} onClose={onClose} />
+        <label className="task-picker__title-field">
+          <span className="task-picker__title-label">Source 제목</span>
+          <input
+            className="task-picker__title-input"
+            placeholder="이 Source를 알아볼 제목"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
         <input
           ref={searchRef}
           className="task-picker__search"

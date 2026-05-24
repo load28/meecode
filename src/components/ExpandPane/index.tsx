@@ -1,5 +1,8 @@
 import { useSelection } from '../../hooks/useSelection'
 import { useStickyScroll } from '../../hooks/useStickyScroll'
+import { deriveTitle } from '../../utils/segmentHelpers'
+import { parseTaskContextMessage } from '../../utils/taskContext'
+import { TaskContextNote } from '../TaskContextNote'
 import { CommentFloat } from '../CommentFloat'
 import { type OpenFileFn } from '../ToolViews'
 import type { QaPair, ToolRequest } from '../../types'
@@ -58,6 +61,8 @@ export function ExpandPane({
     return null
   }
 
+  const taskContext = pair ? parseTaskContextMessage(pair.user_text) : null
+
   return (
     <aside className="expand-pane" aria-expanded={true}>
       <ExpandPaneHeader
@@ -73,8 +78,16 @@ export function ExpandPane({
         {pair ? (
           <>
             <section className="expand-pane__question">
-              <div className="expand-pane__question-label">질문</div>
-              <div className="expand-pane__question-text">{pair.user_text}</div>
+              {taskContext ? (
+                <TaskContextNote text={pair.user_text} parsed={taskContext} />
+              ) : (
+                <>
+                  <div className="expand-pane__question-label">질문</div>
+                  <div className="expand-pane__question-text">
+                    {pair.user_text}
+                  </div>
+                </>
+              )}
             </section>
             {pair.segments.length > 0 ? (
               pair.segments.map((seg, i) => (
@@ -99,6 +112,7 @@ export function ExpandPane({
                         kind: 'selection',
                         content: text,
                         qaId: pair.id,
+                        suggestedTitle: deriveTitle(text),
                       })
                   : undefined
               }

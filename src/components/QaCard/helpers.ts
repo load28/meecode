@@ -62,9 +62,11 @@ export function pendingFromSegment(
 
 
 /**
- * 한 Q&A 턴을 플레인 텍스트 블록으로 직렬화. Source로 저장될 때나
- * Task의 Wiki를 LLM이 다시 읽을 때 tool 단계를 식별할 수 있도록
- * `[tool …]` 태그를 인라인으로 붙인다.
+ * 한 Q&A 턴을 플레인 텍스트 블록으로 직렬화 — Source로 저장할 때 쓴다.
+ *
+ * Claude의 thinking / 도구 호출 / 도구 결과는 "실제 답변"이 아니므로
+ * 제외하고, 사용자에게 보여지는 답변(text / plan 세그먼트)만 남긴다.
+ * 답변 텍스트가 하나도 없으면 Q 블록만 반환한다.
  */
 export function buildPairText(pair: QaPair): string {
   const assistant = pair.segments
@@ -72,14 +74,7 @@ export function buildPairText(pair: QaPair): string {
       switch (s.kind) {
         case 'text':
         case 'plan':
-        case 'thinking':
           return s.text
-        case 'tool_use':
-          return `[tool ${s.name}] ${s.summary}`
-        case 'tool_result':
-          return s.is_error
-            ? `[tool error]\n${s.text}`
-            : `[tool result]\n${s.text}`
         default:
           return ''
       }

@@ -3,6 +3,9 @@ import type { CaptureSource } from '../../types/composer'
 import { type OpenFileFn } from '../ToolViews'
 import { useSelection } from '../../hooks/useSelection'
 import { CommentFloat } from '../CommentFloat'
+import { deriveTitle } from '../../utils/segmentHelpers'
+import { parseTaskContextMessage } from '../../utils/taskContext'
+import { TaskContextNote } from '../TaskContextNote'
 import { ANSWER_MAX_HEIGHT_PX, buildPairText } from './helpers'
 import { useClampedAnswer } from './useClampedAnswer'
 import { QaCardActions } from './QaCardActions'
@@ -34,14 +37,26 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
 
   const handleCardCapture = () => {
     if (!onCapture) return
-    onCapture({ kind: 'qa_block', content: buildPairText(pair), qaId: pair.id })
+    onCapture({
+      kind: 'qa_block',
+      content: buildPairText(pair),
+      qaId: pair.id,
+      suggestedTitle: deriveTitle(pair.user_text),
+    })
   }
 
   const handleSelectionCapture = onCapture
     ? (text: string) => {
-        onCapture({ kind: 'selection', content: text, qaId: pair.id })
+        onCapture({
+          kind: 'selection',
+          content: text,
+          qaId: pair.id,
+          suggestedTitle: deriveTitle(text),
+        })
       }
     : undefined
+
+  const taskContext = parseTaskContextMessage(pair.user_text)
 
   return (
     <article className="qa-card">
@@ -49,7 +64,11 @@ export function QaCard({ pair, onExpand, onOpenFile, onAddComment, onCapture }: 
         onCapture={onCapture ? handleCardCapture : undefined}
         onExpand={onExpand}
       />
-      <QaCardHeader text={pair.user_text} interrupted={!!pair.interrupted} />
+      {taskContext ? (
+        <TaskContextNote text={pair.user_text} parsed={taskContext} />
+      ) : (
+        <QaCardHeader text={pair.user_text} interrupted={!!pair.interrupted} />
+      )}
 
       {!hasAnyContent ? (
         <div className="qa-card__pending">응답 대기 중…</div>

@@ -35,6 +35,7 @@ export function useCapturePicker({
       setDraft({
         kind: source.kind,
         content: source.content,
+        suggestedTitle: source.suggestedTitle,
         sessionId: sessionId ?? null,
         qaId: source.qaId,
         projectPath,

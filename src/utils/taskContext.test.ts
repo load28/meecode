@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTaskContextMessage } from './taskContext'
+import { buildTaskContextMessage, parseTaskContextMessage } from './taskContext'
 import type { Source, Task } from '../types/task'
 
 const task = (over: Partial<Task> = {}): Task => ({
@@ -15,6 +15,7 @@ const src = (content: string, over: Partial<Source> = {}): Source => ({
   id: `s-${content.slice(0, 4)}`,
   task_id: 't1',
   kind: 'manual',
+  title: '',
   content,
   origin: { session_id: null, qa_id: null, project_path: null },
   captured_at_ms: 0,
@@ -35,15 +36,16 @@ describe('buildTaskContextMessage', () => {
     expect(out).not.toContain('## Sources')
   })
 
-  it('sources only — emits Sources block with kind markers', () => {
+  it('sources only — emits Sources block with title + kind markers', () => {
     const out = buildTaskContextMessage(task(), [
-      src('답변 한 덩어리', { kind: 'qa_block' }),
+      src('답변 한 덩어리', { kind: 'qa_block', title: '핵심 답변' }),
       src('짧은 선택', { kind: 'selection' }),
     ])!
     expect(out).toContain('## Sources (2)')
-    expect(out).toContain('### [1] qa_block')
+    expect(out).toContain('### [1] 핵심 답변 · qa_block')
     expect(out).toContain('답변 한 덩어리')
-    expect(out).toContain('### [2] selection')
+    // No explicit title — falls back to a content-derived label.
+    expect(out).toContain('### [2] 짧은 선택 · selection')
     expect(out).toContain('짧은 선택')
   })
 
@@ -60,5 +62,29 @@ describe('buildTaskContextMessage', () => {
     const srcIdx = out.indexOf('소스1')
     expect(descIdx).toBeGreaterThan(-1)
     expect(srcIdx).toBeGreaterThan(descIdx)
+  })
+})
+
+describe('parseTaskContextMessage', () => {
+  it('round-trips name + source count from a built message', () => {
+    const out = buildTaskContextMessage(task({ name: 'Refactor' }), [
+      src('a', { kind: 'qa_block' }),
+      src('b', { kind: 'selection' }),
+    ])!
+    const parsed = parseTaskContextMessage(out)
+    expect(parsed).not.toBeNull()
+    expect(parsed!.taskName).toBe('Refactor')
+    expect(parsed!.sourceCount).toBe(2)
+  })
+
+  it('reports zero sources for a description-only injection', () => {
+    const out = buildTaskContextMessage(task({ name: 'Notes', description: '설명' }), [])!
+    const parsed = parseTaskContextMessage(out)
+    expect(parsed!.taskName).toBe('Notes')
+    expect(parsed!.sourceCount).toBe(0)
+  })
+
+  it('returns null for an ordinary user turn', () => {
+    expect(parseTaskContextMessage('그냥 평범한 질문입니다')).toBeNull()
   })
 })

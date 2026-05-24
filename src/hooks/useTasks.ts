@@ -24,6 +24,7 @@ import { logBackendError } from '../utils/log'
 export interface CreateSourceInput {
   taskId: string
   kind: string
+  title?: string
   content: string
   sessionId?: string | null
   qaId?: string | null
@@ -139,6 +140,7 @@ export function useTasks(): UseTasksResult {
           args: {
             task_id: input.taskId,
             kind: input.kind,
+            title: input.title ?? '',
             content: input.content,
             session_id: input.sessionId ?? null,
             qa_id: input.qaId ?? null,

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
-import type { OpenOptions, UseFileTabsResult } from './useFileTabs'
+import type { ContentTab, OpenOptions, UseFileTabsResult } from './useFileTabs'
 
 const DETACHED_LABEL = 'file-panel'
 
 interface DockPayload {
   paths: string[]
+  contentTabs: ContentTab[]
   activePath: string | null
 }
 
@@ -14,6 +15,30 @@ export interface UseDetachedFilePanelResult {
   isDetached: boolean
   detach: () => Promise<void>
   openFile: (path: string, opts?: OpenOptions) => void
+  /** Open inline content (task source/wiki) in whichever panel owns the view. */
+  openContent: (tab: ContentTab) => void
+}
+
+/** Split a tab list into real-file paths and inline content tabs. */
+function snapshotTabs(tabs: UseFileTabsResult['tabs']): {
+  paths: string[]
+  contentTabs: ContentTab[]
+} {
+  const paths: string[] = []
+  const contentTabs: ContentTab[] = []
+  for (const t of tabs) {
+    if (t.virtual) {
+      contentTabs.push({
+        key: t.path,
+        title: t.title ?? t.path,
+        content: t.content,
+        language: t.language,
+      })
+    } else {
+      paths.push(t.path)
+    }
+  }
+  return { paths, contentTabs }
 }
 
 // Bridges main's local `useFileTabs` with an optional satellite window that
@@ -42,10 +67,11 @@ export function useDetachedFilePanel(
     let mounted = true
 
     void listen<DockPayload>('file:dock', (e) => {
-      const { paths, activePath } = e.payload
+      const { paths, contentTabs, activePath } = e.payload
       const tabs = fileTabsRef.current
       tabs.closeAll()
       paths.forEach((p) => void tabs.open(p))
+      ;(contentTabs ?? []).forEach((c) => tabs.openContent(c))
       if (activePath) tabs.setActive(activePath)
       setIsDetached(false)
     }).then((u) => {
@@ -64,7 +90,7 @@ export function useDetachedFilePanel(
 
   const detach = useCallback(async () => {
     if (isDetachedRef.current) return
-    const snapshot = fileTabsRef.current.tabs.map((t) => t.path)
+    const { paths, contentTabs } = snapshotTabs(fileTabsRef.current.tabs)
     const active = fileTabsRef.current.activePath
 
     // The detached window emits `file:ready` once its listeners are wired.
@@ -73,7 +99,8 @@ export function useDetachedFilePanel(
     let readyUnlisten: (() => void) | null = null
     readyUnlisten = await listen('file:ready', async () => {
       await emitTo(DETACHED_LABEL, 'file:init', {
-        paths: snapshot,
+        paths,
+        contentTabs,
         activePath: active,
       })
       readyUnlisten?.()
@@ -120,5 +147,13 @@ export function useDetachedFilePanel(
     [],
   )
 
-  return { isDetached, detach, openFile }
+  const openContent = useCallback((tab: ContentTab) => {
+    if (isDetachedRef.current) {
+      void emitTo(DETACHED_LABEL, 'file:open-content', tab)
+      return
+    }
+    fileTabsRef.current.openContent(tab)
+  }, [])
+
+  return { isDetached, detach, openFile, openContent }
 }

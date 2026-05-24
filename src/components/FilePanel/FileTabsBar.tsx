@@ -40,9 +40,11 @@ export function FileTabsBar({
             type="button"
             className="file-panel__tab-button"
             onClick={() => onSelect(t.path)}
-            title={t.path}
+            title={t.title ?? t.path}
           >
-            <span className="file-panel__tab-name">{basename(t.path)}</span>
+            <span className="file-panel__tab-name">
+              {t.title ?? basename(t.path)}
+            </span>
             {t.pending && (
               <span
                 className="file-panel__tab-marker"

@@ -1,0 +1,58 @@
+.task-context-note {
+  border: 1px solid var(--color-border-muted);
+  border-left: 3px solid var(--color-accent-blue);
+  border-radius: var(--radius-md);
+  background: #0f141b;
+  margin: 4px 0;
+}
+
+.task-context-note[open] {
+  background: #11161d;
+}
+
+.task-context-note__summary {
+  font-size: 12px;
+  list-style: none;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.task-context-note__summary::-webkit-details-marker {
+  display: none;
+}
+
+.task-context-note__summary::after {
+  content: '▸';
+  margin-left: auto;
+  color: var(--color-text-subtle);
+  font-size: 10px;
+  transition: transform var(--duration-normal);
+}
+
+.task-context-note[open] > .task-context-note__summary::after {
+  transform: rotate(90deg);
+}
+
+.task-context-note__name {
+  color: var(--color-text-default);
+  font-weight: 600;
+}
+
+.task-context-note__count {
+  font-size: 10px;
+  color: var(--color-text-subtle);
+  background: var(--color-bg-base);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.task-context-note__body {
+  padding: 6px 12px 10px 14px;
+  color: var(--color-text-muted);
+  border-top: 1px dashed var(--color-border-muted);
+}

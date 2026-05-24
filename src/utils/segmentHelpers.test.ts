@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { totalTextChars, makePreview } from './segmentHelpers'
+import { totalTextChars, makePreview, deriveTitle } from './segmentHelpers'
 import type { AssistantSegment } from '../types'
 
 const text = (s: string): AssistantSegment => ({ kind: 'text', text: s })
@@ -56,5 +56,31 @@ describe('makePreview', () => {
   it('text와 plan 세그먼트를 줄바꿈 두 칸으로 결합', () => {
     const combined = ['first text', 'plan body'].join('\n\n')
     expect(makePreview(combined)).toBe('first text\n\nplan body')
+  })
+})
+
+describe('deriveTitle', () => {
+  it('첫 의미 있는 줄을 제목으로', () => {
+    expect(deriveTitle('버그를 고치는 방법\n자세한 내용...')).toBe('버그를 고치는 방법')
+  })
+
+  it('마크다운 헤더/목록 마커를 벗긴다', () => {
+    expect(deriveTitle('## 결정 사항')).toBe('결정 사항')
+    expect(deriveTitle('- 첫 항목')).toBe('첫 항목')
+    expect(deriveTitle('> 인용문')).toBe('인용문')
+  })
+
+  it('앞쪽 빈 줄을 건너뛴다', () => {
+    expect(deriveTitle('\n\n  실제 제목')).toBe('실제 제목')
+  })
+
+  it('60자를 넘으면 잘라서 말줄임표', () => {
+    const out = deriveTitle('가'.repeat(80))
+    expect(out.endsWith('…')).toBe(true)
+    expect([...out].length).toBe(61) // 60 + '…'
+  })
+
+  it('내용이 없으면 빈 문자열', () => {
+    expect(deriveTitle('   \n  ')).toBe('')
   })
 })

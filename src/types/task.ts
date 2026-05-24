@@ -39,6 +39,9 @@ export interface Source {
   task_id: string
   /** Backend stores the string verbatim — keep the union narrow but tolerate unknowns. */
   kind: SourceKind | string
+  /** Human-authored label shown in the source list. May be empty for
+   *  sources captured before titles existed — UI derives a fallback. */
+  title: string
   content: string
   origin: SourceOrigin
   captured_at_ms: number

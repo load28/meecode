@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import type { UseFileTabsResult, OpenOptions } from '../../hooks/useFileTabs'
+import type {
+  ContentTab,
+  UseFileTabsResult,
+  OpenOptions,
+} from '../../hooks/useFileTabs'
 
 interface InitPayload {
   paths: string[]
+  contentTabs?: ContentTab[]
   activePath: string | null
 }
 
@@ -49,8 +54,9 @@ export function useDetachedFileEvents(
     void (async () => {
       const initUnlisten = await listen<InitPayload>('file:init', (e) => {
         if (!mounted) return
-        const { paths, activePath } = e.payload
+        const { paths, contentTabs, activePath } = e.payload
         paths.forEach((p) => void fileTabsRef.current.open(p))
+        ;(contentTabs ?? []).forEach((c) => fileTabsRef.current.openContent(c))
         if (activePath) fileTabsRef.current.setActive(activePath)
         setHydrated(true)
       })
@@ -62,15 +68,39 @@ export function useDetachedFileEvents(
       })
       cleanups.push(openUnlisten)
 
+      const openContentUnlisten = await listen<ContentTab>(
+        'file:open-content',
+        (e) => {
+          if (!mounted) return
+          fileTabsRef.current.openContent(e.payload)
+        },
+      )
+      cleanups.push(openContentUnlisten)
+
       const w = getCurrentWebviewWindow()
       const closeUnlisten = await w.onCloseRequested(async (event) => {
         // "close window"를 "dock back"으로 변환 — 탭 상태를 main에 돌려준
         // 뒤에야 실제로 destroy한다.
         event.preventDefault()
-        const snapshot = fileTabsRef.current.tabs.map((t) => t.path)
+        const tabs = fileTabsRef.current.tabs
+        const paths: string[] = []
+        const contentTabs: ContentTab[] = []
+        for (const t of tabs) {
+          if (t.virtual) {
+            contentTabs.push({
+              key: t.path,
+              title: t.title ?? t.path,
+              content: t.content,
+              language: t.language,
+            })
+          } else {
+            paths.push(t.path)
+          }
+        }
         const active = fileTabsRef.current.activePath
         await emitTo(MAIN_LABEL, 'file:dock', {
-          paths: snapshot,
+          paths,
+          contentTabs,
           activePath: active,
         })
         await w.destroy()

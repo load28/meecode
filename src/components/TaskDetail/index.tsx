@@ -5,6 +5,8 @@ import {
   useTaskOrganize,
   useTaskWiki,
 } from '../../hooks/useTasks'
+import type { ContentTab } from '../../hooks/useFileTabs'
+import { sourceTitle } from '../../utils/sourceTitle'
 import { LOADING } from '../../utils/messages'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
@@ -25,6 +27,8 @@ interface Props {
   canAttach?: boolean
   onAttach?: (taskId: string) => Promise<void> | void
   onDetach?: (taskId: string) => Promise<void> | void
+  /** Open a source/wiki doc in the shared file viewer. */
+  onOpenContent?: (tab: ContentTab) => void
 }
 
 function formatTs(ms: number): string {
@@ -47,6 +51,7 @@ export function TaskDetail({
   canAttach = false,
   onAttach,
   onDetach,
+  onOpenContent,
 }: Props) {
   const { updateTask, deleteTask } = useTasks()
   const { task, sources, loading, error, setTask, deleteSource, refresh: refreshDetail } =
@@ -109,6 +114,17 @@ export function TaskDetail({
             sources={sources}
             onDelete={(id) => void deleteSource(id)}
             formatTimestamp={formatTs}
+            onOpen={
+              onOpenContent
+                ? (s) =>
+                    onOpenContent({
+                      key: `task-source:${s.task_id}:${s.id}`,
+                      title: sourceTitle(s),
+                      content: s.content,
+                      language: 'markdown',
+                    })
+                : undefined
+            }
           />
           <OrganizeSection
             status={organize.status}
@@ -123,6 +139,7 @@ export function TaskDetail({
             readFile={wiki.readFile}
             writeFile={wiki.writeFile}
             deleteFile={wiki.deleteFile}
+            onOpenContent={onOpenContent}
           />
           <div className="task-detail__footer">
             <button

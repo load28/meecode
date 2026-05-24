@@ -1,4 +1,8 @@
 import type { Source, Task } from '../types/task'
+import { sourceTitle } from './sourceTitle'
+
+/** Leading marker that tags an attach-time context-injection user turn. */
+export const TASK_CONTEXT_PREFIX = '[Task 컨텍스트 주입: '
 
 /**
  * Format a Task + its Sources as a markdown context-injection message.
@@ -21,7 +25,7 @@ export function buildTaskContextMessage(
     return null
   }
   const lines: string[] = []
-  lines.push(`[Task 컨텍스트 주입: ${task.name}]`)
+  lines.push(`${TASK_CONTEXT_PREFIX}${task.name}]`)
   lines.push('')
   lines.push(`# ${task.name}`)
   if (description) {
@@ -33,7 +37,7 @@ export function buildTaskContextMessage(
     lines.push(`## Sources (${sources.length})`)
     sources.forEach((s, i) => {
       lines.push('')
-      lines.push(`### [${i + 1}] ${s.kind}`)
+      lines.push(`### [${i + 1}] ${sourceTitle(s)} · ${s.kind}`)
       lines.push(s.content)
     })
   }
@@ -42,4 +46,26 @@ export function buildTaskContextMessage(
     '_위 내용은 이 세션에 attach된 Task의 컨텍스트입니다. 후속 대화에서 참고하세요._',
   )
   return lines.join('\n')
+}
+
+export interface ParsedTaskContext {
+  taskName: string
+  sourceCount: number
+}
+
+/**
+ * Recognize an attach-time context-injection turn from its text and pull
+ * out the task name + source count for a collapsed summary. Returns null
+ * for ordinary user turns.
+ */
+export function parseTaskContextMessage(
+  text: string,
+): ParsedTaskContext | null {
+  if (!text.startsWith(TASK_CONTEXT_PREFIX)) return null
+  const end = text.indexOf(']', TASK_CONTEXT_PREFIX.length)
+  if (end === -1) return null
+  const taskName = text.slice(TASK_CONTEXT_PREFIX.length, end)
+  const countMatch = text.match(/##\s*Sources\s*\((\d+)\)/)
+  const sourceCount = countMatch ? Number(countMatch[1]) : 0
+  return { taskName, sourceCount }
 }

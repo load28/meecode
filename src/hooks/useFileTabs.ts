@@ -31,6 +31,28 @@ export interface FileTab {
    * source shows the raw `.md` text. Ignored for non-markdown files.
    */
   markdownView: MarkdownView
+  /**
+   * Friendly tab/header label. Falls back to the path's basename when
+   * unset. Used by content tabs (task sources/wiki) so the synthetic
+   * `path` key stays hidden behind a human label.
+   */
+  title?: string
+  /**
+   * Content tabs carry their body inline instead of reading from disk —
+   * e.g. a captured Source or a task Wiki file. They never invoke the
+   * filesystem and survive detach/dock by round-tripping their content.
+   */
+  virtual?: boolean
+}
+
+/** Inline content opened as a file tab — no disk read. */
+export interface ContentTab {
+  /** Stable key used as the tab's `path`. Should be unique per logical doc. */
+  key: string
+  title: string
+  content: string
+  /** Language label (e.g. 'markdown'); drives highlight + markdown toggle. */
+  language: string
 }
 
 interface BackendFile {
@@ -51,6 +73,8 @@ export interface UseFileTabsResult {
   tabs: FileTab[]
   activePath: string | null
   open: (path: string, opts?: OpenOptions) => Promise<void>
+  /** Open (or focus) a tab whose content is supplied inline — no disk read. */
+  openContent: (tab: ContentTab) => void
   setActive: (path: string) => void
   setViewMode: (path: string, mode: FileViewMode) => void
   setMarkdownView: (path: string, view: MarkdownView) => void
@@ -118,6 +142,38 @@ export function useFileTabs(): UseFileTabsResult {
     }
   }, [])
 
+  const openContent = useCallback((tab: ContentTab) => {
+    const { key, title, content, language } = tab
+    setActivePath(key)
+    setTabs((prev) => {
+      const next: FileTab = {
+        path: key,
+        title,
+        content,
+        language,
+        size: new Blob([content]).size,
+        truncated: false,
+        loading: false,
+        error: null,
+        pending: null,
+        viewMode: 'normal',
+        markdownView: 'rendered',
+        virtual: true,
+      }
+      const existing = prev.find((t) => t.path === key)
+      if (existing) {
+        // Refresh content in place (e.g. a wiki file edited since last open)
+        // while preserving the user's markdown rendered/source toggle.
+        return prev.map((t) =>
+          t.path === key
+            ? { ...next, markdownView: t.markdownView }
+            : t,
+        )
+      }
+      return [...prev, next]
+    })
+  }, [])
+
   const setActive = useCallback((path: string) => setActivePath(path), [])
 
   const setViewMode = useCallback((path: string, mode: FileViewMode) => {
@@ -154,6 +210,7 @@ export function useFileTabs(): UseFileTabsResult {
     tabs,
     activePath,
     open,
+    openContent,
     setActive,
     setViewMode,
     setMarkdownView,

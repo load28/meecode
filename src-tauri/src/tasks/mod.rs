@@ -58,6 +58,11 @@ pub struct Source {
     pub id: String,
     pub task_id: String,
     pub kind: String,
+    /// Short, human-authored label shown in the source list. Defaults to
+    /// empty for sources captured before titles existed — the UI derives
+    /// a fallback from `content` in that case.
+    #[serde(default)]
+    pub title: String,
     pub content: String,
     #[serde(default)]
     pub origin: SourceOrigin,
@@ -256,6 +261,7 @@ pub fn create_source(
     root: &Path,
     task_id: &str,
     kind: String,
+    title: String,
     content: String,
     origin: SourceOrigin,
 ) -> Result<Source, String> {
@@ -272,6 +278,7 @@ pub fn create_source(
         id: id.clone(),
         task_id: task_id.to_string(),
         kind,
+        title: title.trim().to_string(),
         content,
         origin,
         captured_at_ms: now_ms(),
@@ -595,15 +602,18 @@ mod tests {
             &root,
             &t.id,
             "qa_block".into(),
+            "인사 turn".into(),
             "## Q\nhello\n\n## A\nhi".into(),
             origin,
         )
         .unwrap();
         assert!(s.id.starts_with("src-"));
         assert_eq!(s.task_id, t.id);
+        assert_eq!(s.title, "인사 turn");
         let list = list_sources(&root, &t.id).unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].content, "## Q\nhello\n\n## A\nhi");
+        assert_eq!(list[0].title, "인사 turn");
         assert_eq!(list[0].origin.qa_id.as_deref(), Some("qa-1"));
     }
 
@@ -613,7 +623,7 @@ mod tests {
         let t = create_task(&root, "t".into(), "".into()).unwrap();
         let before = t.updated_at_ms;
         std::thread::sleep(std::time::Duration::from_millis(2));
-        create_source(&root, &t.id, "manual".into(), "note".into(), SourceOrigin::default())
+        create_source(&root, &t.id, "manual".into(), "".into(), "note".into(), SourceOrigin::default())
             .unwrap();
         let refreshed = read_task(&root, &t.id).unwrap();
         assert!(refreshed.updated_at_ms > before);
@@ -626,6 +636,7 @@ mod tests {
             &root,
             "task-nonexistent",
             "manual".into(),
+            "".into(),
             "x".into(),
             SourceOrigin::default(),
         )
@@ -640,7 +651,7 @@ mod tests {
     fn create_source_rejects_empty_content() {
         let (_g, root) = root();
         let t = create_task(&root, "t".into(), "".into()).unwrap();
-        assert!(create_source(&root, &t.id, "manual".into(), "".into(), SourceOrigin::default())
+        assert!(create_source(&root, &t.id, "manual".into(), "".into(), "".into(), SourceOrigin::default())
             .is_err());
     }
 
@@ -648,7 +659,7 @@ mod tests {
     fn delete_source_removes_it() {
         let (_g, root) = root();
         let t = create_task(&root, "t".into(), "".into()).unwrap();
-        let s = create_source(&root, &t.id, "manual".into(), "x".into(), SourceOrigin::default())
+        let s = create_source(&root, &t.id, "manual".into(), "".into(), "x".into(), SourceOrigin::default())
             .unwrap();
         delete_source(&root, &t.id, &s.id).unwrap();
         assert!(list_sources(&root, &t.id).unwrap().is_empty());
@@ -668,9 +679,9 @@ mod tests {
     fn mark_sources_processed_sets_timestamp() {
         let (_g, root) = root();
         let t = create_task(&root, "t".into(), "".into()).unwrap();
-        let a = create_source(&root, &t.id, "manual".into(), "a".into(), SourceOrigin::default())
+        let a = create_source(&root, &t.id, "manual".into(), "".into(), "a".into(), SourceOrigin::default())
             .unwrap();
-        let b = create_source(&root, &t.id, "manual".into(), "b".into(), SourceOrigin::default())
+        let b = create_source(&root, &t.id, "manual".into(), "".into(), "b".into(), SourceOrigin::default())
             .unwrap();
         assert!(a.processed_at_ms.is_none());
         mark_sources_processed(&root, &t.id, &[a.id.clone()]).unwrap();
@@ -686,7 +697,7 @@ mod tests {
         // Stale IDs from a UI snapshot shouldn't blow up the whole batch.
         let (_g, root) = root();
         let t = create_task(&root, "t".into(), "".into()).unwrap();
-        let s = create_source(&root, &t.id, "manual".into(), "x".into(), SourceOrigin::default())
+        let s = create_source(&root, &t.id, "manual".into(), "".into(), "x".into(), SourceOrigin::default())
             .unwrap();
         mark_sources_processed(
             &root,

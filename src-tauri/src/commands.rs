@@ -860,6 +860,8 @@ pub fn list_task_sources(task_id: String) -> Result<Vec<Source>, String> {
 pub struct CreateSourceArgs {
     pub task_id: String,
     pub kind: String,
+    #[serde(default)]
+    pub title: String,
     pub content: String,
     #[serde(default)]
     pub session_id: Option<String>,
@@ -880,6 +882,7 @@ pub fn create_source(args: CreateSourceArgs) -> Result<Source, String> {
         &default_tasks_root(),
         &args.task_id,
         args.kind,
+        args.title,
         args.content,
         origin,
     )
