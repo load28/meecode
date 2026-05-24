@@ -411,6 +411,12 @@
   line-height: 1.55;
 }
 
+/* 복사 버튼을 품은 코드 블록은 버튼 절대 위치의 기준이 되도록 한다.
+   (.message-bubble__content 밖의 thinking·skill 코드 블록까지 포함) */
+pre:has(> .markdown-copy-btn) {
+  position: relative;
+}
+
 .markdown-copy-btn {
   position: absolute;
   top: 6px;
@@ -429,7 +435,10 @@
   transition: opacity var(--duration-normal), background var(--duration-normal);
 }
 
-pre:hover .markdown-copy-btn {
+/* hover 중인 코드 블록 표시는 JS가 토글한다(MarkdownContent의 PRE_HOVER_CLASS).
+   스트리밍 중 pre가 프레임마다 새 노드로 갈려도 버튼이 깜빡이지 않게 하면서
+   코드 블록 단위로만 버튼을 보인다. */
+pre.markdown-pre--hover > .markdown-copy-btn {
   opacity: 1;
 }
 
