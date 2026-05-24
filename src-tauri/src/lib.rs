@@ -3,6 +3,7 @@ pub mod claude_discovery;
 pub mod claude_process;
 pub mod commands;
 pub mod config;
+pub mod file_watch;
 pub mod history;
 pub mod tasks;
 
@@ -62,6 +63,7 @@ pub fn run() {
             commands::set_thinking_level,
             commands::search_files,
             commands::list_dir,
+            file_watch::watch_project,
             commands::list_recent_projects,
             commands::list_project_sessions,
             commands::switch_session,

@@ -52,6 +52,9 @@ pub struct AppState {
     pub tabs: Mutex<HashMap<String, TabHandle>>,
     pub config: Mutex<Config>,
     pub organize_jobs: Mutex<HashMap<String, OrganizeSlot>>,
+    /// One live recursive file watcher + directory cache per opened project
+    /// root, keyed by absolute root path. See `file_watch`.
+    pub watched: Mutex<HashMap<String, Arc<crate::file_watch::WatchedProject>>>,
 }
 
 impl AppState {
@@ -60,6 +63,7 @@ impl AppState {
             tabs: Mutex::new(HashMap::new()),
             config: Mutex::new(Config::load()),
             organize_jobs: Mutex::new(HashMap::new()),
+            watched: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -602,27 +606,27 @@ pub fn search_files(args: SearchFilesArgs) -> Result<Vec<String>, String> {
 }
 
 /// One entry in a directory listing for the file-explorer tree.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 pub struct DirEntry {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
 }
 
-/// Lists the immediate children of `path` for the file explorer. The tree
-/// loads lazily — one level per call — so a folder's contents are only read
-/// when the user expands it. Everything is returned (including dotfiles and
-/// heavy dirs like `node_modules`); the UI never filters.
-#[tauri::command]
-pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
+/// Reads the immediate children of `path`, directories first then
+/// case-insensitive name order — the ordering IDE file trees conventionally
+/// use. Everything is returned (including dotfiles and heavy dirs like
+/// `node_modules`); the UI never filters. Shared by `list_dir` and the file
+/// watcher's cache reconciliation.
+pub fn read_dir_entries(path: &str) -> Result<Vec<DirEntry>, String> {
     use std::cmp::Ordering;
     use std::fs;
 
-    let meta = fs::metadata(&path).map_err(|e| format!("metadata: {e}"))?;
+    let meta = fs::metadata(path).map_err(|e| format!("metadata: {e}"))?;
     if !meta.is_dir() {
         return Err("not a directory".into());
     }
-    let read = fs::read_dir(&path).map_err(|e| format!("read_dir: {e}"))?;
+    let read = fs::read_dir(path).map_err(|e| format!("read_dir: {e}"))?;
     let mut out: Vec<DirEntry> = Vec::new();
     for entry in read.flatten() {
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
@@ -632,14 +636,33 @@ pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
             is_dir,
         });
     }
-    // Directories first, then case-insensitive name order — the ordering
-    // IDE file trees conventionally use.
     out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => Ordering::Less,
         (false, true) => Ordering::Greater,
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
     Ok(out)
+}
+
+/// Lists the immediate children of `path` for the file explorer. When `root`
+/// names a project with a live watcher (see `file_watch`), the result is
+/// served read-through from that project's in-memory cache — so re-expanding a
+/// folder is instant and always reflects the latest watcher state. `refresh`
+/// forces a fresh disk read (the explorer's ↻ button). Without a watched
+/// `root` it falls back to a direct disk read.
+#[tauri::command]
+pub fn list_dir(
+    app: AppHandle,
+    path: String,
+    root: Option<String>,
+    refresh: Option<bool>,
+) -> Result<Vec<DirEntry>, String> {
+    if let Some(root) = root.filter(|s| !s.is_empty()) {
+        if let Some(project) = crate::file_watch::get_project(&app, &root) {
+            return crate::file_watch::cached_list_dir(&project, &path, refresh.unwrap_or(false));
+        }
+    }
+    read_dir_entries(&path)
 }
 
 #[tauri::command]
