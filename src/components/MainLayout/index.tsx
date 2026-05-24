@@ -28,6 +28,8 @@ export interface MainLayoutProps {
   onOpenSettings: () => void
   showTasks: boolean
   onToggleTasks: () => void
+  showExplorer: boolean
+  onToggleExplorer: () => void
   /**
    * Whether this tab is the active one. Hidden tabs unsubscribe from the
    * session store so streaming chunks don't trigger re-renders / markdown
@@ -50,6 +52,8 @@ export function MainLayout({
   onOpenSettings,
   showTasks,
   onToggleTasks,
+  showExplorer,
+  onToggleExplorer,
   visible,
 }: MainLayoutProps) {
   const claude = useClaudeSession(tabId, visible)
@@ -144,6 +148,8 @@ export function MainLayout({
         showTasks={showTasks}
         tasksCount={tasks.length}
         attachedTasksCount={attachedTaskIds.size}
+        showExplorer={showExplorer}
+        onToggleExplorer={onToggleExplorer}
         isExpandOpen={isOpen}
         hasExpanded={expandedId !== null}
         autoExpand={autoExpand}
@@ -184,6 +190,7 @@ export function MainLayout({
         onOpenSettings={onOpenSettings}
         showTasks={showTasks}
         onToggleTasks={onToggleTasks}
+        showExplorer={showExplorer}
         sessionId={sessionId}
         attachedTaskIds={attachedTaskIds}
         onAttachTask={taskAttach.attach}

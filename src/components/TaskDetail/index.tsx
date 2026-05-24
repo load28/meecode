@@ -27,8 +27,10 @@ interface Props {
   canAttach?: boolean
   onAttach?: (taskId: string) => Promise<void> | void
   onDetach?: (taskId: string) => Promise<void> | void
-  /** Open a source/wiki doc in the shared file viewer. */
+  /** Open a captured source (no backing file) in the shared file viewer. */
   onOpenContent?: (tab: ContentTab) => void
+  /** Open a real file from disk (e.g. a wiki file) in the shared file viewer. */
+  onOpenFile?: (path: string) => void
 }
 
 function formatTs(ms: number): string {
@@ -52,6 +54,7 @@ export function TaskDetail({
   onAttach,
   onDetach,
   onOpenContent,
+  onOpenFile,
 }: Props) {
   const { updateTask, deleteTask } = useTasks()
   const { task, sources, loading, error, setTask, deleteSource, refresh: refreshDetail } =
@@ -139,7 +142,7 @@ export function TaskDetail({
             readFile={wiki.readFile}
             writeFile={wiki.writeFile}
             deleteFile={wiki.deleteFile}
-            onOpenContent={onOpenContent}
+            onOpenFile={onOpenFile}
           />
           <div className="task-detail__footer">
             <button

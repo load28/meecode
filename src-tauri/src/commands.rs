@@ -601,6 +601,47 @@ pub fn search_files(args: SearchFilesArgs) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
+/// One entry in a directory listing for the file-explorer tree.
+#[derive(serde::Serialize)]
+pub struct DirEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// Lists the immediate children of `path` for the file explorer. The tree
+/// loads lazily — one level per call — so a folder's contents are only read
+/// when the user expands it. Everything is returned (including dotfiles and
+/// heavy dirs like `node_modules`); the UI never filters.
+#[tauri::command]
+pub fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
+    use std::cmp::Ordering;
+    use std::fs;
+
+    let meta = fs::metadata(&path).map_err(|e| format!("metadata: {e}"))?;
+    if !meta.is_dir() {
+        return Err("not a directory".into());
+    }
+    let read = fs::read_dir(&path).map_err(|e| format!("read_dir: {e}"))?;
+    let mut out: Vec<DirEntry> = Vec::new();
+    for entry in read.flatten() {
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        out.push(DirEntry {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().to_string_lossy().to_string(),
+            is_dir,
+        });
+    }
+    // Directories first, then case-insensitive name order — the ordering
+    // IDE file trees conventionally use.
+    out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn list_recent_projects() -> Result<Vec<ProjectInfo>, String> {
     list_projects()

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { WikiFile } from '../../types/task'
-import type { ContentTab } from '../../hooks/useFileTabs'
 import { WikiEditor } from '../WikiEditor'
 
 interface Props {
@@ -9,17 +8,16 @@ interface Props {
   readFile: (name: string) => Promise<string>
   writeFile: (name: string, content: string) => Promise<boolean>
   deleteFile: (name: string) => Promise<void>
-  /** Open a wiki file (rendered markdown) in the shared file viewer. */
-  onOpenContent?: (tab: ContentTab) => void
+  /** Open the wiki file (real file on disk) in the shared file viewer. */
+  onOpenFile?: (path: string) => void
 }
 
 /**
  * Wiki file list + "+ 새 파일" creator + the active WikiEditor.
  *
- * Clicking a file name opens it in the shared file viewer (rendered
- * markdown, same as a source). A per-row "✎ 편집" button opens the inline
- * WikiEditor for editing. The active-file and new-file-input state live
- * entirely inside this section.
+ * Clicking a file name opens the real `.md` file on disk in the shared file
+ * viewer. A per-row "✎ 편집" button opens the inline WikiEditor for editing.
+ * The active-file and new-file-input state live entirely inside this section.
  */
 export function WikiSection({
   taskId,
@@ -27,7 +25,7 @@ export function WikiSection({
   readFile,
   writeFile,
   deleteFile,
-  onOpenContent,
+  onOpenFile,
 }: Props) {
   const [activeWiki, setActiveWiki] = useState<string | null>(null)
   const [newWikiName, setNewWikiName] = useState('')
@@ -43,17 +41,6 @@ export function WikiSection({
       setShowNewWikiInput(false)
       setActiveWiki(name)
     }
-  }
-
-  const handleOpenInViewer = async (name: string) => {
-    if (!onOpenContent) return
-    const content = await readFile(name)
-    onOpenContent({
-      key: `task-wiki:${taskId}:${name}`,
-      title: name,
-      content,
-      language: 'markdown',
-    })
   }
 
   return (
@@ -117,7 +104,7 @@ export function WikiSection({
                 type="button"
                 className="task-detail__wiki-link"
                 onClick={() => {
-                  if (onOpenContent) void handleOpenInViewer(f.name)
+                  if (onOpenFile) onOpenFile(f.path)
                   else setActiveWiki((cur) => (cur === f.name ? null : f.name))
                 }}
                 title="파일뷰로 열기"
