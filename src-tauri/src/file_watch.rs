@@ -92,6 +92,77 @@ fn remap_key(from: &Path, to: &Path, key: &Path) -> Option<PathBuf> {
     key.strip_prefix(from).ok().map(|rel| to.join(rel))
 }
 
+/// Re-read each directory in `dirs` from disk and record the delta: a fresh
+/// listing (`updated`) if it still exists, otherwise drop it and every cached
+/// descendant (`removed`). Skips entries already purged as a descendant.
+fn reconcile_dirs(
+    guard: &mut DirCache,
+    dirs: Vec<PathBuf>,
+    updated: &mut Vec<serde_json::Value>,
+    removed: &mut Vec<String>,
+) {
+    for dir in dirs {
+        if !guard.contains_key(&dir) {
+            continue;
+        }
+        let dir_str = dir.to_string_lossy().to_string();
+        match read_dir_entries(&dir_str) {
+            Ok(entries) => {
+                guard.insert(dir.clone(), entries.clone());
+                updated.push(serde_json::json!({ "dir": dir_str, "entries": entries }));
+            }
+            Err(_) => {
+                let stale: Vec<PathBuf> =
+                    guard.keys().filter(|k| k.starts_with(&dir)).cloned().collect();
+                for k in stale {
+                    guard.remove(&k);
+                }
+                removed.push(dir_str);
+            }
+        }
+    }
+}
+
+/// Emit a `project_fs:changed` delta unless it's empty.
+fn emit_changes(
+    app: &AppHandle,
+    root: &Path,
+    updated: Vec<serde_json::Value>,
+    removed: Vec<String>,
+    renamed: Vec<serde_json::Value>,
+) {
+    if updated.is_empty() && removed.is_empty() && renamed.is_empty() {
+        return;
+    }
+    let _ = app.emit(
+        "project_fs:changed",
+        serde_json::json!({
+            "root": root.to_string_lossy(),
+            "updated": updated,
+            "removed": removed,
+            "renamed": renamed,
+        }),
+    );
+}
+
+/// Re-read every loaded directory from scratch. Used when the watcher reports
+/// a queue overflow (events were dropped) or errors out — the only failure
+/// mode our re-read-from-disk design can't otherwise self-correct, since we
+/// can't re-read what we were never told changed.
+fn resync_all(app: &AppHandle, root: &Path, cache: &Arc<Mutex<DirCache>>) {
+    let mut updated: Vec<serde_json::Value> = Vec::new();
+    let mut removed: Vec<String> = Vec::new();
+    {
+        let mut guard = match cache.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        let dirs: Vec<PathBuf> = guard.keys().cloned().collect();
+        reconcile_dirs(&mut guard, dirs, &mut updated, &mut removed);
+    }
+    emit_changes(app, root, updated, removed, Vec::new());
+}
+
 /// Reconcile a debounced batch against the cache, then push the delta to the
 /// UI. Runs on the watcher's background thread.
 ///
@@ -103,12 +174,18 @@ fn remap_key(from: &Path, to: &Path, key: &Path) -> Option<PathBuf> {
 /// loaded children and the UI keeps its expansion. Renames the watcher can't
 /// stitch fall back to the generic remove+add pass, exactly like VS Code's
 /// external `onDidFilesChange` path.
+///
+/// On a queue-overflow rescan (`need_rescan`, set when the OS dropped events)
+/// we can't trust the batch to name every change, so we re-read every loaded
+/// directory instead.
 fn handle_events(
     app: &AppHandle,
     root: &Path,
     cache: &Arc<Mutex<DirCache>>,
     events: Vec<DebouncedEvent>,
 ) {
+    let rescan = events.iter().any(|ev| ev.need_rescan());
+
     // Stitched moves, plus the directories whose listings a change touches.
     // A change to `foo/bar` alters the listing of its parent `foo`; the path
     // itself matters when it is a loaded dir.
@@ -142,7 +219,7 @@ fn handle_events(
             note(&mut candidates, path);
         }
     }
-    if renames.is_empty() && candidates.is_empty() {
+    if !rescan && renames.is_empty() && candidates.is_empty() {
         return;
     }
 
@@ -193,48 +270,25 @@ fn handle_events(
             moved_from.push(from.clone());
         }
 
-        // Phase B — generic reconcile for the remaining loaded dirs. Only
-        // directories the user has loaded are in the cache; everything else is
-        // re-read lazily on its next expand.
-        let relevant: Vec<PathBuf> = candidates
+        // Phase B — reconcile the remaining loaded dirs. A rescan widens the
+        // set to *every* loaded dir (the batch can't be trusted to name them);
+        // otherwise just the touched candidates. Only loaded dirs are cached;
+        // everything else is re-read lazily on its next expand.
+        let scope: Vec<PathBuf> = if rescan {
+            guard.keys().cloned().collect()
+        } else {
+            candidates.into_iter().collect()
+        };
+        let dirs: Vec<PathBuf> = scope
             .into_iter()
             .filter(|p| guard.contains_key(p))
             .filter(|p| !handled.contains(p))
             .filter(|p| !moved_from.iter().any(|f| p.starts_with(f)))
             .collect();
-        for dir in relevant {
-            let dir_str = dir.to_string_lossy().to_string();
-            match read_dir_entries(&dir_str) {
-                Ok(entries) => {
-                    guard.insert(dir.clone(), entries.clone());
-                    updated.push(serde_json::json!({ "dir": dir_str, "entries": entries }));
-                }
-                Err(_) => {
-                    // The directory is gone: drop it and every cached
-                    // descendant so re-expanding starts fresh.
-                    let stale: Vec<PathBuf> =
-                        guard.keys().filter(|k| k.starts_with(&dir)).cloned().collect();
-                    for k in stale {
-                        guard.remove(&k);
-                    }
-                    removed.push(dir_str);
-                }
-            }
-        }
+        reconcile_dirs(&mut guard, dirs, &mut updated, &mut removed);
     }
 
-    if updated.is_empty() && removed.is_empty() && renamed.is_empty() {
-        return;
-    }
-    let _ = app.emit(
-        "project_fs:changed",
-        serde_json::json!({
-            "root": root.to_string_lossy(),
-            "updated": updated,
-            "removed": removed,
-            "renamed": renamed,
-        }),
-    );
+    emit_changes(app, root, updated, removed, renamed);
 }
 
 /// Look up an already-watched project by root path.
@@ -287,10 +341,10 @@ pub fn watch_project(app: AppHandle, root: String) -> Result<Vec<DirEntry>, Stri
     let mut debouncer = new_debouncer(
         Duration::from_millis(DEBOUNCE_MS),
         None,
-        move |res: DebounceEventResult| {
-            if let Ok(events) = res {
-                handle_events(&app_cb, &root_cb, &cache_cb, events);
-            }
+        move |res: DebounceEventResult| match res {
+            Ok(events) => handle_events(&app_cb, &root_cb, &cache_cb, events),
+            // Watcher errors can mean dropped state; re-read what we know.
+            Err(_) => resync_all(&app_cb, &root_cb, &cache_cb),
         },
     )
     .map_err(|e| format!("watcher init: {e}"))?;
@@ -360,6 +414,36 @@ mod tests {
         // A sibling that merely shares a name prefix is untouched.
         assert_eq!(remap_key(from, to, Path::new("/proj/src-old")), None);
         assert_eq!(remap_key(from, to, Path::new("/proj/lib")), None);
+    }
+
+    #[test]
+    fn reconcile_refreshes_survivors_and_drops_deleted() {
+        use std::fs;
+        use tempfile::tempdir;
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        fs::create_dir(root.join("keep")).unwrap();
+        fs::create_dir(root.join("gone")).unwrap();
+
+        // Stale cache, as if a queue overflow dropped the change events.
+        let mut cache: DirCache = HashMap::new();
+        cache.insert(root.to_path_buf(), Vec::new());
+        cache.insert(root.join("keep"), Vec::new());
+        cache.insert(root.join("gone"), Vec::new());
+
+        fs::write(root.join("keep/new.txt"), b"x").unwrap();
+        fs::remove_dir(root.join("gone")).unwrap();
+
+        let mut updated = Vec::new();
+        let mut removed = Vec::new();
+        let dirs: Vec<PathBuf> = cache.keys().cloned().collect();
+        reconcile_dirs(&mut cache, dirs, &mut updated, &mut removed);
+
+        assert!(cache[&root.join("keep")]
+            .iter()
+            .any(|e| e.name == "new.txt"));
+        assert!(!cache.contains_key(&root.join("gone")));
+        assert!(removed.iter().any(|s| s.contains("gone")));
     }
 
     #[test]
