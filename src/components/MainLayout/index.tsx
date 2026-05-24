@@ -4,6 +4,7 @@ import { MainBanners } from './MainBanners'
 import { MainBody } from './MainBody'
 import { TaskPicker } from '../TaskPicker'
 import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
+import { isDescendantOrSelf } from '../FileExplorer/paths'
 import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
 import { useSessionBindings } from '../../hooks/useSessionBindings'
@@ -126,6 +127,28 @@ export function MainLayout({
   ) => {
     openFile(path, opts)
   }
+
+  // Keep open file tabs in sync with explorer mutations, mirroring VS Code's
+  // editor handling: a deleted file's tab closes, and a renamed/moved file's
+  // tab follows to the new path (descendants of a renamed folder included).
+  const handlePathDeleted = (path: string) => {
+    for (const t of fileTabs.tabs) {
+      if (t.virtual) continue
+      if (isDescendantOrSelf(t.path, path)) fileTabs.close(t.path)
+    }
+  }
+  const handlePathRenamed = (from: string, to: string) => {
+    for (const t of fileTabs.tabs) {
+      if (t.virtual) continue
+      if (t.path === from) {
+        void openFile(to)
+        fileTabs.close(from)
+      } else if (isDescendantOrSelf(t.path, from)) {
+        void openFile(to + t.path.slice(from.length))
+        fileTabs.close(t.path)
+      }
+    }
+  }
   const expanded = useExpandedPair({
     pairs,
     expandedId,
@@ -191,6 +214,8 @@ export function MainLayout({
         showTasks={showTasks}
         onToggleTasks={onToggleTasks}
         showExplorer={showExplorer}
+        onPathDeleted={handlePathDeleted}
+        onPathRenamed={handlePathRenamed}
         sessionId={sessionId}
         attachedTaskIds={attachedTaskIds}
         onAttachTask={taskAttach.attach}

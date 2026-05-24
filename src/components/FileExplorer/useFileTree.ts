@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { basename, joinPath, parentPath } from './paths'
 
 export interface DirEntry {
   name: string
@@ -22,6 +23,18 @@ export interface UseFileTreeResult {
   toggle: (path: string) => void
   /** Force a re-read of a directory (e.g. the refresh button). */
   reload: (path: string) => void
+  /** Expand a directory (loading children on first expand) without toggling. */
+  expand: (path: string) => void
+  /** Collapse every expanded directory (VS Code's "Collapse Folders"). */
+  collapseAll: () => void
+  /** Create an empty file or folder named `name` under `parentDir`. */
+  create: (parentDir: string, name: string, isDir: boolean) => Promise<void>
+  /** Rename `path` to a sibling named `newName`. */
+  rename: (path: string, newName: string) => Promise<void>
+  /** Move `path` into `targetDir`, keeping its basename. */
+  move: (path: string, targetDir: string) => Promise<void>
+  /** Delete a file or directory (recursive for directories). */
+  remove: (path: string) => Promise<void>
 }
 
 /** Payload of the backend `project_fs:changed` event. */
@@ -236,5 +249,61 @@ export function useFileTree(rootPath: string): UseFileTreeResult {
     [load],
   )
 
-  return { rootPath, childrenByDir, expanded, loading, errors, toggle, reload }
+  const expand = useCallback(
+    (path: string) => {
+      setExpanded((prev) => {
+        if (prev.has(path)) return prev
+        const next = new Set(prev)
+        next.add(path)
+        return next
+      })
+      if (!childrenRef.current[path]) void load(path)
+    },
+    [load],
+  )
+
+  const collapseAll = useCallback(() => {
+    setExpanded(new Set())
+  }, [])
+
+  // Mutations write to disk and let the file watcher's `project_fs:changed`
+  // delta reconcile the tree — the same flow VS Code uses, where its file
+  // service performs the operation and the explorer model updates from the
+  // resulting filesystem event rather than mutating the view optimistically.
+  const create = useCallback(
+    async (parentDir: string, name: string, isDir: boolean) => {
+      await invoke('create_entry', { path: joinPath(parentDir, name), isDir })
+    },
+    [],
+  )
+
+  const rename = useCallback(async (path: string, newName: string) => {
+    const to = joinPath(parentPath(path), newName)
+    if (to === path) return
+    await invoke('rename_entry', { from: path, to })
+  }, [])
+
+  const move = useCallback(async (path: string, targetDir: string) => {
+    await invoke('rename_entry', { from: path, to: joinPath(targetDir, basename(path)) })
+  }, [])
+
+  const remove = useCallback(async (path: string) => {
+    await invoke('delete_entry', { path })
+  }, [])
+
+  return {
+    rootPath,
+    childrenByDir,
+    expanded,
+    loading,
+    errors,
+    toggle,
+    reload,
+    expand,
+    collapseAll,
+    create,
+    rename,
+    move,
+    remove,
+  }
 }

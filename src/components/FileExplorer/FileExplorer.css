@@ -17,6 +17,10 @@
   min-width: 0;
 }
 
+.file-explorer:focus {
+  outline: none;
+}
+
 .file-explorer__header {
   display: flex;
   align-items: center;
@@ -41,15 +45,22 @@
   color: var(--color-text-muted);
 }
 
-.file-explorer__refresh {
+.file-explorer__actions {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.file-explorer__action {
   flex-shrink: 0;
   background: transparent;
   border: none;
   color: var(--color-text-subtle);
   cursor: pointer;
   font-size: 13px;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
@@ -57,9 +68,13 @@
   padding: 0;
 }
 
-.file-explorer__refresh:hover {
+.file-explorer__action:hover {
   background: var(--color-border-muted);
   color: var(--color-text-default);
+}
+
+.file-explorer__action svg {
+  display: block;
 }
 
 .file-explorer__body {
@@ -88,6 +103,26 @@
 .file-explorer__row.is-active {
   background: var(--color-bg-accent-subtle);
   color: var(--color-text-strong);
+}
+
+.file-explorer__row.is-selected {
+  background: var(--color-border-muted);
+}
+
+.file-explorer__row.is-active.is-selected {
+  background: var(--color-bg-accent-subtle);
+}
+
+/* Folder highlighted as the drop target during a drag-and-drop move. */
+.file-explorer__row.is-drop-target,
+.file-explorer__body.is-drop-target {
+  outline: 1px solid var(--color-accent, #4493f8);
+  outline-offset: -1px;
+  background: var(--color-bg-accent-subtle);
+}
+
+.file-explorer__body.is-drop-target {
+  outline-offset: -2px;
 }
 
 .file-explorer__twisty {
@@ -134,4 +169,88 @@
 
 .file-explorer__error {
   color: #ffa198;
+}
+
+.file-explorer__error[role='alert'] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+}
+
+.file-explorer__error-dismiss {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+/* Inline new-file / new-folder / rename input. */
+.file-explorer__row--input {
+  cursor: default;
+}
+
+.file-explorer__row--input:hover {
+  background: transparent;
+}
+
+.file-explorer__input {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 0 4px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--color-text-strong);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-accent, #4493f8);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+/* Right-click context menu (portaled to <body>). */
+.file-explorer__menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-muted);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-ui);
+}
+
+.file-explorer__menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--color-text-default);
+  cursor: pointer;
+  font-size: 12.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.file-explorer__menu-item:hover {
+  background: var(--color-bg-accent-subtle);
+  color: var(--color-text-strong);
+}
+
+.file-explorer__menu-item--danger:hover {
+  background: rgba(248, 81, 73, 0.18);
+  color: #ffa198;
+}
+
+.file-explorer__menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--color-border-muted);
 }

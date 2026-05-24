@@ -644,6 +644,93 @@ pub fn read_dir_entries(path: &str) -> Result<Vec<DirEntry>, String> {
     Ok(out)
 }
 
+/// Basename of a path string, for building a `DirEntry` after a mutation.
+fn file_name_of(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string())
+}
+
+fn entry_for(path: &str, is_dir: bool) -> DirEntry {
+    DirEntry {
+        name: file_name_of(path),
+        path: path.to_string(),
+        is_dir,
+    }
+}
+
+/// Creates an empty file or a directory at `path`, mirroring VS Code's
+/// New File / New Folder actions (`NewFileAction` / `NewFolderAction`): the
+/// entry is written to disk and the explorer's file watcher surfaces it. Any
+/// missing parent directories are created too, so typing a nested name like
+/// `a/b/c.ts` works just as it does in VS Code's inline new-file input. Errors
+/// if the target already exists so an existing file is never clobbered.
+#[tauri::command]
+pub fn create_entry(path: String, is_dir: bool) -> Result<DirEntry, String> {
+    use std::fs;
+    let p = std::path::Path::new(&path);
+    if p.exists() {
+        return Err(format!("이미 존재합니다: {}", file_name_of(&path)));
+    }
+    if is_dir {
+        fs::create_dir_all(p).map_err(|e| format!("create_dir: {e}"))?;
+    } else {
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("create_dir: {e}"))?;
+        }
+        fs::File::create(p).map_err(|e| format!("create_file: {e}"))?;
+    }
+    Ok(entry_for(&path, is_dir))
+}
+
+/// Renames or moves `from` → `to`. VS Code performs both rename and
+/// drag-and-drop move through a single `IFileService.move`; we likewise back
+/// both with one `fs::rename`. Guards mirror VS Code's drop validation: it
+/// refuses to overwrite an existing destination and refuses to move a
+/// directory into itself or one of its own descendants.
+#[tauri::command]
+pub fn rename_entry(from: String, to: String) -> Result<DirEntry, String> {
+    use std::fs;
+    let src = std::path::Path::new(&from);
+    let dst = std::path::Path::new(&to);
+    if !src.exists() {
+        return Err("원본을 찾을 수 없습니다.".into());
+    }
+    if src == dst {
+        return Ok(entry_for(&to, src.is_dir()));
+    }
+    // Component-wise prefix check: blocks moving /a/b into /a/b/c without
+    // false-positives on a mere string prefix like /a/b → /a/bc.
+    if dst.starts_with(src) {
+        return Err("폴더를 자기 자신의 하위로 이동할 수 없습니다.".into());
+    }
+    if dst.exists() {
+        return Err(format!("이미 존재합니다: {}", file_name_of(&to)));
+    }
+    let is_dir = src.is_dir();
+    fs::rename(src, dst).map_err(|e| format!("rename: {e}"))?;
+    Ok(entry_for(&to, is_dir))
+}
+
+/// Deletes a file or directory (recursively for directories), backing VS
+/// Code's `DeleteFileAction`. VS Code defaults to moving the entry to the OS
+/// trash; we delete permanently and rely on the explorer's confirmation
+/// prompt (VS Code's `explorer.confirmDelete`) to guard the action. Uses
+/// `symlink_metadata` so a symlinked directory is unlinked, not followed.
+#[tauri::command]
+pub fn delete_entry(path: String) -> Result<(), String> {
+    use std::fs;
+    let p = std::path::Path::new(&path);
+    let meta = fs::symlink_metadata(p).map_err(|e| format!("metadata: {e}"))?;
+    if meta.is_dir() {
+        fs::remove_dir_all(p).map_err(|e| format!("remove_dir: {e}"))?;
+    } else {
+        fs::remove_file(p).map_err(|e| format!("remove_file: {e}"))?;
+    }
+    Ok(())
+}
+
 /// Lists the immediate children of `path` for the file explorer. When `root`
 /// names a project with a live watcher (see `file_watch`), the result is
 /// served read-through from that project's in-memory cache — so re-expanding a
