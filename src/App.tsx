@@ -31,6 +31,12 @@ function App() {
     PERSISTED_FLAG_KEYS.tasksOpen,
     false,
   )
+  // File explorer open/close is app-wide too, so the sidebar preference
+  // carries across tabs just like Tasks.
+  const [showExplorer, setShowExplorer] = usePersistedBoolean(
+    PERSISTED_FLAG_KEYS.explorerOpen,
+    false,
+  )
 
   return (
     <div className="app-root">
@@ -62,6 +68,8 @@ function App() {
                 onOpenSettings={() => setSettingsOpen(true)}
                 showTasks={showTasks}
                 onToggleTasks={() => setShowTasks((v) => !v)}
+                showExplorer={showExplorer}
+                onToggleExplorer={() => setShowExplorer((v) => !v)}
                 visible={visible}
               />
             ) : (

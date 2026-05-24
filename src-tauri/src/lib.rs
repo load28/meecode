@@ -61,6 +61,7 @@ pub fn run() {
             commands::set_model,
             commands::set_thinking_level,
             commands::search_files,
+            commands::list_dir,
             commands::list_recent_projects,
             commands::list_project_sessions,
             commands::switch_session,

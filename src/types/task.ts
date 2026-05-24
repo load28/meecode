@@ -52,6 +52,8 @@ export interface Source {
 export interface WikiFile {
   name: string
   size_bytes: number
+  /** Absolute path on disk — the file viewer opens this directly. */
+  path: string
 }
 
 export interface OrganizePreview {

@@ -20,6 +20,8 @@ interface Props {
   showTasks: boolean
   tasksCount: number
   attachedTasksCount: number
+  showExplorer: boolean
+  onToggleExplorer: () => void
   isExpandOpen: boolean
   hasExpanded: boolean
   autoExpand: boolean
@@ -49,6 +51,8 @@ export function MainHeader({
   showTasks,
   tasksCount,
   attachedTasksCount,
+  showExplorer,
+  onToggleExplorer,
   isExpandOpen,
   hasExpanded,
   autoExpand,
@@ -78,6 +82,14 @@ export function MainHeader({
           ◀ 패널 열기
         </button>
       )}
+      <button
+        type="button"
+        className={`app__knowledge-btn${showExplorer ? ' is-active' : ''}`}
+        onClick={onToggleExplorer}
+        title="파일 탐색기"
+      >
+        🗂 탐색기
+      </button>
       <button
         type="button"
         className={`app__knowledge-btn${showTasks ? ' is-active' : ''}`}

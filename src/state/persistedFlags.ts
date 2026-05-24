@@ -10,6 +10,8 @@ export const PERSISTED_FLAG_KEYS = {
   autoExpand: 'meecode.autoExpand',
   /** Tasks side panel open/closed state. */
   tasksOpen: 'meecode.tasksOpen',
+  /** File explorer side panel open/closed state. */
+  explorerOpen: 'meecode.explorerOpen',
 } as const
 
 /**

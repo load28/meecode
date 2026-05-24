@@ -1,0 +1,122 @@
+.file-explorer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-base);
+  border-right: 1px solid var(--color-border-muted);
+  font-family: var(--font-ui);
+  min-width: 0;
+}
+
+.file-explorer__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--color-border-muted);
+  background: var(--color-bg-elevated);
+}
+
+.file-explorer__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.file-explorer__refresh {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 13px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.file-explorer__refresh:hover {
+  background: var(--color-border-muted);
+  color: var(--color-text-default);
+}
+
+.file-explorer__body {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0 12px;
+}
+
+.file-explorer__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 8px;
+  height: 22px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--color-text-default);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.file-explorer__row:hover {
+  background: var(--color-bg-elevated);
+}
+
+.file-explorer__row.is-active {
+  background: var(--color-bg-accent-subtle);
+  color: var(--color-text-strong);
+}
+
+.file-explorer__twisty {
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+  font-size: 9px;
+  color: var(--color-text-subtle);
+}
+
+.file-explorer__icon {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.file-explorer__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.file-explorer__row.is-dir .file-explorer__name {
+  color: var(--color-text-strong);
+}
+
+.file-explorer__hint,
+.file-explorer__error {
+  font-size: 11.5px;
+  padding: 4px 12px;
+  color: var(--color-text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-explorer__error {
+  color: #ffa198;
+}

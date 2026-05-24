@@ -1,5 +1,6 @@
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { TaskBrowser } from '../TaskBrowser'
+import { FileExplorer } from '../FileExplorer'
 import { InnerPanelGroup } from './InnerPanelGroup'
 import type { UseClaudeSessionResult } from '../../hooks/useClaudeSession'
 import type {
@@ -39,6 +40,8 @@ interface Props {
   /** Tasks 사이드 패널의 표시 여부. */
   showTasks: boolean
   onToggleTasks: () => void
+  /** 파일 탐색기 사이드 패널의 표시 여부. */
+  showExplorer: boolean
   sessionId: string | null
   attachedTaskIds: Set<string>
   onAttachTask: (taskId: string) => Promise<void> | void
@@ -75,6 +78,7 @@ export function MainBody({
   onOpenSettings,
   showTasks,
   onToggleTasks,
+  showExplorer,
   sessionId,
   attachedTaskIds,
   onAttachTask,
@@ -87,6 +91,24 @@ export function MainBody({
         direction="horizontal"
         autoSaveId={PERSISTED_LAYOUT_KEYS.mainOuter}
       >
+        {showExplorer && (
+          <>
+            <Panel
+              id="explorer"
+              order={0}
+              defaultSize={16}
+              minSize={10}
+              maxSize={40}
+            >
+              <FileExplorer
+                projectPath={projectPath}
+                activePath={fileTabs.activePath}
+                onOpenFile={onOpenFile}
+              />
+            </Panel>
+            <PanelResizeHandle className="resize-handle" />
+          </>
+        )}
         <Panel id="main-content" order={1} minSize={30}>
           <InnerPanelGroup
             tabId={tabId}
@@ -118,6 +140,7 @@ export function MainBody({
                 onAttachTask={onAttachTask}
                 onDetachTask={onDetachTask}
                 onOpenContent={onOpenContent}
+                onOpenFile={onOpenFile}
               />
             </Panel>
           </>

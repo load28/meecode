@@ -16,8 +16,10 @@ interface Props {
   /** Performs the real attach (binding + context injection). null when no session. */
   onAttachTask?: (taskId: string) => Promise<void> | void
   onDetachTask?: (taskId: string) => Promise<void> | void
-  /** Open a source/wiki doc in the shared file viewer. */
+  /** Open a captured source (no backing file) in the shared file viewer. */
   onOpenContent?: (tab: ContentTab) => void
+  /** Open a real file from disk (e.g. a wiki file) in the shared file viewer. */
+  onOpenFile?: (path: string) => void
 }
 
 export function TaskBrowser({
@@ -27,6 +29,7 @@ export function TaskBrowser({
   onAttachTask,
   onDetachTask,
   onOpenContent,
+  onOpenFile,
 }: Props) {
   const { tasks, loaded, createTask, refresh } = useTasks()
   // Two-way view: list <-> detail. Detail mounts when a task is selected.
@@ -56,6 +59,7 @@ export function TaskBrowser({
         onAttach={onAttachTask}
         onDetach={onDetachTask}
         onOpenContent={onOpenContent}
+        onOpenFile={onOpenFile}
       />
     )
   }

@@ -324,6 +324,9 @@ pub fn mark_sources_processed(
 pub struct WikiFile {
     pub name: String,
     pub size_bytes: u64,
+    /// Absolute path on disk. The file viewer opens this directly so the
+    /// wiki is shown as a real file rather than an in-memory copy.
+    pub path: String,
 }
 
 pub fn wiki_dir(root: &Path, task_id: &str) -> PathBuf {
@@ -366,6 +369,7 @@ pub fn list_wiki_files(root: &Path, task_id: &str) -> Result<Vec<WikiFile>, Stri
         out.push(WikiFile {
             name,
             size_bytes: size,
+            path: p.to_string_lossy().to_string(),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
