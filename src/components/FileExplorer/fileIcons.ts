@@ -1,178 +1,212 @@
 /**
- * File-type icon resolution modelled on VS Code's file icon themes.
+ * File-type icon resolution using VS Code's default file icon theme (Seti).
  *
- * VS Code resolves an icon by matching a resource against a declarative theme
- * (`iconDefinitions` + `fileNames` / `fileExtensions` / `languageIds` + folder
- * defaults) in a fixed priority order, enforced via CSS specificity. We mirror
- * that order here in plain data, rendering each definition as an emoji glyph so
- * the explorer gains per-type icons with no extra assets or dependencies.
+ * VS Code resolves a file's icon against the theme in a fixed priority order
+ * (file name → file extension → language id → default), enforced through CSS
+ * specificity. We replicate that exact chain here against the vendored Seti
+ * theme data (`setiIconsData.ts`) and the Seti icon font (`seti.woff`). The one
+ * piece VS Code gets from its language registry — extension/name → language id —
+ * is reproduced by EXT_TO_LANG / NAME_TO_LANG below, covering the language ids
+ * the Seti theme actually maps.
  *
- * Resolution priority (highest first), same as VS Code:
- *   1. exact file name (lowercased)        — FILE_NAMES
- *   2. compound extension, longest first   — FILE_EXTENSIONS ("d.ts", "test.ts")
- *   3. single extension                    — FILE_EXTENSIONS ("ts")
- *   4. generic file default
- * Folders resolve to collapsed/expanded defaults, with optional name overrides.
+ * Seti defines no folder icons, so folders fall back to emoji glyphs (matching
+ * the explorer's previous look); only files use the Seti font.
  */
 
-const ICON = {
-  file: '📄',
-  folder: '📁',
-  folderExpanded: '📂',
+import {
+  ICON_DEFS,
+  FILE_DEFAULT,
+  FILE_NAMES,
+  FILE_EXTENSIONS,
+  LANGUAGE_IDS,
+} from './setiIconsData'
+
+export interface FileIcon {
+  /** Glyph to render. */
+  char: string
+  /** Glyph color (Seti icons are colored); undefined → inherit. */
+  color?: string
+  /** When true, render `char` with the Seti icon font. */
+  seti: boolean
 }
 
-/** Exact basename (lowercased) → icon. Wins over any extension match. */
-const FILE_NAMES: Record<string, string> = {
-  'package.json': '📦',
-  'package-lock.json': '📦',
-  'yarn.lock': '📦',
-  'pnpm-lock.yaml': '📦',
-  'bun.lockb': '📦',
-  'tsconfig.json': '🔧',
-  'tsconfig.node.json': '🔧',
-  'jsconfig.json': '🔧',
-  'vite.config.ts': '⚡',
-  'vite.config.js': '⚡',
-  'vitest.config.ts': '⚡',
-  'readme.md': '📖',
-  readme: '📖',
-  license: '⚖️',
-  'license.md': '⚖️',
-  licence: '⚖️',
-  '.gitignore': '🌿',
-  '.gitattributes': '🌿',
-  '.gitmodules': '🌿',
-  dockerfile: '🐳',
-  '.dockerignore': '🐳',
-  'docker-compose.yml': '🐳',
-  'docker-compose.yaml': '🐳',
-  'cargo.toml': '🦀',
-  'cargo.lock': '🦀',
-  makefile: '🛠️',
-  '.env': '🔑',
-  '.npmrc': '🔧',
-  '.editorconfig': '🔧',
+const FOLDER: FileIcon = { char: '📁', seti: false }
+const FOLDER_OPEN: FileIcon = { char: '📂', seti: false }
+
+/** Extension → VS Code language id, restricted to ids the Seti theme maps. */
+const EXT_TO_LANG: Record<string, string> = {
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'typescriptreact',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  es6: 'javascript',
+  jsx: 'javascriptreact',
+  py: 'python',
+  pyi: 'python',
+  pyw: 'python',
+  rb: 'ruby',
+  gemspec: 'ruby',
+  rake: 'ruby',
+  rs: 'rust',
+  go: 'go',
+  java: 'java',
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  hpp: 'cpp',
+  hh: 'cpp',
+  hxx: 'cpp',
+  cs: 'csharp',
+  csx: 'csharp',
+  php: 'php',
+  phtml: 'php',
+  html: 'html',
+  htm: 'html',
+  xhtml: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'sass',
+  less: 'less',
+  styl: 'stylus',
+  md: 'markdown',
+  markdown: 'markdown',
+  mdown: 'markdown',
+  mkd: 'markdown',
+  yaml: 'yaml',
+  yml: 'yaml',
+  json: 'json',
+  jsonc: 'jsonc',
+  jsonl: 'jsonl',
+  sh: 'shellscript',
+  bash: 'shellscript',
+  zsh: 'shellscript',
+  ksh: 'shellscript',
+  fish: 'shellscript',
+  sql: 'sql',
+  xml: 'xml',
+  xsd: 'xml',
+  xsl: 'xml',
+  xslt: 'xml',
+  plist: 'xml',
+  vue: 'vue',
+  swift: 'swift',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  dart: 'dart',
+  lua: 'lua',
+  pl: 'perl',
+  pm: 'perl',
+  hs: 'haskell',
+  lhs: 'haskell',
+  ex: 'elixir',
+  exs: 'elixir',
+  eex: 'elixir',
+  heex: 'elixir',
+  elm: 'elm',
+  clj: 'clojure',
+  cljs: 'clojure',
+  cljc: 'clojure',
+  edn: 'clojure',
+  coffee: 'coffeescript',
+  cson: 'coffeescript',
+  fs: 'fsharp',
+  fsi: 'fsharp',
+  fsx: 'fsharp',
+  groovy: 'groovy',
+  gradle: 'gradle',
+  jl: 'julia',
+  r: 'r',
+  m: 'objective-c',
+  mm: 'objective-cpp',
+  ps1: 'powershell',
+  psm1: 'powershell',
+  psd1: 'powershell',
+  tex: 'latex',
+  ltx: 'latex',
+  bat: 'bat',
+  cmd: 'bat',
+  tf: 'terraform',
+  tfvars: 'terraform',
+  bicep: 'bicep',
+  ml: 'ocaml',
+  mli: 'ocaml',
+  vala: 'vala',
+  vapi: 'vala',
+  hx: 'haxe',
+  ini: 'properties',
+  cfg: 'properties',
+  conf: 'properties',
+  properties: 'properties',
+  env: 'dotenv',
+  mk: 'makefile',
+  mak: 'makefile',
+  hbs: 'handlebars',
+  handlebars: 'handlebars',
+  mustache: 'mustache',
+  pug: 'jade',
+  jade: 'jade',
+  haml: 'haml',
+  njk: 'nunjucks',
+  gd: 'godot',
+  tscn: 'godot',
+  tres: 'godot',
+}
+
+/** Extensionless / special base names → VS Code language id. */
+const NAME_TO_LANG: Record<string, string> = {
+  dockerfile: 'dockerfile',
+  'docker-compose.yml': 'dockercompose',
+  'docker-compose.yaml': 'dockercompose',
+  makefile: 'makefile',
+  gnumakefile: 'makefile',
+  '.gitignore': 'ignore',
+  '.npmignore': 'ignore',
+  '.dockerignore': 'ignore',
+  '.eslintignore': 'ignore',
+  '.env': 'dotenv',
+}
+
+function defToIcon(id: string): FileIcon {
+  const def = ICON_DEFS[id] ?? ICON_DEFS[FILE_DEFAULT]
+  return { char: def.c, color: def.color, seti: true }
 }
 
 /**
- * Extension → icon. Keys are matched against the suffix segments of the
- * lowercased name, longest compound first (so `d.ts` beats `ts`).
- */
-const FILE_EXTENSIONS: Record<string, string> = {
-  // TypeScript / JavaScript
-  'd.ts': '🔷',
-  ts: '🔷',
-  mts: '🔷',
-  cts: '🔷',
-  tsx: '⚛️',
-  js: '🟨',
-  mjs: '🟨',
-  cjs: '🟨',
-  jsx: '⚛️',
-  // Other languages
-  rs: '🦀',
-  py: '🐍',
-  go: '🐹',
-  rb: '💎',
-  java: '☕',
-  kt: '🟪',
-  kts: '🟪',
-  c: '🔵',
-  h: '🔵',
-  cpp: '🔵',
-  cc: '🔵',
-  cxx: '🔵',
-  hpp: '🔵',
-  cs: '🟦',
-  php: '🐘',
-  swift: '🕊️',
-  sh: '🐚',
-  bash: '🐚',
-  zsh: '🐚',
-  lua: '🌙',
-  vue: '💚',
-  svelte: '🧡',
-  // Markup / style / data
-  html: '🌐',
-  htm: '🌐',
-  css: '🎨',
-  scss: '🎨',
-  sass: '🎨',
-  less: '🎨',
-  json: '🧾',
-  jsonc: '🧾',
-  yaml: '⚙️',
-  yml: '⚙️',
-  toml: '⚙️',
-  xml: '📰',
-  md: '📝',
-  markdown: '📝',
-  mdx: '📝',
-  env: '🔑',
-  sql: '🗄️',
-  csv: '📊',
-  // Images
-  png: '🖼️',
-  jpg: '🖼️',
-  jpeg: '🖼️',
-  gif: '🖼️',
-  svg: '🖼️',
-  webp: '🖼️',
-  ico: '🖼️',
-  bmp: '🖼️',
-  // Media
-  mp4: '🎬',
-  mov: '🎬',
-  webm: '🎬',
-  mkv: '🎬',
-  avi: '🎬',
-  mp3: '🎵',
-  wav: '🎵',
-  flac: '🎵',
-  ogg: '🎵',
-  // Archives / docs / fonts
-  zip: '🗜️',
-  tar: '🗜️',
-  gz: '🗜️',
-  rar: '🗜️',
-  '7z': '🗜️',
-  pdf: '📕',
-  txt: '📃',
-  log: '📃',
-  doc: '📘',
-  docx: '📘',
-  xls: '📗',
-  xlsx: '📗',
-  ppt: '📙',
-  pptx: '📙',
-  ttf: '🔤',
-  otf: '🔤',
-  woff: '🔤',
-  woff2: '🔤',
-}
-
-/**
- * Resolve the icon glyph for an explorer entry. `isExpanded` only affects
- * folders. Mirrors VS Code's name → extension → default precedence.
+ * Resolve the icon for an explorer entry. `isExpanded` only affects folders.
+ * Mirrors VS Code's name → extension → language → default precedence.
  */
 export function getFileIcon(
   name: string,
   isDir: boolean,
   isExpanded = false,
-): string {
-  if (isDir) return isExpanded ? ICON.folderExpanded : ICON.folder
+): FileIcon {
+  if (isDir) return isExpanded ? FOLDER_OPEN : FOLDER
 
   const lower = name.toLowerCase()
 
+  // 1) exact file name
   const byName = FILE_NAMES[lower]
-  if (byName) return byName
+  if (byName) return defToIcon(byName)
 
+  // 2) extension, longest compound suffix first (file extension beats language)
   const segments = lower.split('.')
   for (let i = 1; i < segments.length; i++) {
     const ext = segments.slice(i).join('.')
     const byExt = FILE_EXTENSIONS[ext]
-    if (byExt) return byExt
+    if (byExt) return defToIcon(byExt)
+    const lang = EXT_TO_LANG[ext]
+    if (lang && LANGUAGE_IDS[lang]) return defToIcon(LANGUAGE_IDS[lang])
   }
 
-  return ICON.file
+  // 3) extensionless / special names resolved via language id
+  const nameLang = NAME_TO_LANG[lower]
+  if (nameLang && LANGUAGE_IDS[nameLang]) return defToIcon(LANGUAGE_IDS[nameLang])
+
+  // 4) generic default
+  return defToIcon(FILE_DEFAULT)
 }

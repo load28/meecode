@@ -69,6 +69,25 @@ export function FileExplorer({ projectPath, activePath, onOpenFile }: Props) {
   )
 }
 
+function FileIconView({
+  entry,
+  isExpanded,
+}: {
+  entry: DirEntry
+  isExpanded: boolean
+}) {
+  const icon = getFileIcon(entry.name, entry.is_dir, isExpanded)
+  return (
+    <span
+      className={'file-explorer__icon' + (icon.seti ? ' is-seti' : '')}
+      style={icon.color ? { color: icon.color } : undefined}
+      aria-hidden="true"
+    >
+      {icon.char}
+    </span>
+  )
+}
+
 interface TreeNodeProps {
   entry: DirEntry
   depth: number
@@ -107,9 +126,7 @@ function TreeNode({ entry, depth, tree, activePath, onOpenFile }: TreeNodeProps)
         <span className="file-explorer__twisty">
           {entry.is_dir ? (isExpanded ? '▾' : '▸') : ''}
         </span>
-        <span className="file-explorer__icon">
-          {getFileIcon(entry.name, entry.is_dir, isExpanded)}
-        </span>
+        <FileIconView entry={entry} isExpanded={isExpanded} />
         <span className="file-explorer__name">{entry.name}</span>
       </div>
       {isExpanded && (
