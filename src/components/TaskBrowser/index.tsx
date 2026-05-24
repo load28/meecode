@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTasks } from '../../hooks/useTasks'
+import type { ContentTab } from '../../hooks/useFileTabs'
 import { TaskDetail } from '../TaskDetail'
 import { CreateTaskForm } from './CreateTaskForm'
 import { TaskBrowserList } from './TaskBrowserList'
@@ -15,6 +16,8 @@ interface Props {
   /** Performs the real attach (binding + context injection). null when no session. */
   onAttachTask?: (taskId: string) => Promise<void> | void
   onDetachTask?: (taskId: string) => Promise<void> | void
+  /** Open a source/wiki doc in the shared file viewer. */
+  onOpenContent?: (tab: ContentTab) => void
 }
 
 export function TaskBrowser({
@@ -23,6 +26,7 @@ export function TaskBrowser({
   attachedTaskIds,
   onAttachTask,
   onDetachTask,
+  onOpenContent,
 }: Props) {
   const { tasks, loaded, createTask, refresh } = useTasks()
   // Two-way view: list <-> detail. Detail mounts when a task is selected.
@@ -51,6 +55,7 @@ export function TaskBrowser({
         canAttach={!!sessionId}
         onAttach={onAttachTask}
         onDetach={onDetachTask}
+        onOpenContent={onOpenContent}
       />
     )
   }

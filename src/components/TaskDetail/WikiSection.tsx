@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { WikiFile } from '../../types/task'
+import type { ContentTab } from '../../hooks/useFileTabs'
 import { WikiEditor } from '../WikiEditor'
 
 interface Props {
@@ -8,14 +9,17 @@ interface Props {
   readFile: (name: string) => Promise<string>
   writeFile: (name: string, content: string) => Promise<boolean>
   deleteFile: (name: string) => Promise<void>
+  /** Open a wiki file (rendered markdown) in the shared file viewer. */
+  onOpenContent?: (tab: ContentTab) => void
 }
 
 /**
  * Wiki file list + "+ 새 파일" creator + the active WikiEditor.
  *
- * The active-file and new-file-input state live entirely inside this
- * section — TaskDetail's parent doesn't need to be aware of them.
- * Created files default to a `# <basename>` heading just like before.
+ * Clicking a file name opens it in the shared file viewer (rendered
+ * markdown, same as a source). A per-row "✎ 편집" button opens the inline
+ * WikiEditor for editing. The active-file and new-file-input state live
+ * entirely inside this section.
  */
 export function WikiSection({
   taskId,
@@ -23,6 +27,7 @@ export function WikiSection({
   readFile,
   writeFile,
   deleteFile,
+  onOpenContent,
 }: Props) {
   const [activeWiki, setActiveWiki] = useState<string | null>(null)
   const [newWikiName, setNewWikiName] = useState('')
@@ -38,6 +43,17 @@ export function WikiSection({
       setShowNewWikiInput(false)
       setActiveWiki(name)
     }
+  }
+
+  const handleOpenInViewer = async (name: string) => {
+    if (!onOpenContent) return
+    const content = await readFile(name)
+    onOpenContent({
+      key: `task-wiki:${taskId}:${name}`,
+      title: name,
+      content,
+      language: 'markdown',
+    })
   }
 
   return (
@@ -100,13 +116,26 @@ export function WikiSection({
               <button
                 type="button"
                 className="task-detail__wiki-link"
-                onClick={() =>
-                  setActiveWiki((cur) => (cur === f.name ? null : f.name))
-                }
+                onClick={() => {
+                  if (onOpenContent) void handleOpenInViewer(f.name)
+                  else setActiveWiki((cur) => (cur === f.name ? null : f.name))
+                }}
+                title="파일뷰로 열기"
               >
                 📄 {f.name}
               </button>
               <span className="task-detail__wiki-size">{f.size_bytes}B</span>
+              <button
+                type="button"
+                className="task-detail__wiki-edit"
+                onClick={() =>
+                  setActiveWiki((cur) => (cur === f.name ? null : f.name))
+                }
+                title="편집"
+                aria-label="편집"
+              >
+                ✎
+              </button>
             </li>
           ))}
         </ul>

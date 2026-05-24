@@ -5,6 +5,8 @@ import type { CaptureDraft } from './index'
 
 interface Options {
   draft: CaptureDraft
+  /** Title to persist with the Source — supplied (and editable) by the picker. */
+  title: string
   tasks: TaskSummary[]
   createTask: UseTasksResult['createTask']
   createSource: UseTasksResult['createSource']
@@ -32,6 +34,7 @@ export interface UseTaskCaptureResult {
  */
 export function useTaskCapture({
   draft,
+  title,
   tasks,
   createTask,
   createSource,
@@ -44,6 +47,7 @@ export function useTaskCapture({
   const draftInput = (taskId: string): CreateSourceInput => ({
     taskId,
     kind: draft.kind,
+    title: title.trim(),
     content: draft.content,
     sessionId: draft.sessionId,
     qaId: draft.qaId,

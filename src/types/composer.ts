@@ -13,6 +13,8 @@ export interface CaptureSource {
   kind: 'qa_block' | 'selection'
   content: string
   qaId: string
+  /** Suggested title shown pre-filled in the Task picker — user can edit. */
+  suggestedTitle?: string
 }
 
 /**

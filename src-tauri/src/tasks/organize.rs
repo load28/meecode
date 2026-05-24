@@ -110,12 +110,12 @@ fn build_prompt(task: &Task, pending: &[Source]) -> String {
     s.push_str("- 변경 후 짧게 어떤 파일을 어떻게 갱신했는지 마지막에 한 줄로 보고하라.\n\n");
     s.push_str(&format!("## 새 Sources ({}개)\n\n", pending.len()));
     for (i, src) in pending.iter().enumerate() {
-        s.push_str(&format!(
-            "### [{}] {} (id: {})\n",
-            i + 1,
-            src.kind,
-            src.id
-        ));
+        let label = if src.title.is_empty() {
+            src.kind.clone()
+        } else {
+            format!("{} · {}", src.title, src.kind)
+        };
+        s.push_str(&format!("### [{}] {} (id: {})\n", i + 1, label, src.id));
         s.push_str(&src.content);
         s.push_str("\n\n");
     }

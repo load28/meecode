@@ -2,7 +2,11 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { TaskBrowser } from '../TaskBrowser'
 import { InnerPanelGroup } from './InnerPanelGroup'
 import type { UseClaudeSessionResult } from '../../hooks/useClaudeSession'
-import type { UseFileTabsResult, PendingEdit } from '../../hooks/useFileTabs'
+import type {
+  ContentTab,
+  UseFileTabsResult,
+  PendingEdit,
+} from '../../hooks/useFileTabs'
 import type { QaPair } from '../../types'
 import type { CaptureSource, CodeSnippet } from '../../types/composer'
 import type { PendingComposerSelection } from '../../hooks/usePendingSelection'
@@ -39,6 +43,8 @@ interface Props {
   attachedTaskIds: Set<string>
   onAttachTask: (taskId: string) => Promise<void> | void
   onDetachTask: (taskId: string) => Promise<void> | void
+  /** Open a task source/wiki doc in the shared file viewer. */
+  onOpenContent: (tab: ContentTab) => void
 }
 
 /**
@@ -73,6 +79,7 @@ export function MainBody({
   attachedTaskIds,
   onAttachTask,
   onDetachTask,
+  onOpenContent,
 }: Props) {
   return (
     <div className="app__body">
@@ -110,6 +117,7 @@ export function MainBody({
                 attachedTaskIds={attachedTaskIds}
                 onAttachTask={onAttachTask}
                 onDetachTask={onDetachTask}
+                onOpenContent={onOpenContent}
               />
             </Panel>
           </>

@@ -28,7 +28,7 @@ export function FileMetaBar({
 }: Props) {
   return (
     <header className="file-panel__bar">
-      <span className="file-panel__path">{tab.path}</span>
+      <span className="file-panel__path">{tab.title ?? tab.path}</span>
       <span className="file-panel__meta">
         {tab.language} · {formatBytes(tab.size)}
         {tab.truncated && ' · ⚠ 일부만 표시'}

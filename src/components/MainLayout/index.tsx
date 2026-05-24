@@ -99,7 +99,8 @@ export function MainLayout({
   } = useExpandPanel(pairs)
 
   const fileTabs = useFileTabs()
-  const { isDetached, detach, openFile } = useDetachedFilePanel(fileTabs)
+  const { isDetached, detach, openFile, openContent } =
+    useDetachedFilePanel(fileTabs)
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
@@ -187,6 +188,7 @@ export function MainLayout({
         attachedTaskIds={attachedTaskIds}
         onAttachTask={taskAttach.attach}
         onDetachTask={taskAttach.detach}
+        onOpenContent={openContent}
       />
       {capture.draft && (
         <TaskPicker draft={capture.draft} onClose={capture.close} />
