@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { marked, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 import Prism from 'prismjs'
@@ -38,6 +38,11 @@ const LANG_ALIAS: Record<string, string> = {
 // 위임받는다 — 렌더할 때마다 버튼을 DOM에 새로 꽂지 않게 한다.
 const COPY_BTN_HTML =
   '<button type="button" class="markdown-copy-btn" title="복사">📋</button>'
+
+// 커서 아래에 있는 코드 블록에만 붙는 클래스 — 복사 버튼 노출을 이 클래스로
+// 제어한다(MessageBubble.css의 같은 이름 셀렉터와 짝). JS가 직접 토글하므로
+// pre가 프레임마다 새로 생겨도 표시가 흔들리지 않는다.
+const PRE_HOVER_CLASS = 'markdown-pre--hover'
 
 function escapeHtml(s: string): string {
   return s
@@ -90,6 +95,9 @@ interface Props {
 
 export function MarkdownContent({ source, className }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
+  // 마지막 포인터 위치 — 커서가 멈춰 있어도(이벤트가 안 와도) 재렌더 직후
+  // 커서 밑 블록을 다시 짚을 수 있게 들고 있는다.
+  const pointer = useRef({ x: 0, y: 0, inside: false })
   // source는 스트리밍 중 프레임마다 바뀌지만 다른 이유로 리렌더될 때는
   // 파싱·하이라이트를 다시 돌리지 않도록 source 기준으로만 메모한다.
   const html = useMemo(() => renderMarkdown(source), [source])
@@ -121,19 +129,53 @@ export function MarkdownContent({ source, className }: Props) {
     return () => root.removeEventListener('click', onClick)
   }, [])
 
-  // 복사 버튼 hover 판정을 이 안정적인 컨테이너 기준으로 걸기 위한 클래스.
-  // 스트리밍 중엔 innerHTML이 프레임마다 통째로 교체돼 내부 pre·button이
-  // 새 노드로 다시 생기는데, 그러면 pre:hover가 (정지한 커서 아래에서 hover를
-  // 재평가하지 않는 WebKit 계열에서) 풀려 버튼이 사라졌다 나타났다 한다.
-  // hover를 교체되지 않는 컨테이너에 두면 이 깜빡임이 사라진다.
-  const containerClass = ['markdown-content', className]
-    .filter(Boolean)
-    .join(' ')
+  // 커서 아래 코드 블록에만 복사 버튼을 보이게 한다. 스트리밍 중엔 innerHTML이
+  // 프레임마다 통째로 교체돼 내부 pre·button이 새 노드로 다시 생기는데, 그러면
+  // pre:hover가 (정지한 커서 아래에서 hover를 재평가하지 않는 WebKit 계열에서)
+  // 풀려 버튼이 사라졌다 나타났다 한다. CSS hover 대신 포인터 좌표로 커서 밑
+  // 블록을 직접 찾아 표시하면, 노드가 갈려도 같은 블록을 다시 짚어 흔들리지 않는다.
+  const markHoveredPre = useCallback(() => {
+    const root = ref.current
+    if (!root) return
+    const { x, y, inside } = pointer.current
+    const hovered = inside
+      ? document.elementFromPoint(x, y)?.closest('pre') ?? null
+      : null
+    root.querySelectorAll(`pre.${PRE_HOVER_CLASS}`).forEach((pre) => {
+      if (pre !== hovered) pre.classList.remove(PRE_HOVER_CLASS)
+    })
+    if (hovered && root.contains(hovered)) {
+      hovered.classList.add(PRE_HOVER_CLASS)
+    }
+  }, [])
+
+  useEffect(() => {
+    const root = ref.current
+    if (!root) return
+    const onMove = (e: PointerEvent) => {
+      pointer.current = { x: e.clientX, y: e.clientY, inside: true }
+      markHoveredPre()
+    }
+    const onLeave = () => {
+      pointer.current.inside = false
+      markHoveredPre()
+    }
+    root.addEventListener('pointermove', onMove)
+    root.addEventListener('pointerleave', onLeave)
+    return () => {
+      root.removeEventListener('pointermove', onMove)
+      root.removeEventListener('pointerleave', onLeave)
+    }
+  }, [markHoveredPre])
+
+  // 스트리밍 재렌더마다, paint 전에 다시 짚어준다 — pre가 새로 생긴 그 프레임에
+  // 버튼이 한 번 깜빡 사라지지 않도록.
+  useLayoutEffect(markHoveredPre, [html, markHoveredPre])
 
   return (
     <div
       ref={ref}
-      className={containerClass}
+      className={className}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

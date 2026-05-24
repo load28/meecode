@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { renderMarkdown, SegmentView } from './index'
 import type { AssistantSegment } from '../../types'
@@ -42,20 +42,29 @@ describe('SegmentView', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Hello')
   })
 
-  it('text 세그먼트 컨테이너에 markdown-content 클래스 — 복사 버튼 hover 기준', () => {
-    const seg: AssistantSegment = { kind: 'text', text: '# Hello' }
-    const { container } = render(<SegmentView segment={seg} />)
-    const root = container.querySelector('.markdown-content')
-    expect(root).toBeInTheDocument()
-    // 전달된 className도 함께 유지돼야 한다.
-    expect(root).toHaveClass('message-bubble__content')
-  })
-
   it('plan 세그먼트를 라벨과 함께 렌더', () => {
     const seg: AssistantSegment = { kind: 'plan', text: '# Plan body' }
     const { container } = render(<SegmentView segment={seg} />)
     expect(screen.getByText('📋 Plan')).toBeInTheDocument()
     expect(container.querySelector('.message-bubble__plan')).toBeInTheDocument()
+  })
+
+  it('커서 밑 코드 블록에만 hover 클래스를 단다 — 블록 단위 복사 버튼', () => {
+    const seg: AssistantSegment = { kind: 'text', text: '```ts\nconst x = 1\n```' }
+    const { container } = render(<SegmentView segment={seg} />)
+    const root = container.querySelector('.message-bubble__content') as HTMLElement
+    const pre = container.querySelector('pre') as HTMLElement
+    // jsdom엔 레이아웃이 없어 elementFromPoint 자체가 없다 — 커서 밑 요소를 흉내낸다.
+    const original = document.elementFromPoint
+    document.elementFromPoint = (() => pre) as typeof document.elementFromPoint
+    try {
+      fireEvent.pointerMove(root, { clientX: 5, clientY: 5 })
+      expect(pre).toHaveClass('markdown-pre--hover')
+      fireEvent.pointerLeave(root)
+      expect(pre).not.toHaveClass('markdown-pre--hover')
+    } finally {
+      document.elementFromPoint = original
+    }
   })
 
   it('tool_use(Bash) 세그먼트를 ToolView로 렌더 — 이름과 command 노출', () => {

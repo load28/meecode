@@ -435,9 +435,10 @@ pre:has(> .markdown-copy-btn) {
   transition: opacity var(--duration-normal), background var(--duration-normal);
 }
 
-/* hover는 교체되지 않는 컨테이너 기준으로 — 스트리밍 중 pre가 프레임마다
-   새 노드로 갈아끼워져도 버튼이 깜빡이지 않게 한다. */
-.markdown-content:hover .markdown-copy-btn {
+/* hover 중인 코드 블록 표시는 JS가 토글한다(MarkdownContent의 PRE_HOVER_CLASS).
+   스트리밍 중 pre가 프레임마다 새 노드로 갈려도 버튼이 깜빡이지 않게 하면서
+   코드 블록 단위로만 버튼을 보인다. */
+pre.markdown-pre--hover > .markdown-copy-btn {
   opacity: 1;
 }
 
