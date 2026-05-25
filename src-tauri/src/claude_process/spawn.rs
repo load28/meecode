@@ -1,6 +1,7 @@
 use crate::claude_process::protocol::StdinMessage;
 use crate::claude_process::stdin_writer::write_line;
 use crate::claude_process::stdout_parser::{parse_reader, DomainEvent};
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -50,6 +51,17 @@ pub async fn spawn_claude(
     // hook activity in the UI. We already parse these, so opting in is
     // purely additive.
     cmd.arg("--include-hook-events");
+    // Register the in-app MCP server (this binary re-exec'd as `mcp-stdio`)
+    // so attaching a Task surfaces as a visible `load_task_context` tool
+    // call. --allowedTools auto-approves just that tool (additive — other
+    // tools still go through the normal permission prompt) so the call shows
+    // up without a permission dialog. Degrades gracefully: if the config
+    // can't be written we skip the flags and attach falls back to prompt
+    // injection.
+    if let Some(cfg) = write_mcp_config() {
+        cmd.arg("--mcp-config").arg(&cfg);
+        cmd.arg("--allowedTools").arg("mcp__meecode__load_task_context");
+    }
     if let Some(id) = resume_session_id {
         cmd.arg("--resume").arg(id);
     }
@@ -101,4 +113,28 @@ pub async fn spawn_claude(
         stdin_tx: tx,
         id,
     })
+}
+
+/// Write `~/.meecode/mcp.json` registering this binary (re-exec'd as
+/// `mcp-stdio`) as a stdio MCP server named `meecode`, and return its path.
+/// Returns `None` (callers then skip the `--mcp-config` flag) if the current
+/// executable path or the config file can't be resolved/written.
+fn write_mcp_config() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = dirs::home_dir()?.join(".meecode");
+    if std::fs::create_dir_all(&dir).is_err() {
+        return None;
+    }
+    let path = dir.join("mcp.json");
+    let cfg = serde_json::json!({
+        "mcpServers": {
+            "meecode": {
+                "command": exe.to_string_lossy(),
+                "args": ["mcp-stdio"],
+            }
+        }
+    });
+    let body = serde_json::to_string_pretty(&cfg).ok()?;
+    std::fs::write(&path, body).ok()?;
+    Some(path)
 }
