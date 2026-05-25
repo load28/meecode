@@ -176,3 +176,59 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.settings-plugins {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-plugins__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.settings-plugins__item:hover {
+  background: var(--color-bg-base);
+}
+
+.settings-plugins__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.settings-plugins__name {
+  font-size: 13px;
+  color: var(--color-text-default);
+}
+
+.settings-plugins__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-subtle);
+}
+
+.settings-plugins__badge {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+}
+
+.settings-plugins__badge--on {
+  border-color: var(--color-accent-green);
+  color: var(--color-accent-green);
+}

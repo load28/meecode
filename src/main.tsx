@@ -6,9 +6,14 @@ import './styles/tokens.css'
 import { bootstrapSessionListeners } from './state/sessionStore'
 import { bootstrapOrganizeListeners } from './state/organizeStore'
 import { bootstrapHarvestListeners } from './state/harvestStore'
+import { bootstrapLanguagePlugins } from './editor/plugins/registry'
 
 const params = new URLSearchParams(window.location.search)
 const view = params.get('view')
+
+// Language plugins are declared in both the main and detached (code) windows so
+// an enabled grammar/server lights up wherever a file is shown.
+bootstrapLanguagePlugins()
 
 // The detached code window is a stripped-down satellite — no session state,
 // no chat, no PTY. Skip the session listener bootstrap so this window doesn't

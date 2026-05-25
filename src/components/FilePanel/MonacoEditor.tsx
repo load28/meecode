@@ -11,7 +11,9 @@ import {
   getOrCreateModel,
   saveViewState,
   takeViewState,
+  toMonacoLanguage,
 } from '../../editor/models'
+import { ensureLanguageActivated } from '../../editor/plugins/registry'
 import { isDirty, markClean, registerWorkingCopy } from '../../state/workingCopyStore'
 
 interface Props {
@@ -141,6 +143,9 @@ export function MonacoEditor({
 
     const model = getOrCreateModel(tab)
     registerWorkingCopy(tab.path, model)
+    // Activation trigger: bring up the language's plugin (grammar / server) the
+    // first time a file of that language is shown, if the user enabled it.
+    ensureLanguageActivated(toMonacoLanguage(tab.language))
 
     if (!isDirty(tab.path) && model.getValue() !== tab.content) {
       model.setValue(tab.content)

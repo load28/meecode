@@ -51,7 +51,28 @@ export function setupMonaco(): void {
   monaco.editor.defineTheme(EDITOR_THEME, {
     base: 'vs-dark',
     inherit: true,
-    rules: [],
+    // GitHub-dark token colors. Monaco matches the longest dot-prefixed token
+    // type, so these cover both Monaco's built-in Monarch token types and the
+    // finer TextMate scopes emitted by language plugins.
+    rules: [
+      { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
+      { token: 'string', foreground: 'a5d6ff' },
+      { token: 'keyword', foreground: 'ff7b72' },
+      { token: 'storage', foreground: 'ff7b72' },
+      { token: 'number', foreground: '79c0ff' },
+      { token: 'constant', foreground: '79c0ff' },
+      { token: 'constant.numeric', foreground: '79c0ff' },
+      { token: 'constant.language', foreground: '79c0ff' },
+      { token: 'variable', foreground: 'c9d1d9' },
+      { token: 'variable.other.key', foreground: '79c0ff' },
+      { token: 'type', foreground: 'ffa657' },
+      { token: 'entity.name.type', foreground: 'ffa657' },
+      { token: 'entity.name.function', foreground: 'd2a8ff' },
+      { token: 'entity.name.section', foreground: 'd2a8ff' },
+      { token: 'entity.name.tag', foreground: '7ee787' },
+      { token: 'support', foreground: '79c0ff' },
+      { token: 'invalid', foreground: 'f85149' },
+    ],
     colors: {
       'editor.background': '#0d1117',
       'editor.foreground': '#c9d1d9',
