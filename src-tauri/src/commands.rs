@@ -13,6 +13,9 @@ use crate::bindings::{
     attach as attach_binding, default_bindings_root, detach as detach_binding,
     detach_all_for_task, list_for_session as list_bindings_for_session, Binding,
 };
+use crate::tasks::distill::{
+    build_prompt as build_distill_prompt, render_transcript, spawn_distill_process, DistillJob,
+};
 use crate::tasks::organize::{
     count_unprocessed_sources, kickoff_message, prepare_run, spawn_organize_process, OrganizeJob,
 };
@@ -21,7 +24,7 @@ use crate::tasks::{
     delete_source as delete_source_fn, delete_task as delete_task_fn,
     delete_wiki_file as delete_wiki_file_fn, list_sources, list_tasks as list_tasks_fn,
     list_wiki_files as list_wiki_files_fn, read_organize_session, read_task,
-    read_wiki_file as read_wiki_file_fn, update_task as update_task_fn,
+    read_wiki_file as read_wiki_file_fn, source_title, update_task as update_task_fn,
     write_wiki_file as write_wiki_file_fn, Source, SourceOrigin, Task, TaskSummary, WikiFile,
 };
 use serde::Deserialize;
@@ -48,10 +51,16 @@ pub type TabHandle = Arc<Mutex<TabState>>;
 /// same wiki dir.
 pub type OrganizeSlot = Arc<Mutex<Option<OrganizeJob>>>;
 
+/// One-slot-per-task session-distill (harvest) registry. Mirrors
+/// `OrganizeSlot`: a second click on a task already harvesting errors out so
+/// two distill processes don't race against the same sources/wiki.
+pub type HarvestSlot = Arc<Mutex<Option<DistillJob>>>;
+
 pub struct AppState {
     pub tabs: Mutex<HashMap<String, TabHandle>>,
     pub config: Mutex<Config>,
     pub organize_jobs: Mutex<HashMap<String, OrganizeSlot>>,
+    pub harvest_jobs: Mutex<HashMap<String, HarvestSlot>>,
     /// One live recursive file watcher + directory cache per opened project
     /// root, keyed by absolute root path. See `file_watch`.
     pub watched: Mutex<HashMap<String, Arc<crate::file_watch::WatchedProject>>>,
@@ -63,6 +72,7 @@ impl AppState {
             tabs: Mutex::new(HashMap::new()),
             config: Mutex::new(Config::load()),
             organize_jobs: Mutex::new(HashMap::new()),
+            harvest_jobs: Mutex::new(HashMap::new()),
             watched: Mutex::new(HashMap::new()),
         }
     }
@@ -1138,6 +1148,13 @@ pub fn get_organize_preview(task_id: String) -> Result<OrganizePreview, String> 
 
 #[tauri::command]
 pub async fn start_task_organize(app: AppHandle, task_id: String) -> Result<(), String> {
+    run_organize(app, task_id).await
+}
+
+/// Core of `start_task_organize`, callable from Rust (e.g. the distill
+/// pipeline chains it after writing Sources) without going through the
+/// command layer.
+pub async fn run_organize(app: AppHandle, task_id: String) -> Result<(), String> {
     let tasks_root = default_tasks_root();
     let bindings_root = default_bindings_root();
 
@@ -1230,6 +1247,142 @@ pub fn cancel_task_organize(app: AppHandle, task_id: String) -> Result<(), Strin
     }
     let _ = app.emit(
         "organize:cancelled",
+        serde_json::json!({ "task_id": task_id }),
+    );
+    Ok(())
+}
+
+// ── Session harvest (distill) ──────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct HarvestArgs {
+    pub task_id: String,
+    pub session_id: String,
+    pub project_path: String,
+}
+
+/// Harvest a chat session into the Task: a one-shot Claude pass distills the
+/// session transcript into curated Sources, which then auto-organize into the
+/// Wiki. Only allowed when the session has the Task attached.
+#[tauri::command]
+pub async fn start_session_harvest(app: AppHandle, args: HarvestArgs) -> Result<(), String> {
+    let HarvestArgs {
+        task_id,
+        session_id,
+        project_path,
+    } = args;
+    if session_id.trim().is_empty() {
+        return Err("활성 세션이 없습니다.".into());
+    }
+    let tasks_root = default_tasks_root();
+
+    // Gate on the binding so a session can only harvest Tasks it has attached
+    // (the UI enforces this too, but the backend must not trust the caller).
+    let attached = list_bindings_for_session(&default_bindings_root(), &session_id)
+        .map(|v| v.iter().any(|b| b.task_id == task_id))
+        .unwrap_or(false);
+    if !attached {
+        return Err("이 세션에 attach된 Task만 수집할 수 있습니다.".into());
+    }
+
+    // Per-task slot guard — reject a second concurrent harvest.
+    let slot: HarvestSlot = {
+        let state = app.state::<AppState>();
+        let mut jobs = state.harvest_jobs.lock().map_err(|e| e.to_string())?;
+        let s = jobs
+            .entry(task_id.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(None)))
+            .clone();
+        let guard = s.lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Err("이 Task의 세션 수집이 이미 실행 중입니다.".into());
+        }
+        drop(guard);
+        s
+    };
+
+    // Load the session transcript from the CLI's jsonl history.
+    let dir = projects_dir_for(&project_path).unwrap_or_default();
+    let file = dir.join(format!("{session_id}.jsonl"));
+    if !file.exists() {
+        return Err("세션 기록을 찾을 수 없습니다.".into());
+    }
+    let pairs = extract_qa_pairs(&file);
+    if pairs.is_empty() {
+        return Err("수집할 세션 내용이 없습니다.".into());
+    }
+
+    let task = read_task(&tasks_root, &task_id)?;
+    // Hints so the model avoids re-extracting already-captured knowledge.
+    let existing_labels: Vec<String> = list_sources(&tasks_root, &task_id)
+        .unwrap_or_default()
+        .iter()
+        .map(source_title)
+        .collect();
+    let wiki_names: Vec<String> = list_wiki_files_fn(&tasks_root, &task_id)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|w| w.name)
+        .collect();
+    let transcript = render_transcript(&pairs);
+    let prompt = build_distill_prompt(&task, &existing_labels, &wiki_names, &transcript);
+
+    let claude_bin = {
+        let state = app.state::<AppState>();
+        let cfg = state.config.lock().map_err(|e| e.to_string())?;
+        cfg.claude_path
+            .clone()
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| "claude_path가 설정되지 않았습니다.".to_string())?
+    };
+
+    let _ = app.emit(
+        "harvest:start",
+        serde_json::json!({ "task_id": task_id, "pair_count": pairs.len() }),
+    );
+
+    let handle = spawn_distill_process(
+        app.clone(),
+        claude_bin,
+        tasks_root,
+        task_id.clone(),
+        slot.clone(),
+    )
+    .await?;
+    let tx = handle.stdin_tx.clone();
+
+    {
+        let mut guard = slot.lock().map_err(|e| e.to_string())?;
+        *guard = Some(DistillJob {
+            process: handle,
+            task_id: task_id.clone(),
+            origin_session_id: session_id,
+            project_path,
+            collected: Arc::new(Mutex::new(String::new())),
+        });
+    }
+
+    tx.send(user_text_message(prompt))
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_session_harvest(app: AppHandle, task_id: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let slot = {
+        let jobs = state.harvest_jobs.lock().map_err(|e| e.to_string())?;
+        jobs.get(&task_id).cloned()
+    };
+    if let Some(slot) = slot {
+        let mut guard = slot.lock().map_err(|e| e.to_string())?;
+        if let Some(mut job) = guard.take() {
+            job.process.kill();
+        }
+    }
+    let _ = app.emit(
+        "harvest:cancelled",
         serde_json::json!({ "task_id": task_id }),
     );
     Ok(())

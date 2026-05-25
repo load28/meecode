@@ -5,6 +5,7 @@ import { DetachedFileWindow } from './components/DetachedFileWindow'
 import './styles/tokens.css'
 import { bootstrapSessionListeners } from './state/sessionStore'
 import { bootstrapOrganizeListeners } from './state/organizeStore'
+import { bootstrapHarvestListeners } from './state/harvestStore'
 
 const params = new URLSearchParams(window.location.search)
 const view = params.get('view')
@@ -15,6 +16,7 @@ const view = params.get('view')
 if (view !== 'file-panel') {
   bootstrapSessionListeners()
   bootstrapOrganizeListeners()
+  bootstrapHarvestListeners()
 }
 
 window.addEventListener('unhandledrejection', (e) => {

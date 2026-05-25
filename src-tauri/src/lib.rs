@@ -98,6 +98,8 @@ pub fn run() {
             commands::get_organize_preview,
             commands::start_task_organize,
             commands::cancel_task_organize,
+            commands::start_session_harvest,
+            commands::cancel_session_harvest,
         ])
         .run(tauri::generate_context!())
         .expect("error running meecode");

@@ -14,6 +14,7 @@
 //! Phase 1 only exposes Task CRUD + Source listing — capture, attach,
 //! organize, and the wiki editor land in later phases.
 
+pub mod distill;
 pub mod organize;
 
 use serde::{Deserialize, Serialize};
@@ -488,7 +489,7 @@ pub fn delete_source(root: &Path, task_id: &str, source_id: &str) -> Result<(), 
 /// Display label for a Source — mirrors the frontend `sourceTitle`: prefer
 /// the human-authored title, else pull the question line out of a `qa_block`,
 /// else the first non-empty content line, truncated.
-fn source_title(s: &Source) -> String {
+pub fn source_title(s: &Source) -> String {
     let explicit = s.title.trim();
     if !explicit.is_empty() {
         return explicit.to_string();
