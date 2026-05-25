@@ -4,6 +4,7 @@ import type {
   SubagentEntry,
   ToolProgressEntry,
 } from '../types'
+import { TASK_CONTEXT_PREFIX } from '../utils/taskContext'
 
 export interface StreamMessageEvent {
   kind: 'user' | 'assistant'
@@ -392,9 +393,23 @@ export function reduceStreamMessage(
       return { pairs: next, currentId: state.currentId }
     }
     const last = state.pairs[state.pairs.length - 1]
-    if (last && last.user_text === classified.text && last.segments.length === 0) {
-      // Treat as echo of the just-sent user message — keep the existing pair.
-      return state
+    if (last && last.user_text === classified.text) {
+      // Echo of the just-sent user message — keep the existing pair instead
+      // of opening a duplicate. We normally only dedup while the pair is
+      // still unanswered (empty segments) so a deliberately repeated
+      // identical question can start a fresh pair. A Task attach turn is the
+      // exception: its directive prompts the model to call
+      // `load_task_context`, so by the time the CLI echoes the directive the
+      // pair may already hold the streamed tool_use. Opening a new pair here
+      // would strand the follow-up tool_result (the injected context) in a
+      // second card, splitting the call from its response. Dedup such turns
+      // unconditionally so both stay in one pair.
+      if (
+        last.segments.length === 0 ||
+        last.user_text.startsWith(TASK_CONTEXT_PREFIX)
+      ) {
+        return state
+      }
     }
     const id = ev.uuid || `idx-${state.pairs.length}`
     const newPair: QaPair = {

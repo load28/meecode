@@ -70,6 +70,47 @@ describe('reduceStreamMessage', () => {
     expect(s.pairs[1].user_text).toBe('q2')
   })
 
+  it('Task attach 지시 턴은 늦게 도착한 echo로 분리되지 않고, 도구호출+tool_result가 한 페어에 모인다', () => {
+    // Optimistic directive pair (created by flushOne on the frontend).
+    const directive = '[Task 컨텍스트 주입: My Task]\n\n... task_id="t1" ...'
+    let s = makeInitialMessageState([
+      { id: 'local-1', user_text: directive, segments: [], timestamp: 't' },
+    ])
+    // Model calls load_task_context — tool_use streams into the directive pair.
+    s = reduceStreamMessage(
+      s,
+      assistant([
+        {
+          type: 'tool_use',
+          id: 'tu1',
+          name: 'mcp__meecode__load_task_context',
+          input: { task_id: 't1' },
+        },
+      ]),
+    )
+    // CLI echoes the directive *after* the tool_use already landed. Before the
+    // fix this opened a duplicate pair and stole `currentId`, so the following
+    // tool_result was stranded in a second card.
+    s = reduceStreamMessage(s, user('u-echo', directive))
+    // The tool's context arrives as a tool_result-only user message.
+    s = reduceStreamMessage(
+      s,
+      user('u-tr', [{ type: 'tool_result', tool_use_id: 'tu1', content: '컨텍스트' }]),
+    )
+    expect(s.pairs).toHaveLength(1)
+    expect(s.pairs[0].id).toBe('local-1')
+    expect(s.pairs[0].segments).toEqual([
+      {
+        kind: 'tool_use',
+        id: 'tu1',
+        name: 'mcp__meecode__load_task_context',
+        summary: 't1',
+        input: { task_id: 't1' },
+      },
+      { kind: 'tool_result', tool_use_id: 'tu1', text: '컨텍스트', is_error: false },
+    ])
+  })
+
   it('tool_use는 tool_use segment로 들어가고 id를 보존', () => {
     let s = makeInitialMessageState([])
     s = reduceStreamMessage(s, user('u1', 'q'))
