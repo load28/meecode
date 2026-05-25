@@ -485,6 +485,79 @@ pub fn delete_source(root: &Path, task_id: &str, source_id: &str) -> Result<(), 
     Ok(())
 }
 
+/// Display label for a Source — mirrors the frontend `sourceTitle`: prefer
+/// the human-authored title, else pull the question line out of a `qa_block`,
+/// else the first non-empty content line, truncated.
+fn source_title(s: &Source) -> String {
+    let explicit = s.title.trim();
+    if !explicit.is_empty() {
+        return explicit.to_string();
+    }
+    // qa_block captures look like `## Q\n<question>\n\n## A\n<answer>` — the
+    // question line is the most useful one-liner.
+    let mut chosen: Option<String> = None;
+    let mut lines = s.content.lines();
+    while let Some(line) = lines.next() {
+        if line.trim_start().starts_with("## Q") {
+            if let Some(q) = lines.next() {
+                let q = q.trim();
+                if !q.is_empty() {
+                    chosen = Some(q.to_string());
+                }
+            }
+            break;
+        }
+    }
+    let base = chosen.unwrap_or_else(|| {
+        s.content
+            .lines()
+            .map(|l| l.trim())
+            .find(|l| !l.is_empty())
+            .unwrap_or("")
+            .to_string()
+    });
+    let base = base.trim();
+    if base.is_empty() {
+        "제목 없는 Source".to_string()
+    } else if base.chars().count() > 80 {
+        let truncated: String = base.chars().take(80).collect();
+        format!("{truncated}…")
+    } else {
+        base.to_string()
+    }
+}
+
+/// Render a Task + its Sources as the markdown context block returned by the
+/// `load_task_context` MCP tool. Mirrors the frontend `buildTaskContextMessage`
+/// so the tool-call path and the legacy prompt-injection fallback produce the
+/// same content. Returns `None` when there is nothing to inject.
+pub fn build_context_markdown(task: &Task, sources: &[Source]) -> Option<String> {
+    let description = task.description.trim();
+    if description.is_empty() && sources.is_empty() {
+        return None;
+    }
+    let mut lines: Vec<String> = Vec::new();
+    lines.push(format!("[Task 컨텍스트 주입: {}]", task.name));
+    lines.push(String::new());
+    lines.push(format!("# {}", task.name));
+    if !description.is_empty() {
+        lines.push(String::new());
+        lines.push(description.to_string());
+    }
+    if !sources.is_empty() {
+        lines.push(String::new());
+        lines.push(format!("## Sources ({})", sources.len()));
+        for (i, s) in sources.iter().enumerate() {
+            lines.push(String::new());
+            lines.push(format!("### [{}] {} · {}", i + 1, source_title(s), s.kind));
+            lines.push(s.content.clone());
+        }
+    }
+    lines.push(String::new());
+    lines.push("_위 내용은 이 세션에 attach된 Task의 컨텍스트입니다. 후속 대화에서 참고하세요._".to_string());
+    Some(lines.join("\n"))
+}
+
 /// Public root resolver used by the IPC layer. Lives here so the
 /// production path stays consistent with the test helpers below.
 pub fn default_tasks_root() -> PathBuf {
@@ -734,6 +807,40 @@ mod tests {
         assert!(write_wiki_file(&root, &t.id, "sub/file.md", "x").is_err());
         assert!(write_wiki_file(&root, &t.id, "no-ext", "x").is_err());
         assert!(write_wiki_file(&root, &t.id, ".hidden.md", "x").is_err());
+    }
+
+    #[test]
+    fn context_markdown_none_when_empty() {
+        let (_g, root) = root();
+        let t = create_task(&root, "Empty".into(), "  ".into()).unwrap();
+        let sources = list_sources(&root, &t.id).unwrap();
+        assert!(build_context_markdown(&read_task(&root, &t.id).unwrap(), &sources).is_none());
+    }
+
+    #[test]
+    fn context_markdown_includes_description_and_sources() {
+        let (_g, root) = root();
+        let t = create_task(&root, "Refactor".into(), "핵심 결정 정리".into()).unwrap();
+        create_source(
+            &root,
+            &t.id,
+            "qa_block".into(),
+            "".into(),
+            "## Q\n인증 방식은?\n\n## A\nJWT 사용".into(),
+            SourceOrigin::default(),
+        )
+        .unwrap();
+        let task = read_task(&root, &t.id).unwrap();
+        let sources = list_sources(&root, &t.id).unwrap();
+        let md = build_context_markdown(&task, &sources).unwrap();
+        assert!(md.starts_with("[Task 컨텍스트 주입: Refactor]"));
+        assert!(md.contains("# Refactor"));
+        assert!(md.contains("핵심 결정 정리"));
+        assert!(md.contains("## Sources (1)"));
+        // Falls back to the question line when the source has no explicit title.
+        assert!(md.contains("인증 방식은?"));
+        assert!(md.contains("· qa_block"));
+        assert!(md.contains("JWT 사용"));
     }
 
     #[test]

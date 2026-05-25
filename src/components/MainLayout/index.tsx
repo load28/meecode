@@ -9,6 +9,7 @@ import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
 import { useSessionBindings } from '../../hooks/useSessionBindings'
 import { useTaskAttach } from '../../hooks/useTaskAttach'
+import { useTaskAttachFallback } from '../../hooks/useTaskAttachFallback'
 import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
@@ -74,6 +75,7 @@ export function MainLayout({
     tools,
     sendUserMessage,
     sessionTitle,
+    turnInProgress,
   } = claude
   const { tasks } = useTasks()
   const sessionBindings = useSessionBindings(sessionId)
@@ -115,10 +117,16 @@ export function MainLayout({
   // TaskPicker (mounted below) reads `draft` to know when to open.
   const capture = useCapturePicker({ sessionId, projectPath })
 
+  const taskFallback = useTaskAttachFallback({
+    pairs,
+    turnInProgress,
+    sendUserMessage,
+  })
   const taskAttach = useTaskAttach({
     sessionId,
     sessionBindings,
     sendUserMessage,
+    onDirectiveSent: taskFallback.markPending,
   })
 
   const handleOpenFile = (

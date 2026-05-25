@@ -5,6 +5,7 @@ pub mod commands;
 pub mod config;
 pub mod file_watch;
 pub mod history;
+pub mod mcp_server;
 pub mod tasks;
 
 use commands::AppState;

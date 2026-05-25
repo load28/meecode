@@ -5,6 +5,30 @@ import { sourceTitle } from './sourceTitle'
 export const TASK_CONTEXT_PREFIX = '[Task 컨텍스트 주입: '
 
 /**
+ * Fully-qualified name of the in-app MCP tool (server `meecode`, tool
+ * `load_task_context`) the CLI exposes once `--mcp-config` is wired up. The
+ * fallback watcher matches assistant `tool_use` segments against this.
+ */
+export const TASK_CONTEXT_TOOL = 'mcp__meecode__load_task_context'
+
+/**
+ * Short directive user turn sent at attach time. Rather than dumping the
+ * whole Task into the conversation, we ask the model to call
+ * `load_task_context` so the bulky content arrives as a visible tool result.
+ *
+ * Starts with `TASK_CONTEXT_PREFIX` so `TaskContextNote` collapses it into a
+ * chip, and embeds `task_id="<id>"` so the fallback watcher can locate this
+ * exact turn and detect whether the tool was actually called.
+ */
+export function buildTaskAttachDirective(task: Task): string {
+  return [
+    `${TASK_CONTEXT_PREFIX}${task.name}]`,
+    '',
+    `이 세션에 Task "${task.name}"가 attach되었습니다. \`${TASK_CONTEXT_TOOL}\` 도구를 task_id="${task.id}" 인자로 호출해 이 Task의 description과 sources를 컨텍스트로 불러온 뒤, 한 줄로만 확인해 주세요.`,
+  ].join('\n')
+}
+
+/**
  * Format a Task + its Sources as a markdown context-injection message.
  *
  * Sent verbatim as a user turn at attach time, so the LLM (and the

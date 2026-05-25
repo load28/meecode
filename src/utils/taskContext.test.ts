@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildTaskContextMessage, parseTaskContextMessage } from './taskContext'
+import {
+  buildTaskAttachDirective,
+  buildTaskContextMessage,
+  parseTaskContextMessage,
+  TASK_CONTEXT_TOOL,
+} from './taskContext'
 import type { Source, Task } from '../types/task'
 
 const task = (over: Partial<Task> = {}): Task => ({
@@ -62,6 +67,29 @@ describe('buildTaskContextMessage', () => {
     const srcIdx = out.indexOf('소스1')
     expect(descIdx).toBeGreaterThan(-1)
     expect(srcIdx).toBeGreaterThan(descIdx)
+  })
+})
+
+describe('buildTaskAttachDirective', () => {
+  it('renders as a context chip and names the tool to call', () => {
+    const out = buildTaskAttachDirective(task({ id: 'task-xyz', name: 'Refactor' }))
+    // Starts with the prefix so TaskContextNote collapses it into a chip.
+    expect(parseTaskContextMessage(out)).not.toBeNull()
+    expect(parseTaskContextMessage(out)!.taskName).toBe('Refactor')
+    expect(out).toContain(TASK_CONTEXT_TOOL)
+  })
+
+  it('embeds the exact task_id marker the fallback watcher matches on', () => {
+    const out = buildTaskAttachDirective(task({ id: 'task-xyz' }))
+    expect(out).toContain('task_id="task-xyz"')
+  })
+
+  it('stays short — does not dump description or sources', () => {
+    const out = buildTaskAttachDirective(
+      task({ id: 'task-xyz', name: 'Refactor', description: '아주 긴 설명'.repeat(20) }),
+    )
+    expect(out).not.toContain('## Sources')
+    expect(out).not.toContain('아주 긴 설명')
   })
 })
 
