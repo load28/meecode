@@ -65,13 +65,24 @@
   flex-direction: column;
   gap: 14px;
   position: relative;
+}
+
+/* 카드 본문 전체(질문/Task 컨텍스트 + 답변)를 묶어 한 번에 clamp하는 래퍼. */
+.qa-card__body {
+  position: relative;
   overflow: hidden;
 }
 
-/* Clamped: inline maxHeight is applied from JS (ANSWER_MAX_HEIGHT_PX). The
+.qa-card__body-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Clamped: inline maxHeight is applied from JS (CARD_MAX_HEIGHT_PX). The
    bottom fade is a mask-image so it works against any background colour
    without overlaying an opaque element on top of the content. */
-.qa-card__answer--clamped {
+.qa-card__body--clamped {
   -webkit-mask-image: linear-gradient(
     to bottom,
     black calc(100% - 64px),
@@ -86,7 +97,7 @@
 
 /* Expanded: drop both the height clamp and the fade so everything is
    visible. The toggle button flips back to "접기 ↑". */
-.qa-card__answer--expanded {
+.qa-card__body--expanded {
   overflow: visible;
 }
 
@@ -188,6 +199,8 @@
   right: 10px;
   display: inline-flex;
   gap: 4px;
+  /* 본문 clamp 래퍼/페이드 위에 떠서 항상 클릭 가능하게. */
+  z-index: 2;
 }
 
 .qa-card__capture-btn,
