@@ -793,6 +793,27 @@ pub async fn switch_session(
     start_session(app, path, Some(tab)).await
 }
 
+/// Kill a background tab's Claude process while preserving its `session_id`,
+/// so the tab can be resumed later via `switch_session` (`--resume`). The
+/// frontend hibernation scheduler calls this for tabs that have been idle in
+/// the background past a threshold, capping resource use independently of how
+/// many tabs are open. Mirrors `switch_session`'s kill half: because we
+/// `process.take()` before `kill()`, the spawned process's exit callback sees
+/// `process == None`, treats the exit as stale, and does NOT emit
+/// `session:exit` — so hibernating never surfaces a spurious "session ended".
+#[tauri::command]
+pub fn hibernate_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    if let Some(handle) = get_tab(&state, &tab_id)? {
+        let mut entry = handle.lock().map_err(|e| e.to_string())?;
+        if let Some(mut h) = entry.process.take() {
+            h.kill();
+        }
+        // session_id intentionally retained for `--resume` on reactivation.
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn close_tab(app: AppHandle, tab_id: String) -> Result<(), String> {
     let state = app.state::<AppState>();

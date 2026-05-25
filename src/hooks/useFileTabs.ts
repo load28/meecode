@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { peekTabState, useTabState } from '../state/tabViewStore'
 
 export type PendingEditKind = 'edit' | 'write' | 'multiedit' | 'notebookedit'
 
@@ -82,9 +83,17 @@ export interface UseFileTabsResult {
   closeAll: () => void
 }
 
-export function useFileTabs(): UseFileTabsResult {
-  const [tabs, setTabs] = useState<FileTab[]>([])
-  const [activePath, setActivePath] = useState<string | null>(null)
+const EMPTY_FILE_TABS: FileTab[] = []
+
+export function useFileTabs(tabId: string): UseFileTabsResult {
+  // Per-tab so open files survive switching to another tab and back, instead
+  // of being lost (single-pane) or duplicated (one hook instance per tab).
+  const [tabs, setTabs] = useTabState<FileTab[]>(tabId, 'fileTabs', EMPTY_FILE_TABS)
+  const [activePath, setActivePath] = useTabState<string | null>(
+    tabId,
+    'fileActivePath',
+    null,
+  )
 
   const open = useCallback(async (path: string, opts: OpenOptions = {}) => {
     const { pending = null, viewMode } = opts
@@ -140,7 +149,7 @@ export function useFileTabs(): UseFileTabsResult {
         ),
       )
     }
-  }, [])
+  }, [setTabs, setActivePath])
 
   const openContent = useCallback((tab: ContentTab) => {
     const { key, title, content, language } = tab
@@ -172,39 +181,48 @@ export function useFileTabs(): UseFileTabsResult {
       }
       return [...prev, next]
     })
-  }, [])
+  }, [setTabs, setActivePath])
 
-  const setActive = useCallback((path: string) => setActivePath(path), [])
+  const setActive = useCallback(
+    (path: string) => setActivePath(path),
+    [setActivePath],
+  )
 
-  const setViewMode = useCallback((path: string, mode: FileViewMode) => {
-    setTabs((prev) =>
-      prev.map((t) => (t.path === path ? { ...t, viewMode: mode } : t)),
-    )
-  }, [])
+  const setViewMode = useCallback(
+    (path: string, mode: FileViewMode) => {
+      setTabs((prev) =>
+        prev.map((t) => (t.path === path ? { ...t, viewMode: mode } : t)),
+      )
+    },
+    [setTabs],
+  )
 
-  const setMarkdownView = useCallback((path: string, view: MarkdownView) => {
-    setTabs((prev) =>
-      prev.map((t) => (t.path === path ? { ...t, markdownView: view } : t)),
-    )
-  }, [])
+  const setMarkdownView = useCallback(
+    (path: string, view: MarkdownView) => {
+      setTabs((prev) =>
+        prev.map((t) => (t.path === path ? { ...t, markdownView: view } : t)),
+      )
+    },
+    [setTabs],
+  )
 
   const close = useCallback(
     (path: string) => {
-      setTabs((prev) => {
-        const next = prev.filter((t) => t.path !== path)
-        if (path === activePath) {
-          setActivePath(next.length ? next[next.length - 1].path : null)
-        }
-        return next
-      })
+      const cur = peekTabState<FileTab[]>(tabId, 'fileTabs', EMPTY_FILE_TABS)
+      const next = cur.filter((t) => t.path !== path)
+      setTabs(next)
+      const active = peekTabState<string | null>(tabId, 'fileActivePath', null)
+      if (path === active) {
+        setActivePath(next.length ? next[next.length - 1].path : null)
+      }
     },
-    [activePath],
+    [tabId, setTabs, setActivePath],
   )
 
   const closeAll = useCallback(() => {
     setTabs([])
     setActivePath(null)
-  }, [])
+  }, [setTabs, setActivePath])
 
   return {
     tabs,

@@ -70,6 +70,7 @@ pub fn run() {
             commands::list_recent_projects,
             commands::list_project_sessions,
             commands::switch_session,
+            commands::hibernate_tab,
             commands::close_tab,
             commands::read_file_text,
             commands::open_external,

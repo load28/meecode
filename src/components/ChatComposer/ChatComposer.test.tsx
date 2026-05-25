@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ChatComposer } from './index'
+import { clearTabState } from '../../state/tabViewStore'
 
 const handlers = {
+  tabId: 'test-tab',
   sendUserMessage: vi.fn().mockResolvedValue(undefined),
   cycleMode: vi.fn(),
 }
@@ -10,6 +12,8 @@ const handlers = {
 beforeEach(() => {
   handlers.sendUserMessage.mockClear().mockResolvedValue(undefined)
   handlers.cycleMode.mockClear()
+  // Draft/attachments are now per-tab in a module store; reset between tests.
+  clearTabState('test-tab')
 })
 
 describe('ChatComposer', () => {

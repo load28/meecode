@@ -8,6 +8,7 @@ import type { CaptureSource } from '../../types/composer'
 
 
 interface Props {
+  tabId: string
   /** useClaudeSession 결과 — props 폭증을 피하기 위해 통째로 받는다. */
   claude: UseClaudeSessionResult
   projectPath: string
@@ -31,6 +32,7 @@ interface Props {
  * pendingTool.input으로 보강하는 정합화 로직만 이 컴포넌트가 들고 있다.
  */
 export function ChatColumn({
+  tabId,
   claude,
   projectPath,
   recentUserTexts,
@@ -82,6 +84,7 @@ export function ChatColumn({
       />
       <QueueList queue={queue} onRemove={removeQueued} />
       <ChatComposer
+        tabId={tabId}
         mode={mode}
         disabled={pendingTool !== null}
         sendUserMessage={sendUserMessage}

@@ -11,7 +11,10 @@ import {
 import './DetachedFileWindow.css'
 
 export function DetachedFileWindow() {
-  const fileTabs = useFileTabs()
+  // Its own isolated view scope — this is a separate webview window, so its
+  // tabViewStore is a distinct module instance and the id never collides with
+  // a main-window tab.
+  const fileTabs = useFileTabs('detached')
   const { hydrated } = useDetachedFileEvents(fileTabs)
 
   const handleAddSnippet = (snippet: CodeSnippet) => {

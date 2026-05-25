@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { makeLocalId } from '../utils/localId'
+import { useTabState } from '../state/tabViewStore'
 
 export interface PendingImage {
   id: string
@@ -45,13 +46,23 @@ export interface UseImageAttachmentsResult {
  * `ingestImageFile`, and appends to the buffer. Non-image entries are
  * silently skipped, which matches the previous inline behavior.
  */
-export function useImageAttachments(): UseImageAttachmentsResult {
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+const EMPTY_IMAGES: PendingImage[] = []
+
+export function useImageAttachments(tabId: string): UseImageAttachmentsResult {
+  // Per-tab: an attachment staged in one tab must not appear in another.
+  const [pendingImages, setPendingImages] = useTabState<PendingImage[]>(
+    tabId,
+    'composerImages',
+    EMPTY_IMAGES,
+  )
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const append = useCallback((img: PendingImage) => {
-    setPendingImages((prev) => [...prev, img])
-  }, [])
+  const append = useCallback(
+    (img: PendingImage) => {
+      setPendingImages((prev) => [...prev, img])
+    },
+    [setPendingImages],
+  )
 
   const onPaste = useCallback(
     async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -97,15 +108,21 @@ export function useImageAttachments(): UseImageAttachmentsResult {
     [append],
   )
 
-  const removeImage = useCallback((id: string) => {
-    setPendingImages((prev) => prev.filter((p) => p.id !== id))
-  }, [])
+  const removeImage = useCallback(
+    (id: string) => {
+      setPendingImages((prev) => prev.filter((p) => p.id !== id))
+    },
+    [setPendingImages],
+  )
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click()
   }, [])
 
-  const clear = useCallback(() => setPendingImages([]), [])
+  const clear = useCallback(
+    () => setPendingImages(EMPTY_IMAGES),
+    [setPendingImages],
+  )
 
   return {
     pendingImages,

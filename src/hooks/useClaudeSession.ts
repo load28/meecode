@@ -61,18 +61,14 @@ const MODE_CYCLE: Mode[] = ['default', 'plan', 'auto-accept']
 
 export function useClaudeSession(
   tabId: string = 'main',
-  visible: boolean = true,
 ): UseClaudeSessionResult {
-  // When the tab is hidden, skip subscribing to store updates. Backend
-  // listeners (sessionStore.ts) keep mutating the store so state stays
-  // current; we just stop forcing this tab's React tree to re-render on
-  // every chunk. The moment `visible` flips true, `useSyncExternalStore`
-  // sees a new subscribe identity, re-subscribes, and reads the freshest
-  // snapshot — the user enters the tab and sees the completed screen in
-  // a single render.
+  // Only the active tab's MainLayout is mounted (single reused pane), so this
+  // hook only ever runs for the visible tab. Background tabs keep their state
+  // current via the module-level listeners in sessionStore.ts without any
+  // React subscription — there's no component to re-render.
   const subscribe = useCallback(
-    (cb: () => void) => (visible ? subscribeTab(tabId, cb) : () => {}),
-    [tabId, visible],
+    (cb: () => void) => subscribeTab(tabId, cb),
+    [tabId],
   )
   const getSnapshot = useCallback(() => getTabSnapshot(tabId), [tabId])
   const state = useSyncExternalStore(subscribe, getSnapshot)
