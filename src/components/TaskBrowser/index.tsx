@@ -9,15 +9,13 @@ import './TaskBrowser.css'
 
 interface Props {
   onClose?: () => void
-  /** Active session id, if any — drives the "attached" badges and the
-   *  attach/detach button in TaskDetail. */
+  /** Active session id, if any — drives the context-inject button in
+   *  TaskDetail and the session harvest. */
   sessionId?: string | null
   /** Current project path — needed for harvesting the session transcript. */
   projectPath?: string
-  attachedTaskIds?: Set<string>
-  /** Performs the real attach (binding + context injection). null when no session. */
-  onAttachTask?: (taskId: string) => Promise<void> | void
-  onDetachTask?: (taskId: string) => Promise<void> | void
+  /** Injects this Task's context into the current session. null when no session. */
+  onInjectTask?: (taskId: string) => Promise<void> | void
   /** Open a captured source (no backing file) in the shared file viewer. */
   onOpenContent?: (tab: ContentTab) => void
   /** Open a real file from disk (e.g. a wiki file) in the shared file viewer. */
@@ -28,9 +26,7 @@ export function TaskBrowser({
   onClose,
   sessionId,
   projectPath,
-  attachedTaskIds,
-  onAttachTask,
-  onDetachTask,
+  onInjectTask,
   onOpenContent,
   onOpenFile,
 }: Props) {
@@ -57,10 +53,8 @@ export function TaskBrowser({
           setSelectedId(null)
           void refresh()
         }}
-        attached={attachedTaskIds?.has(selectedId) ?? false}
-        canAttach={!!sessionId}
-        onAttach={onAttachTask}
-        onDetach={onDetachTask}
+        canInject={!!sessionId}
+        onInject={onInjectTask}
         sessionId={sessionId}
         projectPath={projectPath}
         onOpenContent={onOpenContent}
@@ -106,7 +100,6 @@ export function TaskBrowser({
         <TaskBrowserList
           loaded={loaded}
           tasks={tasks}
-          attachedTaskIds={attachedTaskIds}
           onSelect={setSelectedId}
         />
       </div>

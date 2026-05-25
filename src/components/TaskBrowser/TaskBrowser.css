@@ -341,32 +341,6 @@
   font-size: 12px;
 }
 
-.task-detail__attach-btn--detach {
-  background: var(--color-bg-accent-subtle);
-  border-color: var(--color-bg-accent-subtle);
-  color: var(--color-text-default);
-}
-
-.task-detail__attach-btn--detach:hover {
-  background: #2c5489;
-}
-
-.task-detail__attach-hint {
-  font-size: 11px;
-  color: var(--color-accent-blue-pale);
-}
-
-.task-panel__item-attached {
-  display: inline-block;
-  margin-left: 6px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-accent-subtle);
-  color: var(--color-accent-blue-pale);
-  vertical-align: middle;
-}
-
 /* TaskDetail/SourcesSection — section-empty 내부의 추가 안내 텍스트. */
 .task-detail__section-empty-hint {
   font-size: 11px;

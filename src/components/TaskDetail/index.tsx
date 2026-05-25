@@ -11,7 +11,7 @@ import { sourceTitle } from '../../utils/sourceTitle'
 import { LOADING } from '../../utils/messages'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
-import { AttachTaskRow } from './AttachTaskRow'
+import { InjectContextRow } from './InjectContextRow'
 import { SourcesSection } from './SourcesSection'
 import { HarvestSection } from './HarvestSection'
 import { OrganizeSection } from './OrganizeSection'
@@ -23,14 +23,11 @@ interface Props {
   onBack: () => void
   onClose?: () => void
   onDeleted?: () => void
-  /** Whether the *current chat session* (if any) has this task attached. */
-  attached?: boolean
-  /** Disabled when there's no session to attach to (e.g. no project open). */
-  canAttach?: boolean
-  onAttach?: (taskId: string) => Promise<void> | void
-  onDetach?: (taskId: string) => Promise<void> | void
+  /** Disabled when there's no open session to inject into (e.g. no project open). */
+  canInject?: boolean
+  onInject?: (taskId: string) => Promise<void> | void
   /** Active session id + its project path — needed to harvest the session
-   *  transcript into Sources. Harvest is gated on `attached`. */
+   *  transcript into Sources. Harvest just uses the currently open session. */
   sessionId?: string | null
   projectPath?: string
   /** Open a captured source (no backing file) in the shared file viewer. */
@@ -55,10 +52,8 @@ export function TaskDetail({
   onBack,
   onClose,
   onDeleted,
-  attached = false,
-  canAttach = false,
-  onAttach,
-  onDetach,
+  canInject = false,
+  onInject,
   sessionId,
   projectPath,
   onOpenContent,
@@ -87,7 +82,7 @@ export function TaskDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [harvest.doneTick])
 
-  const canHarvest = attached && !!sessionId
+  const canHarvest = !!sessionId
 
   const commitName = async (next: string) => {
     if (!task) return
@@ -125,12 +120,10 @@ export function TaskDetail({
             onCommitName={commitName}
             onCommitDescription={commitDesc}
           />
-          <AttachTaskRow
+          <InjectContextRow
             taskId={task.id}
-            attached={attached}
-            canAttach={canAttach}
-            onAttach={onAttach}
-            onDetach={onDetach}
+            canInject={canInject}
+            onInject={onInject}
           />
           <SourcesSection
             sources={sources}
@@ -156,7 +149,7 @@ export function TaskDetail({
             onStart={() =>
               canHarvest
                 ? harvest.start(sessionId!, projectPath ?? '')
-                : Promise.resolve('세션에 attach된 Task가 아닙니다.')
+                : Promise.resolve('현재 활성화된 세션이 없습니다.')
             }
             onCancel={harvest.cancel}
           />

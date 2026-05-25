@@ -7,9 +7,8 @@ import { useFileTabs, type PendingEdit } from '../../hooks/useFileTabs'
 import { isDescendantOrSelf } from '../FileExplorer/paths'
 import { useDetachedFilePanel } from '../../hooks/useDetachedFilePanel'
 import { useTasks } from '../../hooks/useTasks'
-import { useSessionBindings } from '../../hooks/useSessionBindings'
-import { useTaskAttach } from '../../hooks/useTaskAttach'
-import { useTaskAttachFallback } from '../../hooks/useTaskAttachFallback'
+import { useTaskContextInject } from '../../hooks/useTaskContextInject'
+import { useTaskContextInjectFallback } from '../../hooks/useTaskContextInjectFallback'
 import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
@@ -78,11 +77,6 @@ export function MainLayout({
     turnInProgress,
   } = claude
   const { tasks } = useTasks()
-  const sessionBindings = useSessionBindings(sessionId)
-  const attachedTaskIds = useMemo(
-    () => new Set(sessionBindings.bindings.map((b) => b.task_id)),
-    [sessionBindings.bindings],
-  )
 
   useSyncEffect(onSessionTitleChange, sessionTitle)
   useSessionSwitchOnMount({ tabId, projectPath, pendingSessionId, needsSwitch })
@@ -117,14 +111,13 @@ export function MainLayout({
   // TaskPicker (mounted below) reads `draft` to know when to open.
   const capture = useCapturePicker({ sessionId, projectPath })
 
-  const taskFallback = useTaskAttachFallback({
+  const taskFallback = useTaskContextInjectFallback({
     pairs,
     turnInProgress,
     sendUserMessage,
   })
-  const taskAttach = useTaskAttach({
+  const taskInject = useTaskContextInject({
     sessionId,
-    sessionBindings,
     sendUserMessage,
     onDirectiveSent: taskFallback.markPending,
   })
@@ -178,7 +171,6 @@ export function MainLayout({
         usage={usage}
         showTasks={showTasks}
         tasksCount={tasks.length}
-        attachedTasksCount={attachedTaskIds.size}
         showExplorer={showExplorer}
         onToggleExplorer={onToggleExplorer}
         isExpandOpen={isOpen}
@@ -225,9 +217,7 @@ export function MainLayout({
         onPathDeleted={handlePathDeleted}
         onPathRenamed={handlePathRenamed}
         sessionId={sessionId}
-        attachedTaskIds={attachedTaskIds}
-        onAttachTask={taskAttach.attach}
-        onDetachTask={taskAttach.detach}
+        onInjectTask={taskInject.inject}
         onOpenContent={openContent}
       />
       {capture.draft && (

@@ -19,7 +19,6 @@ interface Props {
   usage: UsageStats
   showTasks: boolean
   tasksCount: number
-  attachedTasksCount: number
   showExplorer: boolean
   onToggleExplorer: () => void
   isExpandOpen: boolean
@@ -50,7 +49,6 @@ export function MainHeader({
   usage,
   showTasks,
   tasksCount,
-  attachedTasksCount,
   showExplorer,
   onToggleExplorer,
   isExpandOpen,
@@ -94,18 +92,9 @@ export function MainHeader({
         type="button"
         className={`app__knowledge-btn${showTasks ? ' is-active' : ''}`}
         onClick={onToggleTasks}
-        title={
-          attachedTasksCount > 0
-            ? `Tasks (${tasksCount}개 · ${attachedTasksCount}개 attach됨)`
-            : `Tasks (${tasksCount}개)`
-        }
+        title={`Tasks (${tasksCount}개)`}
       >
         📋 Tasks ({tasksCount})
-        {attachedTasksCount > 0 && (
-          <span className="app__attached-count">
-            📎 {attachedTasksCount}
-          </span>
-        )}
       </button>
       <label className="app__auto-toggle">
         <input

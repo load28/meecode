@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  buildTaskAttachDirective,
+  buildTaskContextDirective,
   buildTaskContextMessage,
   parseTaskContextMessage,
   TASK_CONTEXT_TOOL,
@@ -70,9 +70,9 @@ describe('buildTaskContextMessage', () => {
   })
 })
 
-describe('buildTaskAttachDirective', () => {
+describe('buildTaskContextDirective', () => {
   it('renders as a context chip and names the tool to call', () => {
-    const out = buildTaskAttachDirective(task({ id: 'task-xyz', name: 'Refactor' }))
+    const out = buildTaskContextDirective(task({ id: 'task-xyz', name: 'Refactor' }))
     // Starts with the prefix so TaskContextNote collapses it into a chip.
     expect(parseTaskContextMessage(out)).not.toBeNull()
     expect(parseTaskContextMessage(out)!.taskName).toBe('Refactor')
@@ -80,12 +80,12 @@ describe('buildTaskAttachDirective', () => {
   })
 
   it('embeds the exact task_id marker the fallback watcher matches on', () => {
-    const out = buildTaskAttachDirective(task({ id: 'task-xyz' }))
+    const out = buildTaskContextDirective(task({ id: 'task-xyz' }))
     expect(out).toContain('task_id="task-xyz"')
   })
 
   it('stays short — does not dump description or sources', () => {
-    const out = buildTaskAttachDirective(
+    const out = buildTaskContextDirective(
       task({ id: 'task-xyz', name: 'Refactor', description: '아주 긴 설명'.repeat(20) }),
     )
     expect(out).not.toContain('## Sources')

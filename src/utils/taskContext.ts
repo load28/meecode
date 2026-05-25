@@ -12,33 +12,32 @@ export const TASK_CONTEXT_PREFIX = '[Task 컨텍스트 주입: '
 export const TASK_CONTEXT_TOOL = 'mcp__meecode__load_task_context'
 
 /**
- * Short directive user turn sent at attach time. Rather than dumping the
- * whole Task into the conversation, we ask the model to call
+ * Short directive user turn sent when injecting a Task's context. Rather than
+ * dumping the whole Task into the conversation, we ask the model to call
  * `load_task_context` so the bulky content arrives as a visible tool result.
  *
  * Starts with `TASK_CONTEXT_PREFIX` so `TaskContextNote` collapses it into a
  * chip, and embeds `task_id="<id>"` so the fallback watcher can locate this
  * exact turn and detect whether the tool was actually called.
  */
-export function buildTaskAttachDirective(task: Task): string {
+export function buildTaskContextDirective(task: Task): string {
   return [
     `${TASK_CONTEXT_PREFIX}${task.name}]`,
     '',
-    `이 세션에 Task "${task.name}"가 attach되었습니다. \`${TASK_CONTEXT_TOOL}\` 도구를 task_id="${task.id}" 인자로 호출해 이 Task의 description과 sources를 컨텍스트로 불러온 뒤, 한 줄로만 확인해 주세요.`,
+    `Task "${task.name}"의 컨텍스트를 이 세션에 불러옵니다. \`${TASK_CONTEXT_TOOL}\` 도구를 task_id="${task.id}" 인자로 호출해 이 Task의 description과 sources를 컨텍스트로 불러온 뒤, 한 줄로만 확인해 주세요.`,
   ].join('\n')
 }
 
 /**
  * Format a Task + its Sources as a markdown context-injection message.
  *
- * Sent verbatim as a user turn at attach time, so the LLM (and the
- * conversation history) absorbs the Task's content once and benefits
- * from prompt caching on subsequent turns. Phase 4 will swap the
- * source dump for the curated Wiki content.
+ * Sent verbatim as a user turn when the model ignores the tool directive, so
+ * the LLM (and the conversation history) absorbs the Task's content once and
+ * benefits from prompt caching on subsequent turns.
  *
  * Returns `null` when the task has nothing to inject (no description,
- * no sources) — caller should still persist the binding but skip the
- * send so the chat doesn't get a useless empty turn.
+ * no sources) — caller skips the send so the chat doesn't get a useless
+ * empty turn.
  */
 export function buildTaskContextMessage(
   task: Task,
@@ -67,7 +66,7 @@ export function buildTaskContextMessage(
   }
   lines.push('')
   lines.push(
-    '_위 내용은 이 세션에 attach된 Task의 컨텍스트입니다. 후속 대화에서 참고하세요._',
+    '_위 내용은 이 세션에 주입된 Task의 컨텍스트입니다. 후속 대화에서 참고하세요._',
   )
   return lines.join('\n')
 }

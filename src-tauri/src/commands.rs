@@ -9,10 +9,6 @@ use crate::claude_process::stdout_parser::DomainEvent;
 use crate::config::Config;
 use crate::history::list::{list_projects, list_sessions, ProjectInfo, SessionInfo};
 use crate::history::load_recent::{extract_qa_pairs, load_recent_pairs, projects_dir_for, QaPair};
-use crate::bindings::{
-    attach as attach_binding, default_bindings_root, detach as detach_binding,
-    detach_all_for_task, list_for_session as list_bindings_for_session, Binding,
-};
 use crate::tasks::distill::{
     build_prompt as build_distill_prompt, render_transcript, spawn_distill_process, DistillJob,
 };
@@ -1006,9 +1002,6 @@ pub fn update_task(args: UpdateTaskArgs) -> Result<Task, String> {
 
 #[tauri::command]
 pub fn delete_task(task_id: String) -> Result<(), String> {
-    // Drop the bindings first so the Task can't briefly appear "still
-    // attached" in a UI that polls bindings between these two steps.
-    let _ = detach_all_for_task(&default_bindings_root(), &task_id);
     delete_task_fn(&default_tasks_root(), &task_id)
 }
 
@@ -1058,27 +1051,6 @@ pub struct DeleteSourceArgs {
 #[tauri::command]
 pub fn delete_source(args: DeleteSourceArgs) -> Result<(), String> {
     delete_source_fn(&default_tasks_root(), &args.task_id, &args.source_id)
-}
-
-#[derive(Deserialize)]
-pub struct BindingArgs {
-    pub session_id: String,
-    pub task_id: String,
-}
-
-#[tauri::command]
-pub fn attach_task(args: BindingArgs) -> Result<Binding, String> {
-    attach_binding(&default_bindings_root(), args.session_id, args.task_id)
-}
-
-#[tauri::command]
-pub fn detach_task(args: BindingArgs) -> Result<(), String> {
-    detach_binding(&default_bindings_root(), &args.session_id, &args.task_id)
-}
-
-#[tauri::command]
-pub fn list_session_task_bindings(session_id: String) -> Result<Vec<Binding>, String> {
-    list_bindings_for_session(&default_bindings_root(), &session_id)
 }
 
 // ── Wiki ───────────────────────────────────────────────────────────────
@@ -1156,7 +1128,6 @@ pub async fn start_task_organize(app: AppHandle, task_id: String) -> Result<(), 
 /// command layer.
 pub async fn run_organize(app: AppHandle, task_id: String) -> Result<(), String> {
     let tasks_root = default_tasks_root();
-    let bindings_root = default_bindings_root();
 
     // Grab or create the per-task slot, check it isn't already running.
     let slot: OrganizeSlot = {
@@ -1208,7 +1179,6 @@ pub async fn run_organize(app: AppHandle, task_id: String) -> Result<(), String>
         app.clone(),
         claude_bin,
         tasks_root,
-        bindings_root,
         task_id.clone(),
         resume_session,
         slot.clone(),
@@ -1263,7 +1233,7 @@ pub struct HarvestArgs {
 
 /// Harvest a chat session into the Task: a one-shot Claude pass distills the
 /// session transcript into curated Sources, which then auto-organize into the
-/// Wiki. Only allowed when the session has the Task attached.
+/// Wiki. Operates on whichever session is currently open.
 #[tauri::command]
 pub async fn start_session_harvest(app: AppHandle, args: HarvestArgs) -> Result<(), String> {
     let HarvestArgs {
@@ -1275,15 +1245,6 @@ pub async fn start_session_harvest(app: AppHandle, args: HarvestArgs) -> Result<
         return Err("활성 세션이 없습니다.".into());
     }
     let tasks_root = default_tasks_root();
-
-    // Gate on the binding so a session can only harvest Tasks it has attached
-    // (the UI enforces this too, but the backend must not trust the caller).
-    let attached = list_bindings_for_session(&default_bindings_root(), &session_id)
-        .map(|v| v.iter().any(|b| b.task_id == task_id))
-        .unwrap_or(false);
-    if !attached {
-        return Err("이 세션에 attach된 Task만 수집할 수 있습니다.".into());
-    }
 
     // Per-task slot guard — reject a second concurrent harvest.
     let slot: HarvestSlot = {

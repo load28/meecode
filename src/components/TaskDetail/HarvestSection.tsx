@@ -5,8 +5,8 @@ interface Props {
   status: HarvestStatus
   lastNote: string | null
   error: string | null
-  /** True when the current session has this task attached (and a session
-   *  exists). Harvest is only meaningful — and only allowed — then. */
+  /** True when a session is open. Harvest reads that session's transcript,
+   *  so it's only meaningful — and only allowed — then. */
   canHarvest: boolean
   /** Returns a non-null error string when the start request itself failed. */
   onStart: () => Promise<string | null>
@@ -14,10 +14,9 @@ interface Props {
 }
 
 /**
- * "세션 → 위키" section: distills the *current* attached session's transcript
- * into Sources, which then auto-organize into the Wiki. Disabled unless this
- * task is attached to an active session, since there'd be no transcript to
- * read otherwise.
+ * "세션 → 위키" section: distills the currently open session's transcript
+ * into Sources, which then auto-organize into the Wiki. Disabled unless a
+ * session is open, since there'd be no transcript to read otherwise.
  */
 export function HarvestSection({
   status,
@@ -57,7 +56,7 @@ export function HarvestSection({
           title={
             canHarvest
               ? '현재 세션 대화를 Source로 추출하고 위키까지 자동 정리'
-              : 'Task를 현재 세션에 attach하면 사용할 수 있습니다'
+              : '현재 활성화된 세션이 없습니다'
           }
         >
           {running ? '🔄 세션 분석 중...' : '🌾 세션을 위키로 정리'}
@@ -76,7 +75,7 @@ export function HarvestSection({
       </div>
       {!canHarvest && (
         <div className="task-detail__organize-hint">
-          현재 세션에 attach된 Task에서만 수집할 수 있습니다.
+          현재 활성화된 세션이 있어야 수집할 수 있습니다.
         </div>
       )}
       {lastNote && <div className="task-detail__organize-note">{lastNote}</div>}

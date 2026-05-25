@@ -444,20 +444,6 @@ body,
   border-color: var(--color-accent-blue);
 }
 
-.app__attached-count {
-  margin-left: 4px;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-accent-subtle);
-  color: var(--color-accent-blue-pale);
-}
-
-.app__knowledge-btn.is-active .app__attached-count {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-}
-
 .app__auto-toggle {
   display: inline-flex;
   align-items: center;

@@ -47,9 +47,7 @@ interface Props {
   /** 탐색기에서 파일/폴더가 이름변경/이동됐을 때 — 열린 탭 경로를 갱신한다. */
   onPathRenamed: (from: string, to: string) => void
   sessionId: string | null
-  attachedTaskIds: Set<string>
-  onAttachTask: (taskId: string) => Promise<void> | void
-  onDetachTask: (taskId: string) => Promise<void> | void
+  onInjectTask: (taskId: string) => Promise<void> | void
   /** Open a task source/wiki doc in the shared file viewer. */
   onOpenContent: (tab: ContentTab) => void
 }
@@ -86,9 +84,7 @@ export function MainBody({
   onPathDeleted,
   onPathRenamed,
   sessionId,
-  attachedTaskIds,
-  onAttachTask,
-  onDetachTask,
+  onInjectTask,
   onOpenContent,
 }: Props) {
   return (
@@ -145,9 +141,7 @@ export function MainBody({
                 onClose={onToggleTasks}
                 sessionId={sessionId}
                 projectPath={projectPath}
-                attachedTaskIds={attachedTaskIds}
-                onAttachTask={onAttachTask}
-                onDetachTask={onDetachTask}
+                onInjectTask={onInjectTask}
                 onOpenContent={onOpenContent}
                 onOpenFile={onOpenFile}
               />
