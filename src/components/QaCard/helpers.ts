@@ -8,10 +8,11 @@ import { FILE_PATH_TOOLS, thinkingLabel } from '../../utils/assistantSegment'
 export { FILE_PATH_TOOLS, thinkingLabel }
 
 /**
- * Q&A 본문 영역을 접는 임계 높이(px). 6~7줄 정도면 카드가 여전히
- * 콤팩트하게 보이면서, 그 이상은 더 보기로 펼치도록 한다.
+ * 카드 본문 전체(질문 + 답변)를 접는 임계 높이(px). 이 높이를 넘으면
+ * 내용 종류(긴 질문·Task 컨텍스트·긴 답변)와 무관하게 카드가 잘리고
+ * "더 보기" 토글이 노출돼, 카드가 일정 높이 이상으로 자라지 않는다.
  */
-export const ANSWER_MAX_HEIGHT_PX = 180
+export const CARD_MAX_HEIGHT_PX = 320
 
 /**
  * Edit/Write/MultiEdit/NotebookEdit tool_use에서 PendingEdit을 복원해
