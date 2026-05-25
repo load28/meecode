@@ -32,6 +32,18 @@ function saveEnabled(): void {
   }
 }
 
+// Language servers run only in the main window; the detached code window shares
+// the same files but must not spawn a second server process per language.
+function isMainWindow(): boolean {
+  try {
+    return (
+      new URLSearchParams(window.location.search).get('view') !== 'file-panel'
+    )
+  } catch {
+    return true
+  }
+}
+
 // Cached snapshot so useSyncExternalStore sees a stable reference between
 // changes (rebuilt only when something actually changes).
 let snapshot: PluginStatus[] = []
@@ -87,6 +99,12 @@ async function activate(id: string): Promise<void> {
       })
       const tm = await wireTextMate(plugin.id)
       if (tm) ds.push(tm)
+    }
+    if (plugin.lsp && isMainWindow()) {
+      // Lazy: the LSP client + protocol stack loads only when a server-backed
+      // plugin is actually activated, keeping it out of the startup bundle.
+      const { startLanguageClient } = await import('../lsp/client')
+      ds.push(await startLanguageClient(plugin.id, plugin.lsp))
     }
   } catch (e) {
     console.error(`[plugins] failed to activate "${id}"`, e)

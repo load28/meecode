@@ -44,4 +44,25 @@ export const BUILTIN_PLUGINS: LanguagePlugin[] = [
       ],
     }),
   },
+  // LSP-backed plugins. Highlighting comes from Monaco's built-in grammars;
+  // enabling these adds completion/hover/diagnostics from an external language
+  // server, which must be installed and on PATH (or set to an absolute path).
+  {
+    id: 'rust',
+    label: 'Rust (rust-analyzer)',
+    extensions: ['.rs'],
+    lsp: { command: 'rust-analyzer' },
+  },
+  {
+    id: 'python',
+    label: 'Python (pyright)',
+    extensions: ['.py'],
+    lsp: { command: 'pyright-langserver', args: ['--stdio'] },
+  },
+  {
+    id: 'go',
+    label: 'Go (gopls)',
+    extensions: ['.go'],
+    lsp: { command: 'gopls' },
+  },
 ]

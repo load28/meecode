@@ -4,6 +4,7 @@ pub mod commands;
 pub mod config;
 pub mod file_watch;
 pub mod history;
+pub mod lsp;
 pub mod mcp_server;
 pub mod tasks;
 
@@ -15,6 +16,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
+        .manage(lsp::LspState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -75,6 +77,9 @@ pub fn run() {
             commands::read_file_text,
             commands::stat_file,
             commands::write_file,
+            lsp::lsp_start,
+            lsp::lsp_send,
+            lsp::lsp_stop,
             commands::open_external,
             commands::get_config,
             commands::set_config,
