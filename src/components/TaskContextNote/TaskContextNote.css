@@ -13,9 +13,7 @@
 .task-context-note__summary {
   font-size: 12px;
   list-style: none;
-  /* 우측 여백(76px)으로 라벨/배지/펼침 화살표가 카드 우상단 액션 아이콘
-     두 개와 겹치지 않게 비운다 (.qa-card__question과 동일한 reserve). */
-  padding: 6px 76px 6px 10px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 6px;
