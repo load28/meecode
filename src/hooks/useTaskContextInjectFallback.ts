@@ -11,15 +11,15 @@ interface Options {
   sendUserMessage: (text: string) => Promise<void>
 }
 
-export interface UseTaskAttachFallbackResult {
-  /** Register a task whose attach directive was just sent. */
+export interface UseTaskContextInjectFallbackResult {
+  /** Register a task whose context-inject directive was just sent. */
   markPending: (taskId: string) => void
 }
 
 /**
- * Tool-first attach with a prompt-injection fallback.
+ * Tool-first context injection with a prompt-injection fallback.
  *
- * `useTaskAttach` sends a short directive asking the model to call
+ * `useTaskContextInject` sends a short directive asking the model to call
  * `load_task_context`. That's non-deterministic — the model might ignore it.
  * This hook watches the directive's own turn:
  *
@@ -30,15 +30,15 @@ export interface UseTaskAttachFallbackResult {
  *    markdown as a user turn.
  *
  * The directive turn is located by the `task_id="<id>"` marker its text
- * carries (see `buildTaskAttachDirective`), so this is robust to queued
+ * carries (see `buildTaskContextDirective`), so this is robust to queued
  * sends — the pair simply isn't found until the directive is actually
  * flushed and echoed.
  */
-export function useTaskAttachFallback({
+export function useTaskContextInjectFallback({
   pairs,
   turnInProgress,
   sendUserMessage,
-}: Options): UseTaskAttachFallbackResult {
+}: Options): UseTaskContextInjectFallbackResult {
   // taskId -> still awaiting resolution. A ref (not state) so resolving an
   // entry never re-renders; the effect drives off `pairs`/`turnInProgress`.
   const pendingRef = useRef<Set<string>>(new Set())

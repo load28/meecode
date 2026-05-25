@@ -126,11 +126,9 @@ pub fn dispatch_event(
     app: &AppHandle,
     job_handle: Arc<Mutex<Option<OrganizeJob>>>,
     tasks_root: std::path::PathBuf,
-    bindings_root: std::path::PathBuf,
     task_id: String,
     ev: DomainEvent,
 ) {
-    let _ = bindings_root; // reserved for future cross-binding refresh hints
     let with_task = |v: serde_json::Value| -> serde_json::Value {
         let mut v = v;
         if let Some(obj) = v.as_object_mut() {
@@ -282,7 +280,6 @@ pub async fn spawn_organize_process(
     app: AppHandle,
     claude_bin: String,
     tasks_root: std::path::PathBuf,
-    bindings_root: std::path::PathBuf,
     task_id: String,
     resume_session: Option<String>,
     job_slot: Arc<Mutex<Option<OrganizeJob>>>,
@@ -300,7 +297,6 @@ pub async fn spawn_organize_process(
     let task_for_err = task_id.clone();
     let task_for_exit = task_id.clone();
     let tasks_for_ev = tasks_root.clone();
-    let bindings_for_ev = bindings_root.clone();
 
     spawn_claude(
         &claude_bin,
@@ -311,7 +307,6 @@ pub async fn spawn_organize_process(
                 &app_ev,
                 job_ev.clone(),
                 tasks_for_ev.clone(),
-                bindings_for_ev.clone(),
                 task_for_ev.clone(),
                 ev,
             );
