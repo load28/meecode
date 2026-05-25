@@ -73,6 +73,8 @@ pub fn run() {
             commands::hibernate_tab,
             commands::close_tab,
             commands::read_file_text,
+            commands::stat_file,
+            commands::write_file,
             commands::open_external,
             commands::get_config,
             commands::set_config,
