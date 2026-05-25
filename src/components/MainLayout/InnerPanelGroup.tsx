@@ -86,6 +86,7 @@ export function InnerPanelGroup({
         minSize={25}
       >
         <ChatColumn
+          tabId={tabId}
           claude={claude}
           projectPath={projectPath}
           recentUserTexts={recentUserTexts}

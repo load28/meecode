@@ -21,7 +21,9 @@ function App() {
     newTab,
     closeTab,
     setSessionTitle,
+    markLive,
   } = useTabs()
+  const activeTab = tabs.find((t) => t.id === activeId) ?? tabs[0]
   const { status: claudeStatus, refresh: refreshClaudeStatus } = useClaudeStatus()
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Tasks panel open/close is app-wide: toggling it on tab A persists
@@ -46,38 +48,34 @@ function App() {
         onClose={closeTab}
         onNew={newTab}
       />
-      {tabs.map((t) => {
-        const visible = t.id === activeId
-        return (
-          <div
-            key={t.id}
-            className="app-tab-host"
-            style={{ display: visible ? 'flex' : 'none' }}
-          >
-            {t.projectPath ? (
-              <MainLayout
-                key={`${t.projectPath}::${t.epoch}`}
-                tabId={t.id}
-                projectPath={t.projectPath}
-                pendingSessionId={t.pendingSessionId}
-                needsSwitch={t.needsSwitch}
-                onSwitchProject={switchProject}
-                onSwitchSession={switchSession}
-                onSessionTitleChange={(title) => setSessionTitle(t.id, title)}
-                claudeReady={claudeStatus.ready}
-                onOpenSettings={() => setSettingsOpen(true)}
-                showTasks={showTasks}
-                onToggleTasks={() => setShowTasks((v) => !v)}
-                showExplorer={showExplorer}
-                onToggleExplorer={() => setShowExplorer((v) => !v)}
-                visible={visible}
-              />
-            ) : (
-              <FolderPicker onStart={start} />
-            )}
-          </div>
-        )
-      })}
+      {/*
+        Single reused content pane (VS Code style): only the active tab's
+        MainLayout is mounted. Switching tabs swaps `tabId` instead of
+        mounting one tree per tab, and per-tab UI state is restored from
+        tabViewStore so nothing is lost on switch.
+      */}
+      <div className="app-tab-host" style={{ display: 'flex' }}>
+        {activeTab?.projectPath ? (
+          <MainLayout
+            tabId={activeTab.id}
+            projectPath={activeTab.projectPath}
+            pendingSessionId={activeTab.pendingSessionId}
+            switchSeq={activeTab.switchSeq}
+            onSpawned={markLive}
+            onSwitchProject={switchProject}
+            onSwitchSession={switchSession}
+            onSessionTitleChange={(title) => setSessionTitle(activeTab.id, title)}
+            claudeReady={claudeStatus.ready}
+            onOpenSettings={() => setSettingsOpen(true)}
+            showTasks={showTasks}
+            onToggleTasks={() => setShowTasks((v) => !v)}
+            showExplorer={showExplorer}
+            onToggleExplorer={() => setShowExplorer((v) => !v)}
+          />
+        ) : (
+          <FolderPicker onStart={start} />
+        )}
+      </div>
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

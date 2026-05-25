@@ -12,7 +12,7 @@ import { useTaskContextInjectFallback } from '../../hooks/useTaskContextInjectFa
 import { usePendingSelection } from '../../hooks/usePendingSelection'
 import { useClaudeSession } from '../../hooks/useClaudeSession'
 import { useExpandPanel } from '../../hooks/useExpandPanel'
-import { useSessionSwitchOnMount } from '../../hooks/useSessionSwitchOnMount'
+import { useSessionLifecycle } from '../../hooks/useSessionLifecycle'
 import { useSyncEffect } from '../../hooks/useSyncEffect'
 import { useCapturePicker } from '../../hooks/useCapturePicker'
 import { useExpandedPair } from '../../hooks/useExpandedPair'
@@ -21,7 +21,10 @@ export interface MainLayoutProps {
   tabId: string
   projectPath: string
   pendingSessionId: string | null
-  needsSwitch: boolean
+  /** Bumped by useTabs when this tab needs a (re)spawn; drives the lifecycle. */
+  switchSeq: number
+  /** Marks the tab live once its backend process has spawned. */
+  onSpawned: (tabId: string) => void
   onSwitchProject: (path: string) => void
   onSwitchSession: (sessionId: string | null) => void
   onSessionTitleChange: (title: string | null) => void
@@ -31,21 +34,14 @@ export interface MainLayoutProps {
   onToggleTasks: () => void
   showExplorer: boolean
   onToggleExplorer: () => void
-  /**
-   * Whether this tab is the active one. Hidden tabs unsubscribe from the
-   * session store so streaming chunks don't trigger re-renders / markdown
-   * re-parses / typewriter rAF loops behind the scenes. State stays current
-   * (listeners are module-level); re-subscription happens automatically on
-   * the next render after this flips back to true.
-   */
-  visible: boolean
 }
 
 export function MainLayout({
   tabId,
   projectPath,
   pendingSessionId,
-  needsSwitch,
+  switchSeq,
+  onSpawned,
   onSwitchProject,
   onSwitchSession,
   onSessionTitleChange,
@@ -55,9 +51,8 @@ export function MainLayout({
   onToggleTasks,
   showExplorer,
   onToggleExplorer,
-  visible,
 }: MainLayoutProps) {
-  const claude = useClaudeSession(tabId, visible)
+  const claude = useClaudeSession(tabId)
   const {
     pairs,
     hookActivity,
@@ -79,7 +74,13 @@ export function MainLayout({
   const { tasks } = useTasks()
 
   useSyncEffect(onSessionTitleChange, sessionTitle)
-  useSessionSwitchOnMount({ tabId, projectPath, pendingSessionId, needsSwitch })
+  useSessionLifecycle({
+    tabId,
+    projectPath,
+    pendingSessionId,
+    switchSeq,
+    onSpawned,
+  })
 
   // composer의 ArrowUp/Down 히스토리에 보여줄 최근 사용자 메시지 갯수.
   // 너무 길면 페이징이 번거롭고, 너무 짧으면 한 세션 안에서 자주 잘린다.
@@ -97,19 +98,19 @@ export function MainLayout({
     toggleOpen,
     autoExpand,
     setAutoExpand,
-  } = useExpandPanel(pairs)
+  } = useExpandPanel(tabId, pairs)
 
-  const fileTabs = useFileTabs()
+  const fileTabs = useFileTabs(tabId)
   const { isDetached, detach, openFile, openContent } =
     useDetachedFilePanel(fileTabs)
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
   // panel (so the expanded block can carry a `// path:lines` header).
-  const selection = usePendingSelection()
+  const selection = usePendingSelection(tabId)
   // QaCard's capture button / CommentFloat's 📥 button drive this hook;
   // TaskPicker (mounted below) reads `draft` to know when to open.
-  const capture = useCapturePicker({ sessionId, projectPath })
+  const capture = useCapturePicker({ tabId, sessionId, projectPath })
 
   const taskFallback = useTaskContextInjectFallback({
     pairs,

@@ -55,41 +55,18 @@ describe('useClaudeSession', () => {
     expect(result.current.pairs[0].id).toBe('a')
   })
 
-  // Multi-tab perf: a hidden tab must NOT re-render on every streaming
-  // chunk, but the moment it becomes visible it must show the latest
-  // store snapshot. Counted by tracking the render count of the hook.
-  it('visible=false면 스트리밍 갱신이 리렌더를 유발하지 않는다', () => {
-    let renderCount = 0
-    const { result, rerender } = renderHook(
-      ({ visible }: { visible: boolean }) => {
-        renderCount += 1
-        return useClaudeSession('main', visible)
-      },
-      { initialProps: { visible: false } },
-    )
-    const baseline = renderCount
-
-    // Simulate 5 streaming chunks arriving while the tab is hidden.
+  // Multi-tab perf is now achieved upstream: only the active tab's MainLayout
+  // is mounted (single reused pane), so background tabs have no React tree to
+  // re-render — there's no per-hook visibility gate. The mounted hook always
+  // subscribes and reflects streaming updates for its tab.
+  it('마운트된 탭은 스트리밍 갱신을 그대로 반영한다', () => {
+    const { result } = renderHook(() => useClaudeSession('main'))
     for (let i = 0; i < 5; i++) {
       act(() => {
         setTab('main', (s) => ({ ...s, pairs: [...s.pairs, pair(`p${i}`)] }))
       })
     }
-    // No subscription → no re-render triggered by store notifications.
-    expect(renderCount).toBe(baseline)
-    // Hook still returns whatever was captured when last rendered.
-    expect(result.current.pairs).toHaveLength(0)
-
-    // User clicks the tab → visible flips true; re-subscribes and reads
-    // the freshest snapshot in a single render.
-    rerender({ visible: true })
     expect(result.current.pairs).toHaveLength(5)
-
-    // Subsequent updates now propagate (live streaming on the active tab).
-    act(() => {
-      setTab('main', (s) => ({ ...s, pairs: [...s.pairs, pair('p5')] }))
-    })
-    expect(result.current.pairs).toHaveLength(6)
   })
 
   it('store에 pendingTool을 넣으면 hook이 노출한다', () => {

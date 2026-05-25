@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import type { Mode, SlashCommand } from '../../types'
+import { useTabState } from '../../state/tabViewStore'
 import { useImageAttachments } from '../../hooks/useImageAttachments'
 import { useEscapeDoublePress } from '../../hooks/useEscapeDoublePress'
 import { useTextHistory } from '../../hooks/useTextHistory'
@@ -19,6 +20,8 @@ import { useComposerKeyboard } from './useComposerKeyboard'
 import './ChatComposer.css'
 
 interface Props {
+  /** Owning tab — keys the draft text + attachments so they persist per tab. */
+  tabId: string
   mode: Mode
   disabled: boolean
   sendUserMessage: (
@@ -47,6 +50,7 @@ interface Props {
 }
 
 export function ChatComposer({
+  tabId,
   mode,
   disabled,
   sendUserMessage,
@@ -64,7 +68,7 @@ export function ChatComposer({
   onOpenSettings,
 }: Props) {
   const composerDisabled = (disabled && !busy) || !claudeReady
-  const [value, setValue] = useState('')
+  const [value, setValue] = useTabState<string>(tabId, 'composerDraft', '')
   const {
     pendingImages,
     fileInputRef,
@@ -74,7 +78,7 @@ export function ChatComposer({
     onPaste,
     onDrop,
     onFileInputChange,
-  } = useImageAttachments()
+  } = useImageAttachments(tabId)
   const history = useTextHistory(recentUserTexts)
   const escClear = useEscapeDoublePress()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)

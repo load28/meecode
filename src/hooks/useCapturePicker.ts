@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import type { CaptureDraft } from '../components/TaskPicker'
 import type { CaptureSource } from '../types/composer'
+import { useTabState } from '../state/tabViewStore'
 
 interface Options {
+  tabId: string
   sessionId: string | null
   projectPath: string
 }
@@ -25,10 +27,15 @@ export interface UseCapturePickerResult {
  * Source 생성 시 origin을 보존할 수 있게 한다.
  */
 export function useCapturePicker({
+  tabId,
   sessionId,
   projectPath,
 }: Options): UseCapturePickerResult {
-  const [draft, setDraft] = useState<CaptureDraft | null>(null)
+  const [draft, setDraft] = useTabState<CaptureDraft | null>(
+    tabId,
+    'captureDraft',
+    null,
+  )
 
   const open = useCallback(
     (source: CaptureSource) => {
@@ -41,10 +48,10 @@ export function useCapturePicker({
         projectPath,
       })
     },
-    [sessionId, projectPath],
+    [sessionId, projectPath, setDraft],
   )
 
-  const close = useCallback(() => setDraft(null), [])
+  const close = useCallback(() => setDraft(null), [setDraft])
 
   return { draft, open, close }
 }

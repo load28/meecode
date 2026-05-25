@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useExpandPanel } from './useExpandPanel'
+import { clearTabState } from '../state/tabViewStore'
 import type { QaPair, AssistantSegment } from '../types'
+
+const TID = 'test-expand'
 
 const text = (s: string): AssistantSegment => ({ kind: 'text', text: s })
 const pair = (id: string, segs: AssistantSegment[]): QaPair => ({
@@ -17,10 +20,11 @@ const SHORT = 'hi'
 describe('useExpandPanel', () => {
   beforeEach(() => {
     localStorage.clear()
+    clearTabState(TID)
   })
 
   it('초기 상태: 펼쳐진 페어 없음, 패널 닫힘, autoExpand 기본 true', () => {
-    const { result } = renderHook(() => useExpandPanel([]))
+    const { result } = renderHook(() => useExpandPanel(TID, []))
     expect(result.current.expandedId).toBeNull()
     expect(result.current.isOpen).toBe(false)
     expect(result.current.autoExpand).toBe(true)
@@ -28,19 +32,19 @@ describe('useExpandPanel', () => {
 
   it('localStorage 값으로 autoExpand 초기화', () => {
     localStorage.setItem('meecode.autoExpand', 'false')
-    const { result } = renderHook(() => useExpandPanel([]))
+    const { result } = renderHook(() => useExpandPanel(TID, []))
     expect(result.current.autoExpand).toBe(false)
   })
 
   it('setAutoExpand는 localStorage에도 저장', () => {
-    const { result } = renderHook(() => useExpandPanel([]))
+    const { result } = renderHook(() => useExpandPanel(TID, []))
     act(() => result.current.setAutoExpand(false))
     expect(result.current.autoExpand).toBe(false)
     expect(localStorage.getItem('meecode.autoExpand')).toBe('false')
   })
 
   it('긴 답변이 도착하면 자동으로 펼침', () => {
-    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(pairs), {
+    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(TID, pairs), {
       initialProps: { pairs: [] as QaPair[] },
     })
     rerender({ pairs: [pair('a', [text(LONG)])] })
@@ -49,7 +53,7 @@ describe('useExpandPanel', () => {
   })
 
   it('짧은 답변은 자동 전환 안 함', () => {
-    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(pairs), {
+    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(TID, pairs), {
       initialProps: { pairs: [] as QaPair[] },
     })
     rerender({ pairs: [pair('a', [text(SHORT)])] })
@@ -59,7 +63,7 @@ describe('useExpandPanel', () => {
 
   it('autoExpand=false면 긴 답변도 자동 전환 안 함', () => {
     localStorage.setItem('meecode.autoExpand', 'false')
-    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(pairs), {
+    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(TID, pairs), {
       initialProps: { pairs: [] as QaPair[] },
     })
     rerender({ pairs: [pair('a', [text(LONG)])] })
@@ -67,7 +71,7 @@ describe('useExpandPanel', () => {
   })
 
   it('같은 페어가 segments 누적으로 여러 번 갱신돼도 자동 전환은 1회만', () => {
-    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(pairs), {
+    const { result, rerender } = renderHook(({ pairs }) => useExpandPanel(TID, pairs), {
       initialProps: { pairs: [pair('a', [text(LONG)])] as QaPair[] },
     })
     expect(result.current.isOpen).toBe(true)
@@ -78,7 +82,9 @@ describe('useExpandPanel', () => {
   })
 
   it('setExpandedId/toggleOpen 수동 조작', () => {
-    const { result } = renderHook(() => useExpandPanel([pair('a', [text('hi')])]))
+    const { result } = renderHook(() =>
+      useExpandPanel(TID, [pair('a', [text('hi')])]),
+    )
     act(() => result.current.setExpandedId('a'))
     expect(result.current.expandedId).toBe('a')
     act(() => result.current.toggleOpen())

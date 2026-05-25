@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import type { CodeSnippet } from '../types/composer'
+import { useTabState } from '../state/tabViewStore'
 
 export interface PendingComposerSelection {
   id: number
@@ -39,20 +40,32 @@ export interface UsePendingSelectionResult {
  * detached file panel can hand off a snippet through the same channel
  * as an inline click. The listener stays alive for the hook's lifetime.
  */
-export function usePendingSelection(): UsePendingSelectionResult {
-  const [pending, setPending] = useState<PendingComposerSelection | null>(null)
+export function usePendingSelection(
+  tabId: string,
+): UsePendingSelectionResult {
+  const [pending, setPending] = useTabState<PendingComposerSelection | null>(
+    tabId,
+    'pendingSelection',
+    null,
+  )
 
-  const addSnippet = useCallback((snippet: CodeSnippet) => {
-    setPending(snippetToSelection(snippet))
-  }, [])
+  const addSnippet = useCallback(
+    (snippet: CodeSnippet) => {
+      setPending(snippetToSelection(snippet))
+    },
+    [setPending],
+  )
 
-  const addComment = useCallback((text: string) => {
-    setPending({ id: Date.now(), text })
-  }, [])
+  const addComment = useCallback(
+    (text: string) => {
+      setPending({ id: Date.now(), text })
+    },
+    [setPending],
+  )
 
   const consume = useCallback(() => {
     setPending(null)
-  }, [])
+  }, [setPending])
 
   // The detached window can't reach our composer state directly, so it
   // forwards selection snippets through this event. Treat them exactly
