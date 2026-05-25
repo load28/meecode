@@ -12,6 +12,8 @@ interface Props {
   /** Active session id, if any — drives the "attached" badges and the
    *  attach/detach button in TaskDetail. */
   sessionId?: string | null
+  /** Current project path — needed for harvesting the session transcript. */
+  projectPath?: string
   attachedTaskIds?: Set<string>
   /** Performs the real attach (binding + context injection). null when no session. */
   onAttachTask?: (taskId: string) => Promise<void> | void
@@ -25,6 +27,7 @@ interface Props {
 export function TaskBrowser({
   onClose,
   sessionId,
+  projectPath,
   attachedTaskIds,
   onAttachTask,
   onDetachTask,
@@ -58,6 +61,8 @@ export function TaskBrowser({
         canAttach={!!sessionId}
         onAttach={onAttachTask}
         onDetach={onDetachTask}
+        sessionId={sessionId}
+        projectPath={projectPath}
         onOpenContent={onOpenContent}
         onOpenFile={onOpenFile}
       />

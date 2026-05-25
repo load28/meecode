@@ -4,6 +4,7 @@ import {
   useTaskDetail,
   useTaskOrganize,
   useTaskWiki,
+  useTaskHarvest,
 } from '../../hooks/useTasks'
 import type { ContentTab } from '../../hooks/useFileTabs'
 import { sourceTitle } from '../../utils/sourceTitle'
@@ -12,6 +13,7 @@ import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskEditableFields } from './TaskEditableFields'
 import { AttachTaskRow } from './AttachTaskRow'
 import { SourcesSection } from './SourcesSection'
+import { HarvestSection } from './HarvestSection'
 import { OrganizeSection } from './OrganizeSection'
 import { WikiSection } from './WikiSection'
 import '../TaskBrowser/TaskBrowser.css'
@@ -27,6 +29,10 @@ interface Props {
   canAttach?: boolean
   onAttach?: (taskId: string) => Promise<void> | void
   onDetach?: (taskId: string) => Promise<void> | void
+  /** Active session id + its project path — needed to harvest the session
+   *  transcript into Sources. Harvest is gated on `attached`. */
+  sessionId?: string | null
+  projectPath?: string
   /** Open a captured source (no backing file) in the shared file viewer. */
   onOpenContent?: (tab: ContentTab) => void
   /** Open a real file from disk (e.g. a wiki file) in the shared file viewer. */
@@ -53,6 +59,8 @@ export function TaskDetail({
   canAttach = false,
   onAttach,
   onDetach,
+  sessionId,
+  projectPath,
   onOpenContent,
   onOpenFile,
 }: Props) {
@@ -61,6 +69,7 @@ export function TaskDetail({
     useTaskDetail(taskId)
   const wiki = useTaskWiki(taskId)
   const organize = useTaskOrganize(taskId)
+  const harvest = useTaskHarvest(taskId)
   // When organize completes, refresh sources (processed badges) and wiki list.
   useEffect(() => {
     if (organize.status === 'idle' && organize.lastProcessedSourceIds.length > 0) {
@@ -69,6 +78,16 @@ export function TaskDetail({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organize.status, organize.lastProcessedSourceIds])
+  // When a harvest run finishes it has just written new Sources — surface them
+  // immediately (the organize chain it triggers will refresh again on done).
+  useEffect(() => {
+    if (harvest.doneTick > 0) {
+      void refreshDetail()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [harvest.doneTick])
+
+  const canHarvest = attached && !!sessionId
 
   const commitName = async (next: string) => {
     if (!task) return
@@ -128,6 +147,18 @@ export function TaskDetail({
                     })
                 : undefined
             }
+          />
+          <HarvestSection
+            status={harvest.status}
+            lastNote={harvest.lastNote}
+            error={harvest.error}
+            canHarvest={canHarvest}
+            onStart={() =>
+              canHarvest
+                ? harvest.start(sessionId!, projectPath ?? '')
+                : Promise.resolve('세션에 attach된 Task가 아닙니다.')
+            }
+            onCancel={harvest.cancel}
           />
           <OrganizeSection
             status={organize.status}

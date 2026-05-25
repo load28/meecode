@@ -64,6 +64,10 @@ export interface OrganizePreview {
 
 export type OrganizeStatus = 'idle' | 'running' | 'error'
 
+/** Session-harvest (distill) status — the "세션 → Source" pass that precedes
+ *  organize. Goes idle once distillation hands off to the organize loop. */
+export type HarvestStatus = 'idle' | 'running' | 'error'
+
 export interface SessionTaskBinding {
   session_id: string
   task_id: string

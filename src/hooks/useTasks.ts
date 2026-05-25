@@ -19,6 +19,10 @@ import {
   getOrganizeSnapshot,
   subscribeOrganize,
 } from '../state/organizeStore'
+import {
+  getHarvestSnapshot,
+  subscribeHarvest,
+} from '../state/harvestStore'
 import { logBackendError } from '../utils/log'
 
 export interface CreateSourceInput {
@@ -359,6 +363,56 @@ export function useTaskOrganize(taskId: string | null) {
     error: snapshot.error,
     preview,
     refreshPreview,
+    start,
+    cancel,
+  }
+}
+
+/**
+ * Session-harvest trigger + reactive status. Distills a chat session's
+ * transcript into Sources, then the backend auto-chains organize. Only valid
+ * when the session has this task attached (enforced backend-side too).
+ */
+export function useTaskHarvest(taskId: string | null) {
+  const key = taskId ?? ''
+  const snapshot = useSyncExternalStore(
+    useCallback((cb: () => void) => subscribeHarvest(key, cb), [key]),
+    useCallback(() => getHarvestSnapshot(key), [key]),
+  )
+
+  const start = useCallback(
+    async (sessionId: string, projectPath: string): Promise<string | null> => {
+      if (!taskId) return 'No task'
+      try {
+        await invoke('start_session_harvest', {
+          args: {
+            task_id: taskId,
+            session_id: sessionId,
+            project_path: projectPath,
+          },
+        })
+        return null
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e)
+      }
+    },
+    [taskId],
+  )
+
+  const cancel = useCallback(async () => {
+    if (!taskId) return
+    try {
+      await invoke('cancel_session_harvest', { taskId })
+    } catch (e) {
+      logBackendError('harvest', 'cancel', e)
+    }
+  }, [taskId])
+
+  return {
+    status: snapshot.status,
+    lastNote: snapshot.lastNote,
+    doneTick: snapshot.doneTick,
+    error: snapshot.error,
     start,
     cancel,
   }

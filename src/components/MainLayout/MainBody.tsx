@@ -144,6 +144,7 @@ export function MainBody({
               <TaskBrowser
                 onClose={onToggleTasks}
                 sessionId={sessionId}
+                projectPath={projectPath}
                 attachedTaskIds={attachedTaskIds}
                 onAttachTask={onAttachTask}
                 onDetachTask={onDetachTask}
