@@ -17,15 +17,14 @@ export class Sidecar {
   private buf = ''
 
   constructor(
-    private readonly scriptPath: string,
+    private readonly command: string,
+    private readonly args: string[] = [],
     private readonly onEvent: (channel: string, payload: unknown) => void = () => {},
   ) {}
 
   start(): void {
-    // Run the stub through Electron's bundled Node (ELECTRON_RUN_AS_NODE) so we
-    // don't assume a system node — mirrors how the Rust binary will be spawned.
-    this.child = spawn(process.execPath, [this.scriptPath], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    // The compiled Rust backend, spawned directly and spoken to over ndjson.
+    this.child = spawn(this.command, this.args, {
       stdio: ['pipe', 'pipe', 'inherit'],
     })
     this.child.stdout!.setEncoding('utf8')

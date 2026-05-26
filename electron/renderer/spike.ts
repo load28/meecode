@@ -46,16 +46,20 @@ function syncStyles(target: Window): MutationObserver {
 async function run(): Promise<void> {
   const result: Record<string, unknown> = {}
 
-  // ── M0: sidecar ndjson round-trip ────────────────────────────────────────
+  // ── M0/M2.4: real Rust sidecar round-trips through the Electron broker ─────
   try {
-    const ping = await window.meecode.invoke('ping', { hello: 'm0' })
-    result.ping = ping
-    statusEl.textContent = `M0 sidecar ping → ${JSON.stringify(ping)}`
+    result.ping = await window.meecode.invoke('ping', { hello: 'm2.4' })
+    // Real backend commands (file + config), proving broker↔sidecar end-to-end.
+    const dir = (await window.meecode.invoke('list_dir', { path: '/tmp' })) as unknown[]
+    result.listDirCount = Array.isArray(dir) ? dir.length : 'not-array'
+    result.config = await window.meecode.invoke('get_config')
+    statusEl.textContent =
+      `M2.4 broker→sidecar OK\nping: ${JSON.stringify(result.ping)}\n` +
+      `list_dir(/tmp): ${result.listDirCount} entries\nget_config: ${JSON.stringify(result.config)}`
   } catch (e) {
-    result.pingError = String(e)
-    statusEl.textContent = `M0 sidecar ping FAILED: ${String(e)}`
+    result.error = String(e)
+    statusEl.textContent = `M2.4 broker→sidecar FAILED: ${String(e)}`
   }
-  window.meecode.on('sidecar:ready', (p) => log(`event sidecar:ready → ${JSON.stringify(p)}`))
 
   // ── M0.5: single monaco instance, completion provider, child window ──────
   monaco.languages.register({ id: 'spikelang' })

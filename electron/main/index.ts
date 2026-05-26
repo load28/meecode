@@ -21,6 +21,27 @@ const captured: string[] = []
 
 const out = (name: string) => join(app.getAppPath(), 'out', name)
 
+/** Path to the compiled Rust sidecar binary (bundled as an extra resource in
+ * packaged builds; the cargo debug output in dev). */
+function sidecarBinPath(): string {
+  const exe = process.platform === 'win32' ? 'meecode-sidecar.exe' : 'meecode-sidecar'
+  return app.isPackaged
+    ? join(process.resourcesPath, exe)
+    : join(app.getAppPath(), 'sidecar', 'target', 'debug', exe)
+}
+
+/** Replicates Tauri's invoke convention: top-level argument keys are converted
+ * camelCase → snake_case to match the Rust command params (nested object fields
+ * are left untouched, exactly as Tauri does). */
+function camelToSnakeTopLevel(args: unknown): unknown {
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) return args
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(args as Record<string, unknown>)) {
+    out[k.replace(/[A-Z]/g, (m) => '_' + m.toLowerCase())] = v
+  }
+  return out
+}
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1100,
@@ -47,19 +68,18 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  sidecar = new Sidecar(
-    join(app.getAppPath(), 'electron/main/stub-sidecar.mjs'),
-    (channel, payload) => {
-      if (channel === 'sidecar:ready') sidecarReadyEvt = payload
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(channel, payload)
-      }
-    },
-  )
+  sidecar = new Sidecar(sidecarBinPath(), [], (channel, payload) => {
+    if (channel === 'sidecar:ready') sidecarReadyEvt = payload
+    // Broadcast backend events to every window (main + aux), mirroring Tauri's
+    // app-global emit; each window filters to what it cares about.
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(channel, payload)
+    }
+  })
   sidecar.start()
 
   ipcMain.handle('sidecar', async (_e, { cmd, args }: { cmd: string; args: unknown }) =>
-    sidecar.request(cmd, args),
+    sidecar.request(cmd, camelToSnakeTopLevel(args)),
   )
 
   // spike-only: capture both windows once the renderer reports it has opened the
