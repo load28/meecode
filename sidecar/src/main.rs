@@ -1,11 +1,14 @@
 mod bridge;
 mod claude_discovery;
+mod claude_process;
 mod config;
 mod file_watch;
 mod files;
 mod history;
 mod lsp;
+mod mcp_server;
 mod open_files;
+mod session;
 mod state;
 mod tasks;
 
@@ -105,6 +108,102 @@ async fn dispatch_inner(cmd: &str, args: Value) -> Result<Value, String> {
         "open_external" => {
             let a: PathArg = from_value(args).map_err(de)?;
             ok(files::open_external(a.path)?)
+        }
+
+        // ── claude session lifecycle ───────────────────────────────────────────
+        "start_session" => {
+            #[derive(Deserialize)]
+            struct A {
+                path: String,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::start_session(a.path, a.tab_id).await?)
+        }
+        "send_user_message" => {
+            #[derive(Deserialize)]
+            struct A {
+                text: String,
+                #[serde(default)]
+                images: Option<Vec<session::ImageAttachment>>,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::send_user_message(a.text, a.images, a.tab_id).await?)
+        }
+        "send_tool_response" => {
+            let a: Wrapped<session::ToolResponseArgs> = from_value(args).map_err(de)?;
+            ok(session::send_tool_response(a.args).await?)
+        }
+        "interrupt_session" => {
+            #[derive(Deserialize)]
+            struct A {
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::interrupt_session(a.tab_id).await?)
+        }
+        "set_permission_mode" => {
+            #[derive(Deserialize)]
+            struct A {
+                mode: String,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::set_permission_mode(a.mode, a.tab_id).await?)
+        }
+        "set_model" => {
+            #[derive(Deserialize)]
+            struct A {
+                #[serde(default)]
+                model: Option<String>,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::set_model(a.model, a.tab_id).await?)
+        }
+        "set_thinking_level" => {
+            #[derive(Deserialize)]
+            struct A {
+                level: String,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::set_thinking_level(a.level, a.tab_id).await?)
+        }
+        "switch_session" => {
+            #[derive(Deserialize)]
+            struct A {
+                path: String,
+                #[serde(default)]
+                session_id: Option<String>,
+                #[serde(default)]
+                tab_id: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::switch_session(a.path, a.session_id, a.tab_id).await?)
+        }
+        "hibernate_tab" => {
+            #[derive(Deserialize)]
+            struct A {
+                tab_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::hibernate_tab(a.tab_id)?)
+        }
+        "close_tab" => {
+            #[derive(Deserialize)]
+            struct A {
+                tab_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(session::close_tab(a.tab_id)?)
         }
 
         // ── claude path / discovery ────────────────────────────────────────────
@@ -342,6 +441,13 @@ async fn dispatch_inner(cmd: &str, args: Value) -> Result<Value, String> {
 }
 
 fn main() {
+    // Re-exec entry point: when launched as `meecode-sidecar mcp-stdio` (by the
+    // Claude CLI via --mcp-config), act as a stdio MCP server instead of the
+    // ndjson backend. Must run before the tokio bridge.
+    if std::env::args().nth(1).as_deref() == Some("mcp-stdio") {
+        mcp_server::run_stdio();
+        return;
+    }
     bridge::run(dispatch);
 }
 

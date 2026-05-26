@@ -9,11 +9,13 @@ use crate::config::Config;
 use crate::file_watch::WatchedProject;
 use crate::lsp::LspState;
 use crate::open_files::OpenFilesState;
+use crate::session::TabHandle;
 
 static CONFIG: OnceLock<Mutex<Config>> = OnceLock::new();
 static LSP: OnceLock<LspState> = OnceLock::new();
 static OPEN_FILES: OnceLock<OpenFilesState> = OnceLock::new();
 static WATCHED: OnceLock<Mutex<HashMap<String, Arc<WatchedProject>>>> = OnceLock::new();
+static TABS: OnceLock<Mutex<HashMap<String, TabHandle>>> = OnceLock::new();
 
 fn config_store() -> &'static Mutex<Config> {
     CONFIG.get_or_init(|| Mutex::new(Config::load()))
@@ -30,6 +32,11 @@ pub fn open_files() -> &'static OpenFilesState {
 /// Registry of live per-project file watchers, keyed by root path.
 pub fn watched() -> &'static Mutex<HashMap<String, Arc<WatchedProject>>> {
     WATCHED.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Registry of per-tab Claude sessions, keyed by tab id.
+pub fn tabs() -> &'static Mutex<HashMap<String, TabHandle>> {
+    TABS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 pub fn get_config() -> Result<Config, String> {
