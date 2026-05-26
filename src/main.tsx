@@ -6,11 +6,9 @@ import './styles/tokens.css'
 import { bootstrapSessionListeners } from './state/sessionStore'
 import { bootstrapOrganizeListeners } from './state/organizeStore'
 import { bootstrapHarvestListeners } from './state/harvestStore'
-import {
-  bootstrapLanguagePlugins,
-  bootstrapLspRecovery,
-} from './editor/plugins/registry'
+import { bootstrapLanguagePlugins } from './editor/plugins/registry'
 import { registerEditorOpener } from './editor/navigation'
+import { superviseLspHost } from './editor/lsp/supervisor'
 
 const params = new URLSearchParams(window.location.search)
 const view = params.get('view')
@@ -18,10 +16,10 @@ const view = params.get('view')
 // Language plugins are declared in both the main and detached (code) windows so
 // an enabled grammar/server lights up wherever a file is shown.
 bootstrapLanguagePlugins()
-// Respawn language servers that crash (bounded), VS Code-style.
-bootstrapLspRecovery()
 // Route cross-file definition/reference jumps into the file-tab system.
 registerEditorOpener()
+// Main window: boot the LSP host on demand when a client window needs it.
+superviseLspHost()
 
 // The detached code window is a stripped-down satellite — no session state,
 // no chat, no PTY. Skip the session listener bootstrap so this window doesn't

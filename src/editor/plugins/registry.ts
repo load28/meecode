@@ -1,6 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import * as monaco from 'monaco-editor'
-import { listen } from '@tauri-apps/api/event'
 import { provideGrammar } from '../textmate/registry'
 import { wireTextMate } from '../textmate/tokensProvider'
 import { BUILTIN_PLUGINS } from './catalog'
@@ -33,16 +32,10 @@ function saveEnabled(): void {
   }
 }
 
-// Language servers run only in the main window; the detached code window shares
-// the same files but must not spawn a second server process per language.
-function isMainWindow(): boolean {
-  try {
-    return (
-      new URLSearchParams(window.location.search).get('view') !== 'file-panel'
-    )
-  } catch {
-    return true
-  }
+/** Whether a plugin is enabled — read by the Language Host to decide whether to
+ * spawn a server. Shared across windows via the same localStorage origin. */
+export function isPluginEnabled(id: string): boolean {
+  return enabledIds.has(id)
 }
 
 // Cached snapshot so useSyncExternalStore sees a stable reference between
@@ -101,11 +94,15 @@ async function activate(id: string): Promise<void> {
       const tm = await wireTextMate(plugin.id)
       if (tm) ds.push(tm)
     }
-    if (plugin.lsp && isMainWindow()) {
-      // Lazy: the LSP client + protocol stack loads only when a server-backed
-      // plugin is actually activated, keeping it out of the startup bundle.
-      const { startLanguageClient } = await import('../lsp/client')
-      ds.push(await startLanguageClient(plugin.id, plugin.lsp))
+    if (plugin.lsp) {
+      // Lazy: the LSP runtime (host/bridge/view + protocol stack) loads only
+      // when a server-backed plugin activates, keeping it out of startup. Every
+      // window registers provider proxies + a document mirror; the host window
+      // owns the actual server (see lsp/runtime).
+      const { getLspRuntime } = await import('../lsp/runtime')
+      const rt = getLspRuntime()
+      rt.ensureLanguage(plugin.id)
+      ds.push({ dispose: () => rt.stopLanguage(plugin.id) })
     }
   } catch (e) {
     console.error(`[plugins] failed to activate "${id}"`, e)
@@ -143,7 +140,6 @@ export function setPluginEnabled(id: string, on: boolean): void {
   if (on) {
     enabledIds.add(id)
     saveEnabled()
-    restarts.delete(id) // a deliberate enable resets the crash-restart budget
     void activate(id)
   } else {
     enabledIds.delete(id)
@@ -151,31 +147,6 @@ export function setPluginEnabled(id: string, on: boolean): void {
     deactivate(id)
   }
   emit()
-}
-
-// Bounded crash recovery: how many times we'll respawn a server that keeps
-// exiting before giving up (VS Code restarts a crashed server a few times too).
-const restarts = new Map<string, number>()
-const MAX_RESTARTS = 4
-
-/**
- * React to a language server process exiting (`lsp:exit` from the Rust bridge).
- * The dead client is torn down and, if the plugin is still enabled and hasn't
- * exhausted its restart budget, respawned. Main-window only — servers never run
- * in the satellite code window. Call once at startup.
- */
-export function bootstrapLspRecovery(): void {
-  if (!isMainWindow()) return
-  void listen<{ id: string }>('lsp:exit', (e) => {
-    const id = e.payload.id
-    const languageId = id.startsWith('lsp-') ? id.slice(4) : id
-    if (!active.has(languageId)) return
-    deactivate(languageId)
-    const n = restarts.get(languageId) ?? 0
-    if (!enabledIds.has(languageId) || n >= MAX_RESTARTS) return
-    restarts.set(languageId, n + 1)
-    void activate(languageId)
-  })
 }
 
 export function listPluginStatuses(): PluginStatus[] {
