@@ -1,5 +1,6 @@
 mod bridge;
 mod config;
+mod file_watch;
 mod files;
 mod lsp;
 mod open_files;
@@ -58,11 +59,15 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
             let a: Wrapped<files::SearchFilesArgs> = from_value(args).map_err(de)?;
             ok(files::search_files(a.args)?)
         }
-        // NOTE: list_dir's watcher-cache fast path arrives with the file-watch
-        // port (later M2 step); for now it always reads from disk.
         "list_dir" => {
-            let a: PathArg = from_value(args).map_err(de)?;
-            ok(files::read_dir_entries(&a.path)?)
+            #[derive(Deserialize)]
+            struct ListDirArgs {
+                path: String,
+                root: Option<String>,
+                refresh: Option<bool>,
+            }
+            let a: ListDirArgs = from_value(args).map_err(de)?;
+            ok(file_watch::list_dir(a.path, a.root, a.refresh)?)
         }
         "create_entry" => {
             let a: CreateEntryArgs = from_value(args).map_err(de)?;
@@ -114,6 +119,16 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
         "set_watched_files" => {
             let a: Wrapped<open_files::SetWatchedFilesArgs> = from_value(args).map_err(de)?;
             ok(open_files::set_watched_files(a.args)?)
+        }
+
+        // ── project tree watcher ───────────────────────────────────────────────
+        "watch_project" => {
+            #[derive(Deserialize)]
+            struct RootArg {
+                root: String,
+            }
+            let a: RootArg = from_value(args).map_err(de)?;
+            ok(file_watch::watch_project(a.root)?)
         }
 
         other => Err(format!("unimplemented cmd: {other}")),
