@@ -1,4 +1,5 @@
 mod bridge;
+mod claude_discovery;
 mod config;
 mod file_watch;
 mod files;
@@ -9,7 +10,7 @@ mod state;
 mod tasks;
 
 use serde::Deserialize;
-use serde_json::{from_value, to_value, Value};
+use serde_json::{from_value, json, to_value, Value};
 
 fn de(e: serde_json::Error) -> String {
     format!("bad args: {e}")
@@ -19,11 +20,29 @@ fn ok<T: serde::Serialize>(v: T) -> Result<Value, String> {
     to_value(v).map_err(|e| e.to_string())
 }
 
+/// Outer dispatch: most commands reject with a plain string error; a few
+/// (validate_claude_path) reject with a typed object, mirroring Tauri's ability
+/// to return `Result<T, E: Serialize>`. So the error channel is a `Value`.
+async fn dispatch(cmd: String, args: Value) -> Result<Value, Value> {
+    if cmd == "validate_claude_path" {
+        #[derive(Deserialize)]
+        struct A {
+            path: String,
+        }
+        let a: A = from_value(args).map_err(|e| Value::String(de(e)))?;
+        return match claude_discovery::validate_claude(&a.path).await {
+            Ok(p) => Ok(json!({ "path": p })),
+            Err(ve) => Err(to_value(ve).unwrap_or_else(|_| Value::String("validation error".into()))),
+        };
+    }
+    dispatch_inner(&cmd, args).await.map_err(Value::String)
+}
+
 /// Maps a command name + its argument object (the second arg to the renderer's
 /// `invoke`) to a result. Mirrors the Tauri command param-binding convention:
 /// scalar params are top-level fields; a single struct param named `args` is
 /// nested under `args`.
-fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
+async fn dispatch_inner(cmd: &str, args: Value) -> Result<Value, String> {
     #[derive(Deserialize)]
     struct PathArg {
         path: String,
@@ -86,6 +105,33 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
         "open_external" => {
             let a: PathArg = from_value(args).map_err(de)?;
             ok(files::open_external(a.path)?)
+        }
+
+        // ── claude path / discovery ────────────────────────────────────────────
+        "discover_claude_path" => ok(claude_discovery::discover_claude().await),
+        "set_claude_path" => {
+            #[derive(Deserialize)]
+            struct A {
+                #[serde(default)]
+                path: Option<String>,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            let normalized = a.path.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+            let mut cfg = state::get_config()?;
+            cfg.claude_path = normalized.clone();
+            state::set_config(cfg)?;
+            bridge::emit_event("claude_path:changed", json!({ "path": normalized }));
+            ok(())
+        }
+        "get_claude_status" => {
+            let path = state::get_config()?.claude_path.filter(|s| !s.trim().is_empty());
+            match path {
+                None => ok(json!({ "path": null, "ready": false, "error": null })),
+                Some(p) => match claude_discovery::validate_claude(&p).await {
+                    Ok(vp) => ok(json!({ "path": vp, "ready": true, "error": null })),
+                    Err(e) => ok(json!({ "path": p, "ready": false, "error": to_value(e).ok() })),
+                },
+            }
         }
 
         // ── config ───────────────────────────────────────────────────────────
@@ -298,3 +344,6 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
 fn main() {
     bridge::run(dispatch);
 }
+
+// `validate_claude_path` is dispatched in `dispatch` (typed error); the rest
+// flow through `dispatch_inner`.
