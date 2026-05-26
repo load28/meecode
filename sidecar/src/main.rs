@@ -1,5 +1,9 @@
 mod bridge;
+mod config;
 mod files;
+mod lsp;
+mod open_files;
+mod state;
 
 use serde::Deserialize;
 use serde_json::{from_value, to_value, Value};
@@ -76,6 +80,42 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
             let a: PathArg = from_value(args).map_err(de)?;
             ok(files::open_external(a.path)?)
         }
+
+        // ── config ───────────────────────────────────────────────────────────
+        "get_config" => ok(state::get_config()?),
+        "set_config" => {
+            #[derive(Deserialize)]
+            struct ConfigArg {
+                config: config::Config,
+            }
+            let a: ConfigArg = from_value(args).map_err(de)?;
+            ok(state::set_config(a.config)?)
+        }
+
+        // ── lsp ──────────────────────────────────────────────────────────────
+        "lsp_start" => {
+            let a: Wrapped<lsp::LspStartArgs> = from_value(args).map_err(de)?;
+            ok(lsp::lsp_start(a.args)?)
+        }
+        "lsp_send" => {
+            let a: Wrapped<lsp::LspSendArgs> = from_value(args).map_err(de)?;
+            ok(lsp::lsp_send(a.args)?)
+        }
+        "lsp_stop" => {
+            #[derive(Deserialize)]
+            struct IdArg {
+                id: String,
+            }
+            let a: IdArg = from_value(args).map_err(de)?;
+            ok(lsp::lsp_stop(a.id)?)
+        }
+
+        // ── open-files watcher ─────────────────────────────────────────────────
+        "set_watched_files" => {
+            let a: Wrapped<open_files::SetWatchedFilesArgs> = from_value(args).map_err(de)?;
+            ok(open_files::set_watched_files(a.args)?)
+        }
+
         other => Err(format!("unimplemented cmd: {other}")),
     }
 }
