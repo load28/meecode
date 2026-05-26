@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 src-tauri/target/
+sidecar/target/
 .superpowers/
 opcode/
 .serena/
