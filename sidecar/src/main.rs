@@ -2,9 +2,11 @@ mod bridge;
 mod config;
 mod file_watch;
 mod files;
+mod history;
 mod lsp;
 mod open_files;
 mod state;
+mod tasks;
 
 use serde::Deserialize;
 use serde_json::{from_value, to_value, Value};
@@ -129,6 +131,164 @@ fn dispatch(cmd: &str, args: Value) -> Result<Value, String> {
             }
             let a: RootArg = from_value(args).map_err(de)?;
             ok(file_watch::watch_project(a.root)?)
+        }
+
+        // ── history (recent projects / sessions) ───────────────────────────────
+        "list_recent_projects" => ok(history::list::list_projects()?),
+        "list_project_sessions" => {
+            let a: PathArg = from_value(args).map_err(de)?;
+            ok(history::list::list_sessions(&a.path)?)
+        }
+
+        // ── tasks (CRUD + sources + wiki) ──────────────────────────────────────
+        "list_tasks" => ok(tasks::list_tasks(&tasks::default_tasks_root())?),
+        "create_task" => {
+            #[derive(Deserialize)]
+            struct A {
+                name: String,
+                #[serde(default)]
+                description: Option<String>,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::create_task(
+                &tasks::default_tasks_root(),
+                a.args.name,
+                a.args.description.unwrap_or_default(),
+            )?)
+        }
+        "get_task" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::read_task(&tasks::default_tasks_root(), &a.task_id)?)
+        }
+        "update_task" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                #[serde(default)]
+                name: Option<String>,
+                #[serde(default)]
+                description: Option<String>,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::update_task(
+                &tasks::default_tasks_root(),
+                &a.args.task_id,
+                a.args.name,
+                a.args.description,
+            )?)
+        }
+        "delete_task" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::delete_task(&tasks::default_tasks_root(), &a.task_id)?)
+        }
+        "list_task_sources" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::list_sources(&tasks::default_tasks_root(), &a.task_id)?)
+        }
+        "create_source" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                kind: String,
+                #[serde(default)]
+                title: String,
+                content: String,
+                #[serde(default)]
+                session_id: Option<String>,
+                #[serde(default)]
+                qa_id: Option<String>,
+                #[serde(default)]
+                project_path: Option<String>,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            let a = a.args;
+            let origin = tasks::SourceOrigin {
+                session_id: a.session_id,
+                qa_id: a.qa_id,
+                project_path: a.project_path,
+            };
+            ok(tasks::create_source(
+                &tasks::default_tasks_root(),
+                &a.task_id,
+                a.kind,
+                a.title,
+                a.content,
+                origin,
+            )?)
+        }
+        "delete_source" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                source_id: String,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::delete_source(
+                &tasks::default_tasks_root(),
+                &a.args.task_id,
+                &a.args.source_id,
+            )?)
+        }
+        "list_task_wiki_files" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::list_wiki_files(&tasks::default_tasks_root(), &a.task_id)?)
+        }
+        "read_task_wiki" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                name: String,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::read_wiki_file(
+                &tasks::default_tasks_root(),
+                &a.args.task_id,
+                &a.args.name,
+            )?)
+        }
+        "write_task_wiki" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                name: String,
+                content: String,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::write_wiki_file(
+                &tasks::default_tasks_root(),
+                &a.args.task_id,
+                &a.args.name,
+                &a.args.content,
+            )?)
+        }
+        "delete_task_wiki" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+                name: String,
+            }
+            let a: Wrapped<A> = from_value(args).map_err(de)?;
+            ok(tasks::delete_wiki_file(
+                &tasks::default_tasks_root(),
+                &a.args.task_id,
+                &a.args.name,
+            )?)
         }
 
         other => Err(format!("unimplemented cmd: {other}")),
