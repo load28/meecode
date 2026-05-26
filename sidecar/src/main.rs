@@ -436,6 +436,44 @@ async fn dispatch_inner(cmd: &str, args: Value) -> Result<Value, String> {
             )?)
         }
 
+        // ── task organize / session harvest ───────────────────────────────────
+        "get_organize_preview" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::organize::get_organize_preview(a.task_id)?)
+        }
+        "start_task_organize" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::organize::run_organize(a.task_id).await?)
+        }
+        "cancel_task_organize" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::organize::cancel_task_organize(a.task_id)?)
+        }
+        "start_session_harvest" => {
+            let a: Wrapped<tasks::distill::HarvestArgs> = from_value(args).map_err(de)?;
+            ok(tasks::distill::start_session_harvest(a.args).await?)
+        }
+        "cancel_session_harvest" => {
+            #[derive(Deserialize)]
+            struct A {
+                task_id: String,
+            }
+            let a: A = from_value(args).map_err(de)?;
+            ok(tasks::distill::cancel_session_harvest(a.task_id)?)
+        }
+
         other => Err(format!("unimplemented cmd: {other}")),
     }
 }

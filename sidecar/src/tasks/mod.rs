@@ -16,6 +16,9 @@
 //! organize, and the wiki editor land in later phases.
 
 
+pub mod distill;
+pub mod organize;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
