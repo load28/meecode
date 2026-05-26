@@ -132,6 +132,7 @@ export function InnerPanelGroup({
               onCloseAll={fileTabs.closeAll}
               onSetViewMode={fileTabs.setViewMode}
               onSetMarkdownView={fileTabs.setMarkdownView}
+              onSyncTab={fileTabs.syncDisk}
               onAddSelectionToComposer={selection.addSnippet}
               onDetach={onDetachFilePanel}
             />

@@ -1,4 +1,5 @@
 .file-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -189,65 +190,19 @@
   color: #ffa198;
 }
 
-.file-panel__code {
-  position: relative;
+.file-panel__editor {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   background: var(--color-bg-base);
-  display: flex;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.55;
 }
 
-.file-panel__gutter {
-  flex-shrink: 0;
-  user-select: none;
-  text-align: right;
-  padding: 12px 8px 12px 12px;
-  color: #484f58;
-  border-right: 1px solid var(--color-bg-elevated);
-  background: #0a0f14;
-  display: flex;
-  flex-direction: column;
-}
-
-.file-panel__gutter > span {
-  display: block;
-  height: 1.55em;
-}
-
-.file-panel__code pre {
-  margin: 0;
-  padding: 12px 16px;
-  background: transparent;
-  border: none;
-  flex: 1;
-  min-width: 0;
-  overflow: visible;
-}
-
-.file-panel__code code {
-  background: transparent;
-  padding: 0;
-  color: var(--color-text-default);
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  white-space: pre;
-}
-
-.file-panel__comment {
-  position: absolute;
+/* Floating "add to composer" affordance over a Monaco selection. */
+.file-panel__editor-comment {
   z-index: 30;
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.file-panel__comment button {
+.file-panel__editor-comment button {
   background: var(--color-accent-blue);
   color: #fff;
   border: none;
@@ -256,9 +211,11 @@
   font-size: 12px;
   cursor: pointer;
   font-family: var(--font-ui);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.file-panel__comment button:hover {
+.file-panel__editor-comment button:hover {
   background: #388bfd;
 }
 
@@ -268,6 +225,152 @@
   color: var(--color-accent-blue-soft);
   font-size: 8px;
   line-height: 1;
+}
+
+/*
+ * Dirty (unsaved) editors show a dot in place of the close ×, which reverts to
+ * × on hover so the tab stays closable — VS Code's behavior. The two glyphs
+ * are stacked and toggled with CSS so no per-frame React work is needed.
+ */
+.file-panel__tab-close-dot {
+  display: none;
+  color: var(--color-text-default);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.file-panel__tab-close-x {
+  display: inline;
+  line-height: 1;
+}
+
+.file-panel__tab.is-dirty .file-panel__tab-close-dot {
+  display: inline;
+}
+
+.file-panel__tab.is-dirty .file-panel__tab-close-x {
+  display: none;
+}
+
+.file-panel__tab.is-dirty .file-panel__tab-close:hover .file-panel__tab-close-dot {
+  display: none;
+}
+
+.file-panel__tab.is-dirty .file-panel__tab-close:hover .file-panel__tab-close-x {
+  display: inline;
+}
+
+/* ── IntelliJ-style "File Cache Conflict" dialog ──────────────────────── */
+.file-conflict__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(1, 4, 9, 0.6);
+}
+
+.file-conflict__dialog {
+  width: min(440px, 90%);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.file-conflict__title {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-strong);
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.file-conflict__body {
+  padding: 14px 16px;
+  color: var(--color-text-default);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.file-conflict__body p {
+  margin: 0 0 8px;
+}
+
+.file-conflict__body code {
+  font-family: var(--font-mono);
+  color: var(--color-accent-blue-pale);
+}
+
+.file-conflict__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border-muted);
+  justify-content: flex-end;
+}
+
+.file-conflict__actions button {
+  background: var(--color-accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.file-conflict__actions button:hover {
+  background: #388bfd;
+}
+
+.file-conflict__actions .file-conflict__dismiss {
+  background: transparent;
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-muted);
+}
+
+.file-conflict__actions .file-conflict__dismiss:hover {
+  background: var(--color-bg-base);
+  color: var(--color-text-default);
+}
+
+.file-conflict__diff {
+  width: min(1100px, 94%);
+  height: min(680px, 88%);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.file-conflict__diff-head {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.file-conflict__diff-head span {
+  flex: 1;
+  padding: 8px 14px;
+}
+
+.file-conflict__diff-head span:first-child {
+  border-right: 1px solid var(--color-border-muted);
+}
+
+.file-conflict__diff-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .file-panel__mode-toggle {

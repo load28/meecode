@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { MainHeader } from './MainHeader'
 import { MainBanners } from './MainBanners'
 import { MainBody } from './MainBody'
@@ -16,6 +16,7 @@ import { useSessionLifecycle } from '../../hooks/useSessionLifecycle'
 import { useSyncEffect } from '../../hooks/useSyncEffect'
 import { useCapturePicker } from '../../hooks/useCapturePicker'
 import { useExpandedPair } from '../../hooks/useExpandedPair'
+import { setWorkspaceRoot } from '../../editor/lsp/workspace'
 
 export interface MainLayoutProps {
   tabId: string
@@ -74,6 +75,9 @@ export function MainLayout({
   const { tasks } = useTasks()
 
   useSyncEffect(onSessionTitleChange, sessionTitle)
+  // Track the active project as the LSP workspace root so servers index the
+  // right tree. (Per-window single root; matches the active tab's project.)
+  useEffect(() => setWorkspaceRoot(projectPath), [projectPath])
   useSessionLifecycle({
     tabId,
     projectPath,

@@ -1,4 +1,5 @@
 import type { FileTab } from '../../hooks/useFileTabs'
+import { useDirty } from '../../state/workingCopyStore'
 import { basename } from './utils'
 
 interface Props {
@@ -28,42 +29,13 @@ export function FileTabsBar({
   return (
     <div className="file-panel__tabs" role="tablist">
       {tabs.map((t) => (
-        <div
+        <FileTabItem
           key={t.path}
-          role="tab"
-          aria-selected={t.path === activePath}
-          className={
-            'file-panel__tab' + (t.path === activePath ? ' is-active' : '')
-          }
-        >
-          <button
-            type="button"
-            className="file-panel__tab-button"
-            onClick={() => onSelect(t.path)}
-            title={t.title ?? t.path}
-          >
-            <span className="file-panel__tab-name">
-              {t.title ?? basename(t.path)}
-            </span>
-            {t.pending && (
-              <span
-                className="file-panel__tab-marker"
-                aria-label="변경 사항 있음"
-                title="변경 사항 있음"
-              >
-                ●
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            className="file-panel__tab-close"
-            onClick={() => onClose(t.path)}
-            aria-label="탭 닫기"
-          >
-            ×
-          </button>
-        </div>
+          tab={t}
+          active={t.path === activePath}
+          onSelect={onSelect}
+          onClose={onClose}
+        />
       ))}
       {tabs.length > 1 && (
         <button
@@ -95,6 +67,64 @@ export function FileTabsBar({
           ⊟ 도킹
         </button>
       )}
+    </div>
+  )
+}
+
+interface ItemProps {
+  tab: FileTab
+  active: boolean
+  onSelect: (path: string) => void
+  onClose: (path: string) => void
+}
+
+function FileTabItem({ tab, active, onSelect, onClose }: ItemProps) {
+  // Unsaved user edits. VS Code turns the close × into a dot for dirty editors
+  // (and back to × on hover so it stays closable).
+  const dirty = useDirty(tab.virtual ? null : tab.path)
+
+  return (
+    <div
+      role="tab"
+      aria-selected={active}
+      className={
+        'file-panel__tab' +
+        (active ? ' is-active' : '') +
+        (dirty ? ' is-dirty' : '')
+      }
+    >
+      <button
+        type="button"
+        className="file-panel__tab-button"
+        onClick={() => onSelect(tab.path)}
+        title={tab.title ?? tab.path}
+      >
+        <span className="file-panel__tab-name">
+          {tab.title ?? basename(tab.path)}
+        </span>
+        {tab.pending && (
+          <span
+            className="file-panel__tab-marker"
+            aria-label="Claude 변경 사항 있음"
+            title="Claude 변경 사항 있음"
+          >
+            ●
+          </span>
+        )}
+      </button>
+      <button
+        type="button"
+        className="file-panel__tab-close"
+        onClick={() => onClose(tab.path)}
+        aria-label={dirty ? '저장되지 않은 변경 — 탭 닫기' : '탭 닫기'}
+      >
+        <span className="file-panel__tab-close-dot" aria-hidden="true">
+          ●
+        </span>
+        <span className="file-panel__tab-close-x" aria-hidden="true">
+          ×
+        </span>
+      </button>
     </div>
   )
 }

@@ -1,5 +1,9 @@
 import type { ClaudeStatus } from '../../hooks/useClaudeStatus'
 import { useClaudePathForm } from './useClaudePathForm'
+import {
+  setPluginEnabled,
+  usePluginStatuses,
+} from '../../editor/plugins/registry'
 import './SettingsPanel.css'
 
 interface Props {
@@ -88,8 +92,47 @@ export function SettingsPanel({ open: visible, onClose, status, onChanged }: Pro
             </button>
           </div>
         </section>
+        <LanguagePluginsSection />
       </div>
     </div>
+  )
+}
+
+function LanguagePluginsSection() {
+  const plugins = usePluginStatuses()
+  return (
+    <section className="settings-panel__section">
+      <div className="settings-panel__label-row">
+        <label>언어 플러그인</label>
+      </div>
+      <p className="settings-panel__hint">
+        VS Code처럼 문법 하이라이팅·자동완성을 언어별 플러그인으로 추가합니다.
+        켜면 해당 언어 파일을 열 때 문법(TextMate)과 언어 서버(LSP)가 로드됩니다.
+      </p>
+      <ul className="settings-plugins">
+        {plugins.map(({ plugin, enabled, active }) => (
+          <li key={plugin.id} className="settings-plugins__item">
+            <label className="settings-plugins__toggle">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setPluginEnabled(plugin.id, e.target.checked)}
+              />
+              <span className="settings-plugins__name">{plugin.label}</span>
+            </label>
+            <span className="settings-plugins__meta">
+              {(plugin.extensions ?? []).join(' ')}
+              {plugin.lsp && <span className="settings-plugins__badge">LSP</span>}
+              {enabled && active && (
+                <span className="settings-plugins__badge settings-plugins__badge--on">
+                  활성
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

@@ -1,16 +1,17 @@
 import { useMemo } from 'react'
 import type {
+  DiskPatch,
   FileTab,
   FileViewMode,
   MarkdownView,
 } from '../../hooks/useFileTabs'
 import type { CodeSnippet } from '../../types/composer'
 import { LOADING } from '../../utils/messages'
-import { highlight } from './highlight'
+import { useFileSave } from '../../hooks/useFileSave'
 import { FileTabsBar } from './FileTabsBar'
 import { FileBodyViewer } from './FileBodyViewer'
 import { FileMetaBar } from './FileMetaBar'
-import { useCodeSelection } from './useCodeSelection'
+import { FileConflictDialog } from './FileConflictDialog'
 import './FilePanel.css'
 
 interface Props {
@@ -21,6 +22,8 @@ interface Props {
   onCloseAll: () => void
   onSetViewMode?: (path: string, mode: FileViewMode) => void
   onSetMarkdownView?: (path: string, view: MarkdownView) => void
+  /** Refresh a tab's on-disk baseline after save / external-change reload. */
+  onSyncTab: (path: string, patch: DiskPatch) => void
   onAddSelectionToComposer: (snippet: CodeSnippet) => void
   // Inline mode passes onDetach (pop into satellite window). The detached
   // window passes onDock (collapse back into main). Exactly one of the two
@@ -37,6 +40,7 @@ export function FilePanel({
   onCloseAll,
   onSetViewMode,
   onSetMarkdownView,
+  onSyncTab,
   onAddSelectionToComposer,
   onDetach,
   onDock,
@@ -47,24 +51,19 @@ export function FilePanel({
   )
 
   const {
-    selection,
-    codeRef,
-    handleMouseUp,
-    clear: clearSelection,
-  } = useCodeSelection(activePath)
-
-  const highlighted = useMemo(() => {
-    if (!active) return ''
-    return highlight(active.content, active.language)
-  }, [active])
+    conflict,
+    save,
+    resolveLoadDisk,
+    resolveKeepMemory,
+    resolveMerged,
+    dismissConflict,
+  } = useFileSave(tabs, onSyncTab)
 
   const isMarkdown = active?.language === 'markdown'
   const showingDiff = active?.viewMode === 'diff' && !!active.pending
-
-  const lineCount = useMemo(() => {
-    if (!active) return 0
-    return active.content.split('\n').length
-  }, [active])
+  // Real, in-bounds files are editable; virtual content and truncated files
+  // (where we only loaded a prefix) stay read-only to avoid clobbering disk.
+  const readOnly = !active || !!active.virtual || active.truncated
 
   if (tabs.length === 0) {
     return (
@@ -117,16 +116,21 @@ export function FilePanel({
           {!active.loading && !active.error && (
             <FileBodyViewer
               tab={active}
-              highlighted={highlighted}
-              lineCount={lineCount}
-              selection={selection}
-              codeRef={codeRef}
-              onMouseUp={handleMouseUp}
-              onClearSelection={clearSelection}
+              readOnly={readOnly}
+              onSave={() => void save(active.path)}
               onAddSelectionToComposer={onAddSelectionToComposer}
             />
           )}
         </div>
+      )}
+      {conflict && (
+        <FileConflictDialog
+          conflict={conflict}
+          onLoadDisk={resolveLoadDisk}
+          onKeepMemory={() => void resolveKeepMemory()}
+          onMerged={(merged) => void resolveMerged(merged)}
+          onDismiss={dismissConflict}
+        />
       )}
     </aside>
   )

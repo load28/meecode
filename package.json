@@ -22,10 +22,15 @@
     "framer-motion": "^11.18.2",
     "highlight.js": "^11.11.1",
     "marked": "^15.0.12",
+    "monaco-editor": "^0.55.1",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-resizable-panels": "^2.1.7"
+    "react-resizable-panels": "^2.1.7",
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-languageserver-protocol": "^3.17.5",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

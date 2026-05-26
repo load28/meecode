@@ -22,6 +22,11 @@ export interface FileTab {
   language: string
   size: number
   truncated: boolean
+  /**
+   * Disk modification time (epoch-ms) at last load/save. With `size` it forms
+   * the editor's save-conflict "etag" — see useFileSave / write_file.
+   */
+  mtimeMs: number
   loading: boolean
   error: string | null
   /** Pending Edit/Write payload; null for plain reads. */
@@ -62,6 +67,7 @@ interface BackendFile {
   language: string
   size: number
   truncated: boolean
+  mtime_ms: number
 }
 
 export interface OpenOptions {
@@ -79,8 +85,20 @@ export interface UseFileTabsResult {
   setActive: (path: string) => void
   setViewMode: (path: string, mode: FileViewMode) => void
   setMarkdownView: (path: string, view: MarkdownView) => void
+  /**
+   * Refresh a tab's on-disk baseline after a save or external-change reload —
+   * keeps `content`/`size`/`mtimeMs` (the save-conflict signature) in sync
+   * with what's actually on disk. The live Monaco model is updated separately.
+   */
+  syncDisk: (path: string, patch: DiskPatch) => void
   close: (path: string) => void
   closeAll: () => void
+}
+
+export interface DiskPatch {
+  content: string
+  mtimeMs: number
+  size: number
 }
 
 const EMPTY_FILE_TABS: FileTab[] = []
@@ -125,6 +143,7 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
           language: 'plaintext',
           size: 0,
           truncated: false,
+          mtimeMs: 0,
           loading: true,
           error: null,
           pending,
@@ -138,7 +157,16 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
       setTabs((prev) =>
         prev.map((t) =>
           t.path === path
-            ? { ...t, ...r, loading: false, error: null }
+            ? {
+                ...t,
+                content: r.content,
+                language: r.language,
+                size: r.size,
+                truncated: r.truncated,
+                mtimeMs: r.mtime_ms,
+                loading: false,
+                error: null,
+              }
             : t,
         ),
       )
@@ -162,6 +190,7 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
         language,
         size: new Blob([content]).size,
         truncated: false,
+        mtimeMs: 0,
         loading: false,
         error: null,
         pending: null,
@@ -206,6 +235,24 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
     [setTabs],
   )
 
+  const syncDisk = useCallback(
+    (path: string, patch: DiskPatch) => {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.path === path
+            ? {
+                ...t,
+                content: patch.content,
+                mtimeMs: patch.mtimeMs,
+                size: patch.size,
+              }
+            : t,
+        ),
+      )
+    },
+    [setTabs],
+  )
+
   const close = useCallback(
     (path: string) => {
       const cur = peekTabState<FileTab[]>(tabId, 'fileTabs', EMPTY_FILE_TABS)
@@ -232,6 +279,7 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
     setActive,
     setViewMode,
     setMarkdownView,
+    syncDisk,
     close,
     closeAll,
   }

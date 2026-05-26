@@ -840,9 +840,22 @@ pub struct FileContent {
     pub language: String,
     pub size: u64,
     pub truncated: bool,
+    /// Disk modification time in epoch-ms. Paired with `size` it forms the
+    /// editor's "etag" for save-time conflict detection (VS Code uses the same
+    /// `(mtime, size)` signature).
+    pub mtime_ms: u64,
 }
 
 const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+/// Modification time of `meta` as epoch-milliseconds (0 when unavailable).
+fn mtime_ms_of(meta: &std::fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
 
 fn detect_language(path: &str) -> &'static str {
     let lower = path.to_lowercase();
@@ -904,6 +917,77 @@ pub fn read_file_text(path: String) -> Result<FileContent, String> {
         language,
         size,
         truncated,
+        mtime_ms: mtime_ms_of(&meta),
+    })
+}
+
+#[derive(serde::Serialize)]
+pub struct FileStat {
+    pub mtime_ms: u64,
+    pub size: u64,
+}
+
+#[tauri::command]
+pub fn stat_file(path: String) -> Result<FileStat, String> {
+    let meta = std::fs::metadata(&path).map_err(|e| format!("metadata: {e}"))?;
+    if !meta.is_file() {
+        return Err("not a file".into());
+    }
+    Ok(FileStat {
+        mtime_ms: mtime_ms_of(&meta),
+        size: meta.len(),
+    })
+}
+
+#[derive(Deserialize)]
+pub struct WriteFileArgs {
+    pub path: String,
+    pub content: String,
+    /// Last-known disk signature. When present (and `force` is false) the
+    /// write is refused if the file on disk has diverged since — mirroring VS
+    /// Code's `FILE_MODIFIED_SINCE` dirty-write guard.
+    pub expected_mtime_ms: Option<u64>,
+    pub expected_size: Option<u64>,
+    /// Skip the divergence check and overwrite unconditionally ("Keep Memory
+    /// Changes" / "Overwrite" in the conflict dialog).
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// Result of a `write_file`. `Conflict` means nothing was written because the
+/// on-disk file diverged from `expected_*`; the caller resolves it (reload,
+/// overwrite, or diff) before retrying.
+#[derive(serde::Serialize)]
+#[serde(tag = "status", rename_all = "lowercase")]
+pub enum WriteOutcome {
+    Written { mtime_ms: u64, size: u64 },
+    Conflict { mtime_ms: u64, size: u64 },
+}
+
+#[tauri::command]
+pub fn write_file(args: WriteFileArgs) -> Result<WriteOutcome, String> {
+    use std::fs;
+    if !args.force {
+        if let (Some(em), Some(es)) = (args.expected_mtime_ms, args.expected_size) {
+            if let Ok(meta) = fs::metadata(&args.path) {
+                if meta.is_file() {
+                    let cur_m = mtime_ms_of(&meta);
+                    let cur_s = meta.len();
+                    if cur_m != em || cur_s != es {
+                        return Ok(WriteOutcome::Conflict {
+                            mtime_ms: cur_m,
+                            size: cur_s,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    fs::write(&args.path, args.content.as_bytes()).map_err(|e| format!("write: {e}"))?;
+    let meta = fs::metadata(&args.path).map_err(|e| format!("metadata: {e}"))?;
+    Ok(WriteOutcome::Written {
+        mtime_ms: mtime_ms_of(&meta),
+        size: meta.len(),
     })
 }
 

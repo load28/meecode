@@ -1,0 +1,80 @@
+{
+  "scopeName": "source.toml",
+  "name": "TOML",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#tableHeader" },
+    { "include": "#keyValue" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.toml",
+      "match": "#.*$"
+    },
+    "tableHeader": {
+      "match": "^\\s*(\\[\\[?)\\s*([^\\]]+?)\\s*(\\]\\]?)",
+      "captures": {
+        "1": { "name": "punctuation.definition.table.toml" },
+        "2": { "name": "entity.name.section.toml" },
+        "3": { "name": "punctuation.definition.table.toml" }
+      }
+    },
+    "keyValue": {
+      "begin": "([A-Za-z0-9_.\\-\"']+)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "variable.other.key.toml" },
+        "2": { "name": "punctuation.separator.key-value.toml" }
+      },
+      "end": "$",
+      "patterns": [{ "include": "#value" }]
+    },
+    "value": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#string" },
+        { "include": "#boolean" },
+        { "include": "#datetime" },
+        { "include": "#number" }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.basic.toml",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.triple.literal.toml",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.double.toml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.toml", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.literal.toml",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "boolean": {
+      "name": "constant.language.boolean.toml",
+      "match": "\\b(true|false)\\b"
+    },
+    "datetime": {
+      "name": "constant.other.datetime.toml",
+      "match": "\\b\\d{4}-\\d{2}-\\d{2}([Tt ]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([Zz]|[+-]\\d{2}:\\d{2})?)?\\b"
+    },
+    "number": {
+      "name": "constant.numeric.toml",
+      "match": "[+-]?(0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|(\\d[\\d_]*)(\\.[\\d_]+)?([eE][+-]?\\d+)?|inf|nan)\\b"
+    }
+  }
+}
