@@ -63,6 +63,18 @@ export function registerWorkingCopy(
   emit(path)
 }
 
+/**
+ * Stop tracking `path` (the file's tab closed and its model is being disposed).
+ * Drops the content listener and the entry so nothing leaks per closed file.
+ */
+export function unregisterWorkingCopy(path: string): void {
+  const e = entries.get(path)
+  if (!e) return
+  e.disposeListener()
+  entries.delete(path)
+  emit(path)
+}
+
 /** Mark the current model content as the saved baseline (clears dirty). */
 export function markClean(path: string): void {
   const e = entries.get(path)

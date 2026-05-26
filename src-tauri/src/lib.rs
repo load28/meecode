@@ -6,6 +6,7 @@ pub mod file_watch;
 pub mod history;
 pub mod lsp;
 pub mod mcp_server;
+pub mod open_files;
 pub mod tasks;
 
 use commands::AppState;
@@ -17,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .manage(lsp::LspState::default())
+        .manage(open_files::OpenFilesState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -80,6 +82,7 @@ pub fn run() {
             lsp::lsp_start,
             lsp::lsp_send,
             lsp::lsp_stop,
+            open_files::set_watched_files,
             commands::open_external,
             commands::get_config,
             commands::set_config,

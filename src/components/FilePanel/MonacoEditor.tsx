@@ -8,11 +8,14 @@ import {
   setupMonaco,
 } from '../../editor/monacoSetup'
 import {
+  flushPendingDisposals,
   getOrCreateModel,
   saveViewState,
+  setTruncated,
   takeViewState,
   toMonacoLanguage,
 } from '../../editor/models'
+import { consumePendingReveal } from '../../editor/navigation'
 import { ensureLanguageActivated } from '../../editor/plugins/registry'
 import { isDirty, markClean, registerWorkingCopy } from '../../state/workingCopyStore'
 
@@ -55,14 +58,33 @@ export function MonacoEditor({
       theme: EDITOR_THEME,
       automaticLayout: true,
       fontFamily: EDITOR_FONT_FAMILY,
+      fontLigatures: true,
       fontSize: 13,
       lineHeight: 20,
       minimap: { enabled: true },
       scrollBeyondLastLine: false,
       renderWhitespace: 'selection',
+      renderLineHighlight: 'all',
       smoothScrolling: true,
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: 'on',
+      // Indentation defaults; Monaco overrides per-file from detected content,
+      // so Go/Python tabs aren't forced to 2 spaces.
       tabSize: 2,
+      detectIndentation: true,
       fixedOverflowWidgets: true,
+      // VS Code-grade affordances now that real language features back them.
+      bracketPairColorization: { enabled: true },
+      guides: { bracketPairs: 'active', indentation: true, highlightActiveIndentation: true },
+      matchBrackets: 'always',
+      occurrencesHighlight: 'singleFile',
+      stickyScroll: { enabled: true },
+      linkedEditing: true,
+      inlayHints: { enabled: 'on' },
+      suggest: { preview: true, showStatusBar: true },
+      suggestSelection: 'first',
+      padding: { top: 6, bottom: 6 },
+      scrollbar: { verticalScrollbarSize: 14, horizontalScrollbarSize: 14 },
     })
     editorRef.current = editor
 
@@ -143,6 +165,8 @@ export function MonacoEditor({
 
     const model = getOrCreateModel(tab)
     registerWorkingCopy(tab.path, model)
+    // Record truncation before activating so the LSP layer skips partial files.
+    setTruncated(tab.path, !tab.virtual && tab.truncated)
     // Activation trigger: bring up the language's plugin (grammar / server) the
     // first time a file of that language is shown, if the user enabled it.
     ensureLanguageActivated(toMonacoLanguage(tab.language))
@@ -158,8 +182,18 @@ export function MonacoEditor({
       if (vs) editor.restoreViewState(vs)
       editor.focus()
     }
+    // A cross-file Go-to-Definition / reference jump routed through here leaves
+    // a target range to reveal once the file is shown.
+    const reveal = consumePendingReveal(tab.path)
+    if (reveal) {
+      editor.setSelection(reveal)
+      editor.revealRangeInCenterIfOutsideViewport(reveal)
+      editor.focus()
+    }
+    // Any model closed while it was still on screen can now be disposed.
+    flushPendingDisposals()
     currentPathRef.current = tab.path
-  }, [tab.path, tab.content, tab.language, tab.virtual])
+  }, [tab.path, tab.content, tab.language, tab.virtual, tab.truncated])
 
   useEffect(() => {
     editorRef.current?.updateOptions({ readOnly })

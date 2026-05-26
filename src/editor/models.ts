@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor'
 import type { FileTab } from '../hooks/useFileTabs'
+import { isDirty, unregisterWorkingCopy } from '../state/workingCopyStore'
 
 /**
  * Maps our backend language labels (see `detect_language` in commands.rs) to
@@ -63,4 +64,58 @@ export function takeViewState(
   path: string,
 ): monaco.editor.ICodeEditorViewState | null {
   return viewStates.get(path) ?? null
+}
+
+// Real files whose content was only partially loaded (a prefix). Tracked so the
+// LSP layer can skip them — sending a truncated body would make the server
+// diagnose against a file it thinks is complete.
+const truncatedPaths = new Set<string>()
+
+export function setTruncated(path: string, isTruncated: boolean): void {
+  if (isTruncated) truncatedPaths.add(path)
+  else truncatedPaths.delete(path)
+}
+
+export function isTruncatedPath(path: string): boolean {
+  return truncatedPaths.has(path)
+}
+
+// Models pending disposal: closing a tab while its model is still attached to a
+// live editor must defer the dispose until the editor swaps away (disposing an
+// attached model throws inside Monaco's layout loop). Keyed by path.
+const pendingDispose = new Map<string, FileTab>()
+
+function tryRelease(tab: FileTab): boolean {
+  const model = monaco.editor.getModel(modelUriFor(tab))
+  if (!model) {
+    viewStates.delete(tab.path)
+    return true
+  }
+  if (model.isAttachedToEditor()) return false
+  // Disposing fires the model's `onWillDispose` (→ LSP `didClose`); also drop
+  // our dirty-tracking entry and saved view state so nothing leaks per file.
+  unregisterWorkingCopy(tab.path)
+  viewStates.delete(tab.path)
+  setTruncated(tab.path, false)
+  model.dispose()
+  return true
+}
+
+/**
+ * Release a closed tab's Monaco model — VS Code drops a closed editor's model,
+ * freeing memory and notifying language servers. Dirty real files are kept
+ * alive so unsaved edits survive a reopen (mirrors VS Code's hot-exit). If the
+ * model is still on screen, disposal is deferred to the next editor swap.
+ */
+export function releaseTabModel(tab: FileTab): void {
+  if (!tab.virtual && isDirty(tab.path)) return
+  if (!tryRelease(tab)) pendingDispose.set(tab.path, tab)
+}
+
+/** Dispose any models that were closed while still attached and have since
+ * detached. Called after an editor model swap and as a post-close safety net. */
+export function flushPendingDisposals(): void {
+  for (const [path, tab] of pendingDispose) {
+    if (tryRelease(tab)) pendingDispose.delete(path)
+  }
 }

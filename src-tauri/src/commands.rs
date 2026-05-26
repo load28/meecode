@@ -849,7 +849,7 @@ pub struct FileContent {
 const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
 
 /// Modification time of `meta` as epoch-milliseconds (0 when unavailable).
-fn mtime_ms_of(meta: &std::fs::Metadata) -> u64 {
+pub fn mtime_ms_of(meta: &std::fs::Metadata) -> u64 {
     meta.modified()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())

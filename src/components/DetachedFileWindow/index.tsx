@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useFileTabs } from '../../hooks/useFileTabs'
+import { setEditorOpenHandler } from '../../editor/navigation'
 import type { CodeSnippet } from '../../types/composer'
 import { LOADING } from '../../utils/messages'
 import { FilePanel } from '../FilePanel'
@@ -16,6 +18,16 @@ export function DetachedFileWindow() {
   // a main-window tab.
   const fileTabs = useFileTabs('detached')
   const { hydrated } = useDetachedFileEvents(fileTabs)
+
+  // This window owns its own editor, so route its cross-file jumps locally.
+  const { open: openTab, setActive: setActiveTab } = fileTabs
+  useEffect(() => {
+    setEditorOpenHandler((path) => {
+      void openTab(path)
+      setActiveTab(path)
+    })
+    return () => setEditorOpenHandler(null)
+  }, [openTab, setActiveTab])
 
   const handleAddSnippet = (snippet: CodeSnippet) => {
     void emitTo(DETACHED_MAIN_LABEL, 'composer:add-context', snippet)

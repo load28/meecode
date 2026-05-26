@@ -17,6 +17,7 @@ import { useSyncEffect } from '../../hooks/useSyncEffect'
 import { useCapturePicker } from '../../hooks/useCapturePicker'
 import { useExpandedPair } from '../../hooks/useExpandedPair'
 import { setWorkspaceRoot } from '../../editor/lsp/workspace'
+import { setEditorOpenHandler } from '../../editor/navigation'
 
 export interface MainLayoutProps {
   tabId: string
@@ -107,6 +108,22 @@ export function MainLayout({
   const fileTabs = useFileTabs(tabId)
   const { isDetached, detach, openFile, openContent } =
     useDetachedFilePanel(fileTabs)
+
+  // Cross-file definition/reference jumps open in whichever window owns the
+  // panel. When detached, the satellite window registers its own handler and
+  // main has no editor, so clear ours to avoid opening tabs in an empty panel.
+  const { open: openTab, setActive: setActiveTab } = fileTabs
+  useEffect(() => {
+    if (isDetached) {
+      setEditorOpenHandler(null)
+      return
+    }
+    setEditorOpenHandler((path) => {
+      void openTab(path)
+      setActiveTab(path)
+    })
+    return () => setEditorOpenHandler(null)
+  }, [isDetached, openTab, setActiveTab])
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file

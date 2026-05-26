@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import * as monaco from 'monaco-editor'
+import { listen } from '@tauri-apps/api/event'
 import { provideGrammar } from '../textmate/registry'
 import { wireTextMate } from '../textmate/tokensProvider'
 import { BUILTIN_PLUGINS } from './catalog'
@@ -142,6 +143,7 @@ export function setPluginEnabled(id: string, on: boolean): void {
   if (on) {
     enabledIds.add(id)
     saveEnabled()
+    restarts.delete(id) // a deliberate enable resets the crash-restart budget
     void activate(id)
   } else {
     enabledIds.delete(id)
@@ -149,6 +151,31 @@ export function setPluginEnabled(id: string, on: boolean): void {
     deactivate(id)
   }
   emit()
+}
+
+// Bounded crash recovery: how many times we'll respawn a server that keeps
+// exiting before giving up (VS Code restarts a crashed server a few times too).
+const restarts = new Map<string, number>()
+const MAX_RESTARTS = 4
+
+/**
+ * React to a language server process exiting (`lsp:exit` from the Rust bridge).
+ * The dead client is torn down and, if the plugin is still enabled and hasn't
+ * exhausted its restart budget, respawned. Main-window only — servers never run
+ * in the satellite code window. Call once at startup.
+ */
+export function bootstrapLspRecovery(): void {
+  if (!isMainWindow()) return
+  void listen<{ id: string }>('lsp:exit', (e) => {
+    const id = e.payload.id
+    const languageId = id.startsWith('lsp-') ? id.slice(4) : id
+    if (!active.has(languageId)) return
+    deactivate(languageId)
+    const n = restarts.get(languageId) ?? 0
+    if (!enabledIds.has(languageId) || n >= MAX_RESTARTS) return
+    restarts.set(languageId, n + 1)
+    void activate(languageId)
+  })
 }
 
 export function listPluginStatuses(): PluginStatus[] {
