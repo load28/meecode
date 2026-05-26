@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { open as openDialog } from '@tauri-apps/plugin-dialog'
+import { invoke } from '../../platform/ipc'
+import { dialogOpen as openDialog } from '../../platform/ipc'
 import {
   formatValidationError,
   type ClaudeStatus,

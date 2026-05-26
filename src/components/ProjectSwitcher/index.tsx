@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
+import { invoke } from '../../platform/ipc'
+import { dialogOpen as open } from '../../platform/ipc'
 import { useClickOutside } from '../../hooks/useClickOutside'
 import { logBackendError } from '../../utils/log'
 import { RecentProjectsList, type ProjectInfo } from './RecentProjectsList'

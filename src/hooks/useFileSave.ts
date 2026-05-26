@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { invoke } from '../platform/ipc'
+import { listen } from '../platform/ipc'
 import * as monaco from 'monaco-editor'
 import type { DiskPatch, FileTab } from './useFileTabs'
 import { isDirty, markClean } from '../state/workingCopyStore'

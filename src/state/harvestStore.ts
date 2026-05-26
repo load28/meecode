@@ -10,7 +10,7 @@
  * Backend events: `harvest:start`, `harvest:assistant`, `harvest:done`,
  * `harvest:error`, `harvest:exit`, `harvest:cancelled`, `harvest:stderr`.
  */
-import { listen } from '@tauri-apps/api/event'
+import { listen } from '../platform/ipc'
 import type { HarvestStatus } from '../types/task'
 
 export interface HarvestState {

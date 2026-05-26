@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import type { QaPair } from '../types'
 import type { Source, Task } from '../types/task'
 import { buildTaskContextMessage, TASK_CONTEXT_TOOL } from '../utils/taskContext'

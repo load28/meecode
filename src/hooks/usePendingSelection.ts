@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { listen } from '@tauri-apps/api/event'
+import { listen } from '../platform/ipc'
 import type { CodeSnippet } from '../types/composer'
 import { useTabState } from '../state/tabViewStore'
 

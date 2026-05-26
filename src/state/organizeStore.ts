@@ -7,7 +7,7 @@
  * `organize:cancelled`, `organize:tool`) flip the slot; the UI reads
  * it via `useTaskOrganize(taskId)`.
  */
-import { listen } from '@tauri-apps/api/event'
+import { listen } from '../platform/ipc'
 import type { OrganizeStatus } from '../types/task'
 
 export interface OrganizeState {

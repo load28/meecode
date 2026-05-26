@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import { peekTabState, useTabState } from '../state/tabViewStore'
 import { flushPendingDisposals, releaseTabModel } from '../editor/models'
 
