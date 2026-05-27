@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { ExpandPane } from '../ExpandPane'
 import { FilePanel } from '../FilePanel'
@@ -40,6 +41,8 @@ interface Props {
   isExpandOpen: boolean
   onToggleExpand: () => void
   isDetached: boolean
+  /** Aux-window mount point when the panel is detached (window.open). */
+  auxContainer: HTMLElement | null
   onDetachFilePanel: () => void
   selection: SelectionApi
   onCapture: (input: CaptureSource) => void
@@ -64,6 +67,7 @@ export function InnerPanelGroup({
   isExpandOpen,
   onToggleExpand,
   isDetached,
+  auxContainer,
   onDetachFilePanel,
   selection,
   onCapture,
@@ -71,6 +75,20 @@ export function InnerPanelGroup({
   onOpenFile,
   onOpenSettings,
 }: Props) {
+  const filePanel = (
+    <FilePanel
+      tabs={fileTabs.tabs}
+      activePath={fileTabs.activePath}
+      onSelect={fileTabs.setActive}
+      onClose={fileTabs.close}
+      onCloseAll={fileTabs.closeAll}
+      onSetViewMode={fileTabs.setViewMode}
+      onSetMarkdownView={fileTabs.setMarkdownView}
+      onSyncTab={fileTabs.syncDisk}
+      onAddSelectionToComposer={selection.addSnippet}
+      onDetach={onDetachFilePanel}
+    />
+  )
   return (
     <PanelGroup
       direction="horizontal"
@@ -124,21 +142,14 @@ export function InnerPanelGroup({
         <>
           <PanelResizeHandle className="resize-handle" />
           <Panel id="file" order={3} defaultSize={35} minSize={20}>
-            <FilePanel
-              tabs={fileTabs.tabs}
-              activePath={fileTabs.activePath}
-              onSelect={fileTabs.setActive}
-              onClose={fileTabs.close}
-              onCloseAll={fileTabs.closeAll}
-              onSetViewMode={fileTabs.setViewMode}
-              onSetMarkdownView={fileTabs.setMarkdownView}
-              onSyncTab={fileTabs.syncDisk}
-              onAddSelectionToComposer={selection.addSnippet}
-              onDetach={onDetachFilePanel}
-            />
+            {filePanel}
           </Panel>
         </>
       )}
+      {/* Detached: the same panel is portaled into the shared-renderer aux
+          window (window.open). One Monaco/registry, so tabs/models persist
+          across detach↔dock. */}
+      {isDetached && auxContainer && createPortal(filePanel, auxContainer)}
     </PanelGroup>
   )
 }
