@@ -6,3 +6,4 @@ sidecar/target/
 .superpowers/
 opcode/
 .serena/
+dist-electron/
