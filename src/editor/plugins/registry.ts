@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import * as monaco from 'monaco-editor'
+import { listen } from '../../platform/ipc'
 import { provideGrammar } from '../textmate/registry'
 import { wireTextMate } from '../textmate/tokensProvider'
 import { BUILTIN_PLUGINS } from './catalog'
@@ -95,14 +96,11 @@ async function activate(id: string): Promise<void> {
       if (tm) ds.push(tm)
     }
     if (plugin.lsp) {
-      // Lazy: the LSP runtime (host/bridge/view + protocol stack) loads only
-      // when a server-backed plugin activates, keeping it out of startup. Every
-      // window registers provider proxies + a document mirror; the host window
-      // owns the actual server (see lsp/runtime).
-      const { getLspRuntime } = await import('../lsp/runtime')
-      const rt = getLspRuntime()
-      rt.ensureLanguage(plugin.id)
-      ds.push({ dispose: () => rt.stopLanguage(plugin.id) })
+      // Lazy: the LSP client + protocol stack loads only when a server-backed
+      // plugin activates, keeping it out of startup. One client per language in
+      // the single renderer (auxiliary windows share Monaco's registry).
+      const { startLanguageClient } = await import('../lsp/client')
+      ds.push(await startLanguageClient(plugin.id, plugin.lsp))
     }
   } catch (e) {
     console.error(`[plugins] failed to activate "${id}"`, e)
@@ -147,6 +145,29 @@ export function setPluginEnabled(id: string, on: boolean): void {
     deactivate(id)
   }
   emit()
+}
+
+// Bounded crash recovery: how many times we'll respawn a server that keeps
+// exiting before giving up (VS Code restarts a crashed server a few times too).
+const restarts = new Map<string, number>()
+const MAX_RESTARTS = 4
+
+/**
+ * React to a language server process exiting (`lsp:exit` from the backend).
+ * The dead client is torn down and, if the plugin is still enabled and hasn't
+ * exhausted its restart budget, respawned. Call once at startup.
+ */
+export function bootstrapLspRecovery(): void {
+  void listen<{ id: string }>('lsp:exit', (e) => {
+    const id = e.payload.id
+    const languageId = id.startsWith('lsp-') ? id.slice(4) : id
+    if (!active.has(languageId)) return
+    deactivate(languageId)
+    const n = restarts.get(languageId) ?? 0
+    if (!enabledIds.has(languageId) || n >= MAX_RESTARTS) return
+    restarts.set(languageId, n + 1)
+    void activate(languageId)
+  })
 }
 
 export function listPluginStatuses(): PluginStatus[] {
