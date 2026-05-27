@@ -19,12 +19,15 @@ export default defineConfig({
       rollupOptions: { external: ['electron'] },
     },
   },
+  // The renderer is the real app (repo-root index.html → src/main.tsx). The
+  // M0/M0.5 spike under electron/renderer is kept for reference but no longer
+  // the entry.
   renderer: {
-    root: 'electron/renderer',
+    root: '.',
     plugins: [react()],
     build: {
       outDir: 'out/renderer',
-      rollupOptions: { input: 'electron/renderer/index.html' },
+      rollupOptions: { input: 'index.html' },
     },
   },
 })

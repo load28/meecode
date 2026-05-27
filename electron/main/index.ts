@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Sidecar } from './sidecar'
@@ -81,6 +81,27 @@ app.whenReady().then(() => {
   ipcMain.handle('sidecar', async (_e, { cmd, args }: { cmd: string; args: unknown }) =>
     sidecar.request(cmd, camelToSnakeTopLevel(args)),
   )
+
+  // Native dialog / shell — Tauri's plugin-dialog + opener equivalents. The
+  // open dialog maps Tauri's `OpenDialogOptions` shape to Electron's and
+  // returns `string | string[] | null` to match the old plugin-dialog `open`.
+  ipcMain.handle('dialog:open', async (_e, opts: Record<string, unknown> | undefined) => {
+    const o = opts ?? {}
+    const properties: Array<'openFile' | 'openDirectory' | 'multiSelections'> = []
+    if (o.directory) properties.push('openDirectory')
+    else properties.push('openFile')
+    if (o.multiple) properties.push('multiSelections')
+    const res = await dialog.showOpenDialog({
+      properties,
+      defaultPath: typeof o.defaultPath === 'string' ? o.defaultPath : undefined,
+      title: typeof o.title === 'string' ? o.title : undefined,
+    })
+    if (res.canceled || res.filePaths.length === 0) return null
+    return o.multiple ? res.filePaths : res.filePaths[0]
+  })
+  ipcMain.handle('shell:openExternal', async (_e, url: string) => {
+    await shell.openExternal(url)
+  })
 
   // spike-only: capture both windows once the renderer reports it has opened the
   // child window and triggered completion, then write a result file and quit.

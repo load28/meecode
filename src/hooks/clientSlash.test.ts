@@ -8,6 +8,11 @@ const invokeMock = vi.fn().mockResolvedValue(undefined)
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }))
+// The app calls the backend through the `platform/ipc` seam → `window.meecode`.
+;(window as unknown as { meecode: Record<string, unknown> }).meecode = {
+  ...((window as unknown as { meecode?: Record<string, unknown> }).meecode ?? {}),
+  invoke: (...args: unknown[]) => invokeMock(...args),
+}
 
 import {
   CLIENT_SLASH_COMMANDS,
