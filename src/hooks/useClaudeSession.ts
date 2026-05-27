@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
   getTabSnapshot,

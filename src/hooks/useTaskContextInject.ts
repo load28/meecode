@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import type { Task } from '../types/task'
 import { buildTaskContextDirective } from '../utils/taskContext'
 import { logBackendError } from '../utils/log'

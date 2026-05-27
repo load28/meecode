@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import { peekTabState, useTabState } from '../state/tabViewStore'
+import { flushPendingDisposals, releaseTabModel } from '../editor/models'
 
 export type PendingEditKind = 'edit' | 'write' | 'multiedit' | 'notebookedit'
 
@@ -256,20 +257,30 @@ export function useFileTabs(tabId: string): UseFileTabsResult {
   const close = useCallback(
     (path: string) => {
       const cur = peekTabState<FileTab[]>(tabId, 'fileTabs', EMPTY_FILE_TABS)
+      const tab = cur.find((t) => t.path === path)
       const next = cur.filter((t) => t.path !== path)
       setTabs(next)
       const active = peekTabState<string | null>(tabId, 'fileActivePath', null)
       if (path === active) {
         setActivePath(next.length ? next[next.length - 1].path : null)
       }
+      // Free the underlying Monaco model (+ LSP didClose, dirty tracking, view
+      // state). If it's still the on-screen model the editor swap will flush it.
+      if (tab) {
+        releaseTabModel(tab)
+        setTimeout(flushPendingDisposals, 0)
+      }
     },
     [tabId, setTabs, setActivePath],
   )
 
   const closeAll = useCallback(() => {
+    const cur = peekTabState<FileTab[]>(tabId, 'fileTabs', EMPTY_FILE_TABS)
     setTabs([])
     setActivePath(null)
-  }, [setTabs, setActivePath])
+    for (const tab of cur) releaseTabModel(tab)
+    setTimeout(flushPendingDisposals, 0)
+  }, [tabId, setTabs, setActivePath])
 
   return {
     tabs,

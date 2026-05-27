@@ -14,6 +14,12 @@ const invokeMock = vi.fn().mockResolvedValue(undefined)
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }))
+// The app calls the backend through the `platform/ipc` seam → `window.meecode`,
+// so intercept there (the seam no longer touches @tauri-apps directly).
+;(window as unknown as { meecode: Record<string, unknown> }).meecode = {
+  ...((window as unknown as { meecode?: Record<string, unknown> }).meecode ?? {}),
+  invoke: (...args: unknown[]) => invokeMock(...args),
+}
 
 import {
   setTab,

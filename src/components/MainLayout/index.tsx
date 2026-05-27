@@ -17,6 +17,7 @@ import { useSyncEffect } from '../../hooks/useSyncEffect'
 import { useCapturePicker } from '../../hooks/useCapturePicker'
 import { useExpandedPair } from '../../hooks/useExpandedPair'
 import { setWorkspaceRoot } from '../../editor/lsp/workspace'
+import { setEditorOpenHandler } from '../../editor/navigation'
 
 export interface MainLayoutProps {
   tabId: string
@@ -105,8 +106,20 @@ export function MainLayout({
   } = useExpandPanel(tabId, pairs)
 
   const fileTabs = useFileTabs(tabId)
-  const { isDetached, detach, openFile, openContent } =
+  const { isDetached, detach, openFile, openContent, auxContainer } =
     useDetachedFilePanel(fileTabs)
+
+  // Cross-file definition/reference jumps route to the single shared editor.
+  // Detaching only relocates the panel (window.open shares the renderer), so
+  // the same handler/tabs apply whether the panel is inline or in the aux window.
+  const { open: openTab, setActive: setActiveTab } = fileTabs
+  useEffect(() => {
+    setEditorOpenHandler((path) => {
+      void openTab(path)
+      setActiveTab(path)
+    })
+    return () => setEditorOpenHandler(null)
+  }, [openTab, setActiveTab])
   // Selection captured from a Q&A card, the expand pane, or a file panel,
   // forwarded to the composer where it becomes an inline `[코멘트 #N]`
   // placeholder. `source` is set when the selection came from the file
@@ -208,6 +221,7 @@ export function MainLayout({
         isExpandOpen={isOpen}
         onToggleExpand={toggleOpen}
         isDetached={isDetached}
+        auxContainer={auxContainer}
         onDetachFilePanel={() => {
           void detach()
         }}

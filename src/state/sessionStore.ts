@@ -14,7 +14,7 @@
  * them down. React components subscribe to per-tab snapshots via
  * `useSyncExternalStore` and never touch the listener lifecycle.
  */
-import { listen } from '@tauri-apps/api/event'
+import { listen } from '../platform/ipc'
 import type { Mode, QaPair, SlashCommand, ToolRequest } from '../types'
 import {
   makeInitialMessageState,

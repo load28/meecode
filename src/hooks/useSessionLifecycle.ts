@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import { logBackendError } from '../utils/log'
 
 interface Options {

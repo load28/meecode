@@ -31,6 +31,7 @@ interface Props {
   isExpandOpen: boolean
   onToggleExpand: () => void
   isDetached: boolean
+  auxContainer: HTMLElement | null
   onDetachFilePanel: () => void
   selection: SelectionApi
   onCapture: (input: CaptureSource) => void
@@ -72,6 +73,7 @@ export function MainBody({
   isExpandOpen,
   onToggleExpand,
   isDetached,
+  auxContainer,
   onDetachFilePanel,
   selection,
   onCapture,
@@ -125,6 +127,7 @@ export function MainBody({
             isExpandOpen={isExpandOpen}
             onToggleExpand={onToggleExpand}
             isDetached={isDetached}
+            auxContainer={auxContainer}
             onDetachFilePanel={onDetachFilePanel}
             selection={selection}
             onCapture={onCapture}

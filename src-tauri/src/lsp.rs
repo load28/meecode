@@ -12,7 +12,7 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Default)]
 pub struct LspState {
@@ -28,6 +28,11 @@ struct ServerHandle {
 struct LspMessageEvent {
     id: String,
     message: String,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct LspExitEvent {
+    id: String,
 }
 
 #[derive(Deserialize)]
@@ -79,12 +84,12 @@ pub fn lsp_start(
     let app_clone = app.clone();
     std::thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
-        loop {
+        'read: loop {
             let mut content_length: usize = 0;
             loop {
                 let mut line = String::new();
                 match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => return, // EOF or read error
+                    Ok(0) | Err(_) => break 'read, // EOF or read error
                     Ok(_) => {}
                 }
                 let trimmed = line.trim_end();
@@ -100,9 +105,12 @@ pub fn lsp_start(
             }
             let mut buf = vec![0u8; content_length];
             if reader.read_exact(&mut buf).is_err() {
-                return;
+                break 'read;
             }
             let message = String::from_utf8_lossy(&buf).into_owned();
+            // Broadcast; the frontend reader filters by server id. (Language
+            // servers run only in the main window, but the satellite window
+            // simply ignores ids it doesn't know.)
             let _ = app_clone.emit(
                 "lsp:message",
                 LspMessageEvent {
@@ -111,6 +119,16 @@ pub fn lsp_start(
                 },
             );
         }
+        // The server's stdout closed — it exited (cleanly or crashed). Drop the
+        // dead handle so a future `lsp_start` can respawn instead of seeing a
+        // stale "already running" entry, and notify the frontend to tear down
+        // its client and (optionally) re-activate the plugin.
+        if let Some(state) = app_clone.try_state::<LspState>() {
+            if let Ok(mut servers) = state.servers.lock() {
+                servers.remove(&id);
+            }
+        }
+        let _ = app_clone.emit("lsp:exit", LspExitEvent { id });
     });
 
     let mut servers = state.servers.lock().map_err(|e| e.to_string())?;
@@ -154,6 +172,8 @@ pub fn lsp_stop(state: State<LspState>, id: String) -> Result<(), String> {
     let mut servers = state.servers.lock().map_err(|e| e.to_string())?;
     if let Some(mut handle) = servers.remove(&id) {
         let _ = handle.child.kill();
+        // Reap the process so it doesn't linger as a zombie on Unix.
+        let _ = handle.child.wait();
     }
     Ok(())
 }

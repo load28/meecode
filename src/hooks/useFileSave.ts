@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
+import { listen } from '../platform/ipc'
 import * as monaco from 'monaco-editor'
 import type { DiskPatch, FileTab } from './useFileTabs'
 import { isDirty, markClean } from '../state/workingCopyStore'
+import { notifyDocumentSaved } from '../editor/lsp/saveNotifier'
 
 interface BackendFile {
   path: string
@@ -91,6 +93,7 @@ export function useFileSave(
     })
     if (res.status === 'written') {
       markClean(path)
+      notifyDocumentSaved(path)
       onSyncRef.current(path, {
         content,
         mtimeMs: res.mtime_ms,
@@ -133,6 +136,7 @@ export function useFileSave(
     if (model && model.getValue() !== content) model.setValue(content)
     if (model) markClean(path)
     if (res.status === 'written') {
+      notifyDocumentSaved(path)
       onSyncRef.current(path, {
         content,
         mtimeMs: res.mtime_ms,
@@ -160,51 +164,77 @@ export function useFileSave(
 
   const dismissConflict = useCallback(() => setConflict(null), [])
 
-  // IntelliJ-style focus refresh: when the window regains focus, check the
-  // active real file for an external change. Clean files reload silently;
-  // dirty files raise the conflict dialog.
-  useEffect(() => {
-    const onFocus = async () => {
-      if (conflictRef.current) return
-      for (const t of tabsRef.current) {
-        if (t.virtual || t.truncated || t.loading || t.error) continue
-        let stat: { mtime_ms: number; size: number }
-        try {
-          stat = await invoke<{ mtime_ms: number; size: number }>('stat_file', {
-            path: t.path,
-          })
-        } catch {
-          continue
-        }
-        if (stat.mtime_ms === t.mtimeMs && stat.size === t.size) continue
-        const disk = await invoke<BackendFile>('read_file_text', { path: t.path })
-        if (!isDirty(t.path)) {
-          const model = modelFor(t.path)
-          if (model && model.getValue() !== disk.content) {
-            model.setValue(disk.content)
-            markClean(t.path)
-          }
-          onSyncRef.current(t.path, {
-            content: disk.content,
-            mtimeMs: disk.mtime_ms,
-            size: disk.size,
-          })
-        } else if (!conflictRef.current) {
-          const model = modelFor(t.path)
-          setConflict({
-            path: t.path,
-            memoryContent: model ? model.getValue() : t.content,
-            diskContent: disk.content,
-            diskMtimeMs: disk.mtime_ms,
-            diskSize: disk.size,
-            language: disk.language,
-          })
-        }
+  // Reconcile one open file against disk: clean buffers reload silently (like
+  // IntelliJ's `reloadFromDisk` / VS Code's in-place revert), dirty buffers
+  // raise the conflict dialog rather than clobbering either side.
+  const reconcilePath = useCallback(async (path: string) => {
+    if (conflictRef.current) return
+    const t = tabsRef.current.find((tab) => tab.path === path)
+    if (!t || t.virtual || t.truncated || t.loading || t.error) return
+    let disk: BackendFile
+    try {
+      disk = await invoke<BackendFile>('read_file_text', { path })
+    } catch {
+      return
+    }
+    if (disk.mtime_ms === t.mtimeMs && disk.size === t.size) return
+    if (!isDirty(path)) {
+      const model = modelFor(path)
+      if (model && model.getValue() !== disk.content) {
+        model.setValue(disk.content)
+        markClean(path)
       }
+      onSyncRef.current(path, {
+        content: disk.content,
+        mtimeMs: disk.mtime_ms,
+        size: disk.size,
+      })
+    } else if (!conflictRef.current) {
+      const model = modelFor(path)
+      setConflict({
+        path,
+        memoryContent: model ? model.getValue() : t.content,
+        diskContent: disk.content,
+        diskMtimeMs: disk.mtime_ms,
+        diskSize: disk.size,
+        language: disk.language,
+      })
+    }
+  }, [])
+
+  // Live external-change detection: the backend watches exactly the open files
+  // and pushes `file:external-change` when one moves on disk — VS Code reloads
+  // (or flags) open editors immediately, not just on refocus. Keyed on the path
+  // set so a save / content sync doesn't needlessly rebuild the watcher.
+  const watchKey = tabs
+    .filter((t) => !t.virtual && !t.truncated && !t.loading && !t.error)
+    .map((t) => t.path)
+    .sort()
+    .join('\n')
+  useEffect(() => {
+    const paths = watchKey ? watchKey.split('\n') : []
+    void invoke('set_watched_files', { args: { paths } })
+  }, [watchKey])
+
+  useEffect(() => {
+    const un = listen<{ path: string }>('file:external-change', (e) => {
+      void reconcilePath(e.payload.path)
+    })
+    return () => {
+      void un.then((f) => f())
+    }
+  }, [reconcilePath])
+
+  // Refocus backstop: a watcher can miss events (network mounts, platform
+  // quirks), so still revalidate every open file when the window regains focus.
+  useEffect(() => {
+    const onFocus = () => {
+      if (conflictRef.current) return
+      for (const t of tabsRef.current) void reconcilePath(t.path)
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [])
+  }, [reconcilePath])
 
   return {
     conflict,

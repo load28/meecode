@@ -1,5 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { invoke, listen, type UnlistenFn } from '../../platform/ipc'
 import {
   AbstractMessageReader,
   AbstractMessageWriter,
@@ -16,14 +15,11 @@ interface LspMessageEvent {
 }
 
 /**
- * Reads server→client JSON-RPC messages off the Tauri `lsp:message` event
- * stream (the Rust side already de-framed the Content-Length envelope), filtered
- * to this server id. Messages that arrive before `listen()` is wired are queued.
+ * Reads server→client JSON-RPC messages off the `lsp:message` event stream
+ * (the backend already de-framed the Content-Length envelope), filtered to this
+ * server id. Messages arriving before `listen()` is wired are queued.
  */
-export class TauriMessageReader
-  extends AbstractMessageReader
-  implements MessageReader
-{
+export class LspMessageReader extends AbstractMessageReader implements MessageReader {
   private callback: DataCallback | null = null
   private unlisten: UnlistenFn | null = null
   private queue: Message[] = []
@@ -64,12 +60,9 @@ export class TauriMessageReader
   }
 }
 
-/** Writes client→server messages back through the Rust bridge, which re-frames
- * them onto the child process's stdin. */
-export class TauriMessageWriter
-  extends AbstractMessageWriter
-  implements MessageWriter
-{
+/** Writes client→server messages back through the backend, which re-frames them
+ * onto the child process's stdin. */
+export class LspMessageWriter extends AbstractMessageWriter implements MessageWriter {
   constructor(private readonly serverId: string) {
     super()
   }

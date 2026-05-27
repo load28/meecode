@@ -22,7 +22,7 @@
  * response locally instead, the same way the VS Code extension renders
  * its own command panel without going through the CLI.
  */
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import type { QaPair } from '../types'
 import {
   getTabSnapshot,

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../../platform/ipc'
 import type { AssistantSegment } from '../../types'
 import type { PendingEdit } from '../../hooks/useFileTabs'
 import { logBackendError } from '../../utils/log'

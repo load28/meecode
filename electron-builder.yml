@@ -1,0 +1,40 @@
+appId: com.meecode.app
+productName: MeeCode
+directories:
+  output: dist-electron
+  buildResources: build
+
+# electron-vite output (main/preload/renderer) + manifest. The renderer assets
+# live under out/renderer and are referenced by out/renderer/index.html.
+files:
+  - out/**/*
+  - package.json
+
+# The Rust sidecar ships as an unpacked resource (outside the asar) so it can be
+# spawned as a child process. `main/index.ts` resolves it via
+# `process.resourcesPath` + the per-OS binary name. Build it first:
+#   (cd sidecar && cargo build --release)
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  # Universal needs both arches built: cargo build --release --target
+  # {aarch64,x86_64}-apple-darwin + lipo, or build per-arch.
+  extraResources:
+    - from: sidecar/target/release/meecode-sidecar
+      to: meecode-sidecar
+win:
+  target:
+    - nsis
+  extraResources:
+    - from: sidecar/target/release/meecode-sidecar.exe
+      to: meecode-sidecar.exe
+linux:
+  category: Development
+  target:
+    - AppImage
+    - deb
+  extraResources:
+    - from: sidecar/target/release/meecode-sidecar
+      to: meecode-sidecar

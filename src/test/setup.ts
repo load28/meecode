@@ -34,3 +34,23 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(() => Promise.resolve()),
 }))
+
+// The renderer now talks to the backend through `window.meecode` (the Electron
+// preload bridge). Back it with the same Tauri mocks so existing assertions
+// (`expect(invokeMock)…`) keep working through the `platform/ipc` seam.
+import { invoke as invokeMock } from '@tauri-apps/api/core'
+import { listen as listenMock } from '@tauri-apps/api/event'
+
+;(window as unknown as { meecode: unknown }).meecode = {
+  invoke: (cmd: string, args?: unknown) =>
+    (invokeMock as unknown as (c: string, a?: unknown) => Promise<unknown>)(cmd, args),
+  on: (channel: string, cb: (payload: unknown) => void) => {
+    void (listenMock as unknown as (c: string, h: (e: { payload: unknown }) => void) => Promise<unknown>)(
+      channel,
+      (e) => cb(e?.payload),
+    )
+    return () => {}
+  },
+  dialogOpen: vi.fn(() => Promise.resolve(null)),
+  openExternal: vi.fn(() => Promise.resolve()),
+}

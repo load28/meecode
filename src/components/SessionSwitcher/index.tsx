@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../../platform/ipc'
 import { useClickOutside } from '../../hooks/useClickOutside'
 import { logBackendError } from '../../utils/log'
 import { SessionList, type SessionInfo } from './SessionList'

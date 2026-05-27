@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '../platform/ipc'
 import type { TabDescriptor } from '../components/SessionTabs'
 import { truncateWithEllipsis } from '../utils/format'
 import { makeTabId, MAIN_TAB_ID } from '../utils/tabId'

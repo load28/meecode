@@ -1,6 +1,7 @@
 import * as monaco from 'monaco-editor'
 import { INITIAL, type IGrammar, type StateStack } from 'vscode-textmate'
 import { loadGrammarForLanguage } from './registry'
+import { THEME_TOKEN_SCOPES } from '../monacoSetup'
 
 // Wraps a TextMate rule stack as a Monaco tokenizer state. Equality is by
 // reference: vscode-textmate returns the same StateStack when a line doesn't
@@ -15,13 +16,25 @@ class TextMateState implements monaco.languages.IState {
   }
 }
 
+function hasThemeRule(scope: string): boolean {
+  return THEME_TOKEN_SCOPES.some(
+    (rule) => scope === rule || scope.startsWith(rule + '.'),
+  )
+}
+
 /**
- * The deepest (most specific) TextMate scope becomes the Monaco token type.
- * Monaco resolves theme colors by longest dot-prefixed match, so a scope like
- * `keyword.control.toml` is colored by the `keyword` (or `keyword.control`)
- * theme rule — the same resolution VS Code's TextMate themes use.
+ * Pick the Monaco token type for a TextMate scope stack. Monaco only sees one
+ * token string and resolves its color by longest dot-prefixed rule, so passing
+ * just the deepest scope drops the color whenever that scope has no rule but an
+ * enclosing one does (e.g. `punctuation.definition.string` inside a `string`).
+ * We instead walk the stack inside-out and return the most specific scope that
+ * a theme rule actually matches — approximating, within Monaco's single-token
+ * model, the full-stack selector matching VS Code's TextMate themes perform.
  */
 function scopeToToken(scopes: string[]): string {
+  for (let i = scopes.length - 1; i >= 0; i--) {
+    if (hasThemeRule(scopes[i])) return scopes[i]
+  }
   return scopes.length ? scopes[scopes.length - 1] : ''
 }
 
