@@ -54,9 +54,22 @@ export function MonacoEditor({
     const el = containerRef.current
     if (!el) return
 
+    // When detached, this editor is portaled into a `window.open` aux window
+    // that shares the renderer. Standalone Monaco never registers that window,
+    // so two main-realm globals misbehave for aux DOM: automaticLayout's
+    // ResizeObserver (constructed in the main realm) never fires for an element
+    // in the aux document — leaving the editor frozen at its creation size, or
+    // stuck at 0 if the aux stylesheet loads after create, which reads as
+    // "editing is dead" — and the new EditContext input backend is unreliable
+    // cross-window. So in the aux window we drive layout from an observer made
+    // in its own realm and fall back to the proven textarea input.
+    const ownerWin = el.ownerDocument.defaultView ?? window
+    const isAux = ownerWin !== window
+
     const editor = monaco.editor.create(el, {
       theme: EDITOR_THEME,
-      automaticLayout: true,
+      automaticLayout: !isAux,
+      editContext: !isAux,
       fontFamily: EDITOR_FONT_FAMILY,
       fontLigatures: true,
       fontSize: 13,
@@ -87,6 +100,15 @@ export function MonacoEditor({
       scrollbar: { verticalScrollbarSize: 14, horizontalScrollbarSize: 14 },
     })
     editorRef.current = editor
+
+    // Aux window only: observe the container with the aux realm's own
+    // ResizeObserver so maximizing the window relayouts the editor to full size.
+    let resizeObs: ResizeObserver | null = null
+    if (isAux) {
+      resizeObs = new ownerWin.ResizeObserver(() => editor.layout())
+      resizeObs.observe(el)
+      editor.layout()
+    }
 
     const emitSelection = () => {
       const model = editor.getModel()
@@ -147,6 +169,7 @@ export function MonacoEditor({
         saveViewState(currentPathRef.current, editor.saveViewState())
       }
       selSub.dispose()
+      resizeObs?.disconnect()
       editor.dispose()
       editorRef.current = null
     }
