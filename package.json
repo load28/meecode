@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "electron:build": "electron-vite build",
-    "electron:dev": "electron-vite dev",
+    "electron:dev": "npm run sidecar:build:dev && electron-vite dev",
+    "sidecar:build:dev": "cd sidecar && cargo build",
     "sidecar:build": "cd sidecar && cargo build --release",
     "electron:dist": "npm run sidecar:build && electron-vite build && electron-builder"
   },
